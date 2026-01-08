@@ -67,5 +67,5 @@ def test_generate_side_by_side_diff_identical():
     
     diff = generate_side_by_side_diff(text, text, "A", "B")
     
-    # Identical texts should produce no diff markers
-    assert diff == "" or ("---" not in diff and "+++" not in diff)
+    # Identical texts should produce no diff output
+    assert diff == ""

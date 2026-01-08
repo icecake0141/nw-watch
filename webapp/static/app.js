@@ -415,11 +415,16 @@ class NetworkWatch {
             parsed.querySelectorAll('*').forEach(node => {
                 Array.from(node.attributes).forEach(attr => {
                     const name = attr.name.toLowerCase();
-                    const value = (attr.value || '').trim().toLowerCase();
+                    const value = (attr.value || '').trim();
+                    const lowerValue = value.toLowerCase();
+                    const unsafeProtocols = ['javascript:', 'vbscript:', 'data:text/html'];
                     if (name.startsWith('on')) {
                         node.removeAttribute(attr.name);
                     }
-                    if ((name === 'href' || name === 'src') && value.startsWith('javascript:')) {
+                    if ((name === 'href' || name === 'src') && unsafeProtocols.some(proto => lowerValue.startsWith(proto))) {
+                        node.removeAttribute(attr.name);
+                    }
+                    if (name === 'style' && /expression|javascript:/i.test(value)) {
                         node.removeAttribute(attr.name);
                     }
                 });
