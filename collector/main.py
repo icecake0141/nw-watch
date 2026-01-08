@@ -102,8 +102,21 @@ class DeviceCollector:
         ts_epoch = int(time.time())
         ping_host = self.device_config.get('ping_host', self.device_config['host'])
         
+        # Validate ping_host to prevent command injection
+        # Allow only valid hostnames/IPs (alphanumeric, dots, hyphens, colons for IPv6)
+        import re
+        if not re.match(r'^[a-zA-Z0-9.\-:]+$', ping_host):
+            logger.error(f"Invalid ping_host format: {ping_host}")
+            db.insert_ping_sample(
+                device_name=self.device_name,
+                ts_epoch=ts_epoch,
+                ok=False,
+                error_message='Invalid ping_host format'
+            )
+            return
+        
         try:
-            # Use subprocess to ping
+            # Use subprocess to ping with validated host
             result = subprocess.run(
                 ['ping', '-c', '1', '-W', '1', ping_host],
                 capture_output=True,

@@ -287,6 +287,16 @@ To add custom filtering logic:
 - Network devices accessible via SSH
 - Devices must support command-line interface
 
+## Security Considerations
+
+**Important**: This example configuration stores passwords in plain text. For production use:
+
+- Use environment variables for sensitive data
+- Implement encrypted configuration files
+- Use a secrets management system (e.g., HashiCorp Vault)
+- Restrict file permissions on config.yaml (e.g., `chmod 600 config.yaml`)
+- Consider using SSH key-based authentication where supported
+
 ## License
 
 MIT License
