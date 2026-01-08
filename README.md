@@ -2,6 +2,8 @@
 
 A Python-based network monitoring system that collects command outputs and ping data from multiple network devices via SSH and displays them in a real-time web interface with diff capabilities.
 
+> 日本語: [README.ja.md](README.ja.md) / Web UI スクリーンショット: [docs/webui-screenshots.md](docs/webui-screenshots.md)
+
 ## Features
 
 - **Multi-Device SSH Collection**: Connect to multiple network devices and execute commands in parallel
