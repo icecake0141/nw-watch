@@ -2,7 +2,7 @@
 
 Web UI の主要な機能をスクリーンショットで示します。表示内容はダミーデータを用いた例です。
 
-![Web UI overview](/docs/images/webui-overview.png)
+![Web UI overview](images/webui-overview.png)
 
 ## 画面の見どころ
 
