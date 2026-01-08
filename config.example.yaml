@@ -1,0 +1,60 @@
+# Network Watch Configuration Example
+
+# Data collection settings
+collector:
+  interval_seconds: 5  # How often to run commands on devices
+  ping_interval_seconds: 1  # How often to ping devices
+  max_runs_per_command: 10  # Number of historical runs to keep per device/command
+
+# Network devices to monitor
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    port: 22
+    username: "admin"
+    password: "password123"
+    device_type: "cisco_ios"  # netmiko device type
+    ping_host: "192.168.1.1"  # Host to ping for connectivity check
+    commands:
+      - "show version"
+      - "show interfaces status"
+      - "show ip interface brief"
+
+  - name: "DeviceB"
+    host: "192.168.1.2"
+    port: 22
+    username: "admin"
+    password: "password123"
+    device_type: "cisco_ios"
+    ping_host: "192.168.1.2"
+    commands:
+      - "show version"
+      - "show interfaces status"
+      - "show ip interface brief"
+
+# Output filtering and truncation
+filters:
+  # Global line exclusion patterns (substring matching)
+  # Lines containing these substrings will be removed from output
+  global_line_exclusions:
+    - "Temperature"
+    - "Last input"
+  
+  # Per-command line exclusions override global settings
+  # Use command text as key
+  command_line_exclusions:
+    "show version":
+      - "uptime"
+    
+  # Optional: Mark entire output as filtered if it contains these substrings
+  output_exclusions:
+    - "% Invalid"
+    - "% Ambiguous"
+  
+  # Maximum number of lines to keep (truncate if exceeded)
+  max_output_lines: 500
+
+# Web application settings
+webapp:
+  history_size: 10  # Maximum number of runs to show in history
+  ping_window_seconds: 60  # Time window for ping status display
