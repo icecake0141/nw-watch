@@ -144,8 +144,8 @@ async def get_history_diff(command: str, device: str):
         latest = runs[0]
         previous = runs[1]
         
-        previous_text = previous.get('output_text', '') or ''
-        latest_text = latest.get('output_text', '') or ''
+        previous_text = previous.get('output_text', '')
+        latest_text = latest.get('output_text', '')
         diff = generate_side_by_side_diff(
             previous_text,
             latest_text,
@@ -183,8 +183,8 @@ async def get_device_diff(command: str, device_a: str, device_b: str):
                 "diff_format": "text"
             })
         
-        run_a_text = run_a.get('output_text', '') or ''
-        run_b_text = run_b.get('output_text', '') or ''
+        run_a_text = run_a.get('output_text', '')
+        run_b_text = run_b.get('output_text', '')
         diff = generate_side_by_side_diff(
             run_a_text,
             run_b_text,
