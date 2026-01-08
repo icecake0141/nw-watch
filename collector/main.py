@@ -2,13 +2,15 @@
 import argparse
 import asyncio
 import logging
-import time
 import shutil
 import subprocess
-from pathlib import Path
-from typing import Dict, Any, Optional
+import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from netmiko import ConnectHandler
+
 from shared.config import Config
 from shared.db import Database
 from shared.filters import process_output
@@ -28,27 +30,36 @@ class DeviceCollector:
         self.device_config = device_config
         self.config = config
         self.device_name = device_config['name']
+        self.max_output_lines = self.config.get_max_output_lines()
     
     def execute_command(self, command: str, db: Database) -> None:
         """Execute a single command on the device."""
         start_time = time.time()
         ts_epoch = int(start_time)
         
-        # Get line exclusions
-        command_exclusions = self.config.get_command_line_exclusions(command)
-        if command_exclusions is None:
-            line_exclusions = self.config.get_global_line_exclusions()
-        else:
-            line_exclusions = command_exclusions
+        # Get filters (command-specific overrides global)
+        line_exclusions = self.config.get_command_line_exclusions(command)
+        output_exclusions = self.config.get_command_output_exclusions(command)
         
         try:
+            password_env_key = self.device_config.get("password_env_key")
+            password = self.config.get_device_password(self.device_config)
+            if password is None:
+                if password_env_key:
+                    raise ValueError(
+                        f"Password not provided for device '{self.device_name}'; set environment variable '{password_env_key}'"
+                    )
+                raise ValueError(
+                    f"Password not provided for device '{self.device_name}' and no password_env_key set in config"
+                )
+
             # Connect to device
             connection = ConnectHandler(
                 device_type=self.device_config['device_type'],
                 host=self.device_config['host'],
                 port=self.device_config.get('port', 22),
                 username=self.device_config['username'],
-                password=self.device_config['password'],
+                password=password,
             )
             
             # Execute command
@@ -61,8 +72,8 @@ class DeviceCollector:
             processed_output, is_filtered, is_truncated, original_line_count = process_output(
                 output,
                 line_exclusions=line_exclusions,
-                output_exclusions=self.config.get_output_exclusions(),
-                max_lines=self.config.get_max_output_lines()
+                output_exclusions=output_exclusions,
+                max_lines=self.max_output_lines
             )
             
             # Store in database
@@ -174,11 +185,34 @@ class Collector:
         self.session_db_path = self.data_dir / f'session_{session_epoch}.sqlite3'
         self.current_db_path = self.data_dir / 'current.sqlite3'
         
-        self.db = Database(str(self.session_db_path))
+        self.db = Database(
+            str(self.session_db_path),
+            history_size=self.config.get_history_size()
+        )
         logger.info(f"Created session database: {self.session_db_path}")
         
         self.executor = ThreadPoolExecutor(max_workers=20)
         self.running = True
+        self.commands: List[str] = self._resolve_commands()
+
+    def _resolve_commands(self) -> List[str]:
+        """Build command list honoring global commands or per-device fallbacks."""
+        configured_commands = self.config.get_commands()
+        if configured_commands:
+            # Use global command list
+            return [cmd.get("command_text") for cmd in configured_commands]
+        # Legacy per-device commands; assume all devices share same list
+        all_cmds: List[str] = []
+        for dev in self.devices:
+            all_cmds.extend(dev.get("commands", []))
+        # Preserve order, remove duplicates
+        seen = set()
+        ordered: List[str] = []
+        for cmd in all_cmds:
+            if cmd not in seen:
+                ordered.append(cmd)
+                seen.add(cmd)
+        return ordered
     
     async def collect_commands(self):
         """Collect commands from all devices."""
@@ -187,9 +221,7 @@ class Collector:
         
         for device_config in self.devices:
             collector = DeviceCollector(device_config, self.config)
-            commands = device_config.get('commands', [])
-            
-            for command in commands:
+            for command in self.commands:
                 # Run in thread pool to avoid blocking
                 future = loop.run_in_executor(
                     self.executor,
@@ -228,20 +260,23 @@ class Collector:
     
     def _update_current_db(self):
         """Atomically replace current.sqlite3 with session database."""
-        try:
-            # Copy session db to temp file
-            tmp_path = self.data_dir / 'current.sqlite3.tmp'
-            shutil.copy2(self.session_db_path, tmp_path)
-            
-            # Delete old current.sqlite3 if exists
-            if self.current_db_path.exists():
-                self.current_db_path.unlink()
-            
-            # Rename tmp to current
-            tmp_path.rename(self.current_db_path)
-            
-        except Exception as e:
-            logger.error(f"Error updating current database: {e}")
+        delay = 1
+        for attempt in range(5):
+            try:
+                tmp_path = self.data_dir / 'current.sqlite3.tmp'
+                shutil.copy2(self.session_db_path, tmp_path)
+
+                if self.current_db_path.exists():
+                    self.current_db_path.unlink()
+
+                tmp_path.rename(self.current_db_path)
+                return
+            except Exception as e:
+                logger.error(f"Error updating current database (attempt {attempt+1}): {e}")
+                if attempt == 4:
+                    return
+                time.sleep(min(5, delay))
+                delay = min(5, delay * 2)
     
     async def run(self):
         """Main collection loop."""

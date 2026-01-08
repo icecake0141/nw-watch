@@ -116,6 +116,27 @@ def test_get_runs(client):
     assert device_a_runs[0]["output_text"] == "Version 1.0"
 
 
+def test_get_runs_excludes_filtered(client):
+    """Filtered runs should not appear in API responses."""
+    db = Database('data/current.sqlite3')
+    db.insert_run(
+        device_name="DeviceA",
+        command_text="show version",
+        ts_epoch=1000005,
+        output_text="filtered run",
+        ok=True,
+        is_filtered=True,
+        original_line_count=1
+    )
+    db.close()
+
+    response = client.get("/api/runs/show%20version")
+    assert response.status_code == 200
+    data = response.json()
+    device_a_runs = data["runs"]["DeviceA"]
+    assert all(run["is_filtered"] == 0 for run in device_a_runs)
+
+
 def test_get_runs_single_device(client):
     """Test getting runs for single device."""
     response = client.get("/api/runs/show%20version?device=DeviceA")
@@ -173,6 +194,8 @@ def test_get_ping_status(client):
     assert "status" in device_a_status
     assert "success_rate" in device_a_status
     assert "total_samples" in device_a_status
+    assert "timeline" in device_a_status
+    assert len(device_a_status["timeline"]) == 60
 
 
 def test_get_config(client):

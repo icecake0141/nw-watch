@@ -131,6 +131,30 @@ def test_cleanup_old_runs(temp_db):
     assert runs[-1]['ts_epoch'] == 1000005
 
 
+def test_filtered_runs_excluded_by_default(temp_db):
+    """Filtered runs should not be returned unless requested."""
+    temp_db.insert_run(
+        device_name="Device1",
+        command_text="show version",
+        ts_epoch=1000000,
+        output_text="filtered output",
+        ok=True,
+        is_filtered=True,
+        original_line_count=1
+    )
+
+    # Default excludes filtered
+    runs = temp_db.get_latest_runs("Device1", "show version", limit=5)
+    assert runs == []
+
+    # Explicitly include filtered
+    runs_with_filtered = temp_db.get_latest_runs(
+        "Device1", "show version", limit=5, include_filtered=True
+    )
+    assert len(runs_with_filtered) == 1
+    assert runs_with_filtered[0]["is_filtered"] == 1
+
+
 def test_get_latest_run(temp_db):
     """Test getting single latest run."""
     temp_db.insert_run(
