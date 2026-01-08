@@ -34,21 +34,53 @@ Copy the example configuration and edit it with your device details:
 cp config.example.yaml config.yaml
 ```
 
-Edit `config.yaml` to add your network devices:
+Edit `config.yaml` (and export passwords) to add your network devices:
+
+```bash
+export DEVICEA_PASSWORD="password123"
+export DEVICEB_PASSWORD="password123"
+```
 
 ```yaml
+interval_seconds: 5
+ping_interval_seconds: 1
+ping_window_seconds: 60
+history_size: 10
+max_output_lines: 500
+
+global_filters:
+  line_exclude_substrings:
+    - "Temperature"
+  output_exclude_substrings:
+    - "% Invalid"
+
+commands:
+  - name: "show_version"
+    command_text: "show version"
+    filters:
+      line_exclude_substrings:
+        - "uptime"
+  - name: "interfaces_status"
+    command_text: "show interfaces status"
+  - name: "ip_int_brief"
+    command_text: "show ip interface brief"
+
 devices:
   - name: "DeviceA"
     host: "192.168.1.1"
     port: 22
     username: "admin"
-    password: "password123"
+    password_env_key: "DEVICEA_PASSWORD"
     device_type: "cisco_ios"  # netmiko device type
     ping_host: "192.168.1.1"
-    commands:
-      - "show version"
-      - "show interfaces status"
-      - "show ip interface brief"
+
+  - name: "DeviceB"
+    host: "192.168.1.2"
+    port: 22
+    username: "admin"
+    password_env_key: "DEVICEB_PASSWORD"
+    device_type: "cisco_ios"
+    ping_host: "192.168.1.2"
 ```
 
 ### 3. Start the Collector
@@ -118,57 +150,33 @@ nw-watch/
 
 ## Configuration
 
-### Collector Settings
+### Core settings
 
-```yaml
-collector:
-  interval_seconds: 5          # Command execution interval
-  ping_interval_seconds: 1     # Ping interval
-  max_runs_per_command: 10     # History depth per command
-```
+- `interval_seconds`: Command execution interval (seconds)
+- `ping_interval_seconds`: Ping interval (seconds)
+- `ping_window_seconds`: Window for ping timeline tiles
+- `history_size`: Number of runs to keep per device/command
+- `max_output_lines`: Max lines retained after filtering (truncates above this)
 
-### Device Configuration
+### Devices
 
-Each device requires:
-- `name`: Unique identifier
-- `host`: IP address or hostname
-- `port`: SSH port (default: 22)
-- `username`: SSH username
-- `password`: SSH password
-- `device_type`: Netmiko device type (e.g., `cisco_ios`, `juniper_junos`)
-- `ping_host`: Host to ping for connectivity checks
-- `commands`: List of CLI commands to execute
+- `name`, `host`, `port`, `device_type`, `ping_host`
+- `username`
+- `password_env_key`: **Environment variable name** that holds the SSH password
 
-### Output Filtering
+### Commands
 
-```yaml
-filters:
-  # Remove lines containing these substrings
-  global_line_exclusions:
-    - "Temperature"
-    - "Last input"
-  
-  # Per-command overrides
-  command_line_exclusions:
-    "show version":
-      - "uptime"
-  
-  # Mark output as filtered if it contains these
-  output_exclusions:
-    - "% Invalid"
-    - "% Ambiguous"
-  
-  # Truncate output to N lines
-  max_output_lines: 500
-```
+Commands are defined once and run against each device. Each command supports optional filters and a `sort_order` for tab ordering.
 
-### Web Application Settings
+- `command_text`: CLI command
+- `filters.line_exclude_substrings`: Override global line filters
+- `filters.output_exclude_substrings`: Mark run as filtered/hidden when matched
 
-```yaml
-webapp:
-  history_size: 10             # Max runs to display in UI
-  ping_window_seconds: 60      # Time window for ping status
-```
+### Filters
+
+- `global_filters.line_exclude_substrings`: remove matching lines from output
+- `global_filters.output_exclude_substrings`: mark run as filtered (hidden in UI)
+- Command-level filters override the global lists.
 
 ## Database Schema
 
@@ -190,10 +198,9 @@ The system uses SQLite with the following schema:
 ## Web UI Features
 
 ### Device Connectivity Panel
-- Real-time ping status tiles (green/red)
-- Success rate percentage
+- Real-time 60-second ping timeline tiles (left: past, right: latest)
+- Success rate percentage and sample counts
 - Average RTT
-- Sample counts
 
 ### Command Tabs
 - One tab per unique command
@@ -203,11 +210,12 @@ The system uses SQLite with the following schema:
 ### Diff Views
 - **Previous vs Latest**: Compare consecutive runs for the same device
 - **Device A vs Device B**: Compare outputs between devices
+- Highlighted line-level differences (green/red)
 
 ### Auto-Refresh Control
-- Pause/Resume button to stop automatic updates
-- Manual refresh button for on-demand updates
-- Independent polling intervals for runs and pings
+- Pause/Resume button to stop automatic updates (on-screen banner when paused)
+- Manual refresh button for on-demand updates, even while paused
+- Polling intervals derived from `interval_seconds` and `ping_interval_seconds`
 
 ## Running Tests
 
@@ -289,11 +297,10 @@ To add custom filtering logic:
 
 ## Security Considerations
 
-**Important**: This example configuration stores passwords in plain text. For production use:
+**Important**: Store credentials in environment variables (preferred). The default config uses `password_env_key` so plaintext passwords are unnecessary. For production use:
 
-- Use environment variables for sensitive data
-- Implement encrypted configuration files
-- Use a secrets management system (e.g., HashiCorp Vault)
+- Keep secrets in environment variables or a secret manager
+- Implement encrypted configuration files if required
 - Restrict file permissions on config.yaml (e.g., `chmod 600 config.yaml`)
 - Consider using SSH key-based authentication where supported
 

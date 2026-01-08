@@ -114,6 +114,31 @@ header h1 {
     margin: 4px 0;
 }
 
+.ping-timeline {
+    display: grid;
+    grid-template-columns: repeat(60, minmax(3px, 1fr));
+    gap: 2px;
+    margin-top: 10px;
+}
+
+.ping-cell {
+    height: 10px;
+    border-radius: 2px;
+    background-color: #e2e3e5;
+}
+
+.ping-cell.ok {
+    background-color: #28a745;
+}
+
+.ping-cell.fail {
+    background-color: #dc3545;
+}
+
+.ping-cell.unknown {
+    background-color: #adb5bd;
+}
+
 /* Command Tabs */
 .command-tabs {
     background: white;
@@ -329,6 +354,10 @@ header h1 {
     color: #f44336;
 }
 
+.diff-output .diff-hunk {
+    color: #ffd166;
+}
+
 /* Timestamp */
 .timestamp {
     font-family: monospace;
@@ -340,6 +369,20 @@ header h1 {
     text-align: center;
     padding: 40px;
     color: #999;
+}
+
+.pause-banner {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: #ffc107;
+    color: #212529;
+    padding: 8px 12px;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    z-index: 1000;
+    display: none;
+    font-weight: 600;
 }
 
 /* Responsive */

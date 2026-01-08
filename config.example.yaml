@@ -1,60 +1,51 @@
 # Network Watch Configuration Example
 
-# Data collection settings
-collector:
-  interval_seconds: 5  # How often to run commands on devices
-  ping_interval_seconds: 1  # How often to ping devices
-  max_runs_per_command: 10  # Number of historical runs to keep per device/command
+# Core intervals and history
+interval_seconds: 5              # Command execution interval
+ping_interval_seconds: 1         # Ping interval
+ping_window_seconds: 60          # Window (seconds) for ping tiles
+history_size: 10                 # Max runs per device/command to keep
+max_output_lines: 500            # Truncate outputs after filtering
 
-# Network devices to monitor
+# Global filters applied to every command (unless command override exists)
+global_filters:
+  line_exclude_substrings:
+    - "Temperature"
+    - "Last input"
+  # Mark entire run as filtered (hidden from UI) if substring exists
+  output_exclude_substrings:
+    - "% Invalid"
+    - "% Ambiguous"
+
+# Commands are defined once and executed against each device
+commands:
+  - name: "show_version"
+    command_text: "show version"
+    sort_order: 1
+    filters:
+      line_exclude_substrings:
+        - "uptime"
+  - name: "interfaces_status"
+    command_text: "show interfaces status"
+    sort_order: 2
+  - name: "ip_int_brief"
+    command_text: "show ip interface brief"
+    sort_order: 3
+
+# Devices to monitor
 devices:
   - name: "DeviceA"
     host: "192.168.1.1"
     port: 22
     username: "admin"
-    password: "password123"
-    device_type: "cisco_ios"  # netmiko device type
-    ping_host: "192.168.1.1"  # Host to ping for connectivity check
-    commands:
-      - "show version"
-      - "show interfaces status"
-      - "show ip interface brief"
+    password_env_key: "DEVICEA_PASSWORD"  # Read password from environment
+    device_type: "cisco_ios"              # netmiko device type
+    ping_host: "192.168.1.1"
 
   - name: "DeviceB"
     host: "192.168.1.2"
     port: 22
     username: "admin"
-    password: "password123"
+    password_env_key: "DEVICEB_PASSWORD"
     device_type: "cisco_ios"
     ping_host: "192.168.1.2"
-    commands:
-      - "show version"
-      - "show interfaces status"
-      - "show ip interface brief"
-
-# Output filtering and truncation
-filters:
-  # Global line exclusion patterns (substring matching)
-  # Lines containing these substrings will be removed from output
-  global_line_exclusions:
-    - "Temperature"
-    - "Last input"
-  
-  # Per-command line exclusions override global settings
-  # Use command text as key
-  command_line_exclusions:
-    "show version":
-      - "uptime"
-    
-  # Optional: Mark entire output as filtered if it contains these substrings
-  output_exclusions:
-    - "% Invalid"
-    - "% Ambiguous"
-  
-  # Maximum number of lines to keep (truncate if exceeded)
-  max_output_lines: 500
-
-# Web application settings
-webapp:
-  history_size: 10  # Maximum number of runs to show in history
-  ping_window_seconds: 60  # Time window for ping status display

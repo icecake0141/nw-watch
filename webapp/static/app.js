@@ -13,6 +13,7 @@ class NetworkWatch {
         };
         this.runPollTimer = null;
         this.pingPollTimer = null;
+        this.pauseBanner = null;
         
         this.init();
     }
@@ -86,10 +87,22 @@ class NetworkWatch {
         if (this.autoRefresh) {
             btn.textContent = '⏸ Pause Auto-Refresh';
             this.startPolling();
+            this.showPauseBanner(false);
         } else {
             btn.textContent = '▶ Resume Auto-Refresh';
             this.stopPolling();
+            this.showPauseBanner(true);
         }
+    }
+
+    showPauseBanner(show) {
+        if (!this.pauseBanner) {
+            this.pauseBanner = document.createElement('div');
+            this.pauseBanner.className = 'pause-banner';
+            this.pauseBanner.textContent = 'Auto-refresh paused';
+            document.body.appendChild(this.pauseBanner);
+        }
+        this.pauseBanner.style.display = show ? 'block' : 'none';
     }
     
     async manualRefresh() {
@@ -351,11 +364,7 @@ class NetworkWatch {
             const data = await response.json();
             
             const diffOutput = document.getElementById(`diff-${device}`);
-            if (data.has_diff) {
-                diffOutput.textContent = data.diff || 'No differences found';
-            } else {
-                diffOutput.textContent = data.diff || 'Not enough history for comparison';
-            }
+            this.renderDiff(diffOutput, data.diff, data.has_diff ? 'No differences found' : 'Not enough history for comparison');
         } catch (error) {
             console.error('Error loading history diff:', error);
         }
@@ -369,14 +378,47 @@ class NetworkWatch {
             const data = await response.json();
             
             const diffOutput = document.getElementById(`diff-${deviceA}`);
-            if (data.has_diff) {
-                diffOutput.textContent = data.diff || 'No differences found';
-            } else {
-                diffOutput.textContent = data.diff || 'Data not available for both devices';
-            }
+            const fallback = data.has_diff ? 'No differences found' : 'Data not available for both devices';
+            this.renderDiff(diffOutput, data.diff, fallback);
         } catch (error) {
             console.error('Error loading device diff:', error);
         }
+    }
+
+    escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    renderDiff(element, diffText, fallbackMessage) {
+        if (!diffText || diffText.length === 0) {
+            element.textContent = fallbackMessage;
+            return;
+        }
+
+        const lines = diffText.split('\n');
+        if (lines.length === 0 || lines.every(l => l.trim() === '')) {
+            element.textContent = fallbackMessage;
+            return;
+        }
+
+        const html = lines.map(line => {
+            let cls = '';
+            if (line.startsWith('+')) {
+                cls = 'diff-add';
+            } else if (line.startsWith('-')) {
+                cls = 'diff-remove';
+            } else if (line.startsWith('@@')) {
+                cls = 'diff-hunk';
+            }
+            return `<div class="${cls}">${this.escapeHtml(line)}</div>`;
+        }).join('');
+
+        element.innerHTML = html;
     }
     
     async updatePingStatus() {
@@ -417,6 +459,25 @@ class NetworkWatch {
             `;
             
             tile.appendChild(stats);
+
+            // Timeline tiles (oldest -> newest)
+            const timelineWrapper = document.createElement('div');
+            timelineWrapper.className = 'ping-timeline';
+
+            (status.timeline || []).forEach(result => {
+                const cell = document.createElement('div');
+                cell.className = 'ping-cell';
+                if (result === true) {
+                    cell.classList.add('ok');
+                } else if (result === false) {
+                    cell.classList.add('fail');
+                } else {
+                    cell.classList.add('unknown');
+                }
+                timelineWrapper.appendChild(cell);
+            });
+
+            tile.appendChild(timelineWrapper);
             container.appendChild(tile);
         }
         
