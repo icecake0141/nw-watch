@@ -23,6 +23,10 @@ dev = [
     "httpx>=0.26.0",
 ]
 
+[tool.setuptools.packages.find]
+include = ["collector*", "webapp*", "shared*"]
+exclude = ["tests*", "data*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

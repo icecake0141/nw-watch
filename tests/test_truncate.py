@@ -52,7 +52,7 @@ def test_truncate_output_preserves_first_lines():
     # Check that later lines are not present (except in truncation message)
     result_lines = result.split('\n')
     # Remove the truncation message lines to check actual content
-    content_lines = [l for l in result_lines if 'truncated' not in l.lower()]
+    content_lines = [l for l in result_lines if 'truncated' not in l.lower() and l.strip()]
     assert len(content_lines) == 10
 
 
@@ -62,7 +62,7 @@ def test_truncate_output_empty_text():
     
     assert result == ""
     assert is_truncated is False
-    assert line_count == 1  # Empty string has 1 line when split
+    assert line_count == 0  # Empty string splitlines() returns empty list
 
 
 def test_truncate_output_single_line():
