@@ -40,6 +40,8 @@ Python製のネットワーク監視ツールです。複数のネットワー�
    uvicorn webapp.main:app --reload --host 127.0.0.1 --port 8000
    ```
 
+   ※ `--reload` は開発向けの自動リロードオプションです。本番運用では省略し、プロセスマネージャーなどで常駐させてください。
+
 5. ブラウザでUIへアクセス
 
    ```
@@ -49,6 +51,7 @@ Python製のネットワーク監視ツールです。複数のネットワー�
 ## 追加ドキュメント
 
 - Web UIの機能説明とスクリーンショット: [`docs/webui-screenshots.md`](docs/webui-screenshots.md)
+- アーキテクチャ、セキュリティ、トラブルシューティング、ライセンスの詳細: [README.md](README.md)
 
 ## テスト
 
