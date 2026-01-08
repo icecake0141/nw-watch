@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Watch</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Network Watch - Dual Device Monitor</h1>
+            <div class="controls">
+                <button id="toggleAutoRefresh" class="btn">⏸ Pause Auto-Refresh</button>
+                <button id="manualRefresh" class="btn">🔄 Refresh Now</button>
+            </div>
+        </header>
+
+        <section class="ping-status">
+            <h2>Device Connectivity</h2>
+            <div id="pingTiles" class="ping-tiles">
+                <!-- Ping tiles will be inserted here -->
+            </div>
+        </section>
+
+        <section class="command-tabs">
+            <h2>Command Outputs</h2>
+            <div id="commandTabs" class="tabs">
+                <!-- Command tabs will be inserted here -->
+            </div>
+            <div id="commandContent" class="tab-content">
+                <!-- Command content will be inserted here -->
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
