@@ -48,6 +48,10 @@ def generate_side_by_side_diff(
     
     Returns:
         HTML table representing side-by-side diff. Empty string when texts match.
+    
+    Note:
+        Context/numlines are provided for callers that want trimmed output;
+        current API usage renders full diffs by default.
     """
     if text_a == text_b:
         return ""

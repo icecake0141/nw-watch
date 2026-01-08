@@ -412,6 +412,18 @@ class NetworkWatch {
         if (isHtml) {
             const parsed = new DOMParser().parseFromString(diffText, 'text/html');
             parsed.querySelectorAll('script').forEach(node => node.remove());
+            parsed.querySelectorAll('*').forEach(node => {
+                Array.from(node.attributes).forEach(attr => {
+                    const name = attr.name.toLowerCase();
+                    const value = (attr.value || '').trim().toLowerCase();
+                    if (name.startsWith('on')) {
+                        node.removeAttribute(attr.name);
+                    }
+                    if ((name === 'href' || name === 'src') && value.startsWith('javascript:')) {
+                        node.removeAttribute(attr.name);
+                    }
+                });
+            });
             element.innerHTML = '';
             element.append(...Array.from(parsed.body.childNodes));
             element.classList.add('diff-output-html');
