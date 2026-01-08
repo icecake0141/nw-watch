@@ -342,6 +342,10 @@ header h1 {
     overflow-y: auto;
 }
 
+.diff-output-html {
+    padding: 0;
+}
+
 .diff-output .diff-add {
     background-color: rgba(40, 167, 69, 0.2);
     color: #4caf50;
