@@ -338,8 +338,6 @@ header h1 {
     font-family: 'Courier New', monospace;
     font-size: 13px;
     overflow-x: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
     max-height: 600px;
     overflow-y: auto;
 }
@@ -356,6 +354,44 @@ header h1 {
 
 .diff-output .diff-hunk {
     color: #ffd166;
+}
+
+.diff-output table.diff {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #1f232b;
+}
+
+.diff-output table.diff th,
+.diff-output table.diff td {
+    border: 1px solid #3a3f4b;
+    padding: 6px 8px;
+    text-align: left;
+    white-space: pre-wrap;
+    vertical-align: top;
+}
+
+.diff-output table.diff th {
+    background-color: #11151c;
+    color: #e5e5e5;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.diff-output table.diff .diff_add {
+    background-color: rgba(40, 167, 69, 0.25);
+    color: #d4ffd4;
+}
+
+.diff-output table.diff .diff_sub {
+    background-color: rgba(220, 53, 69, 0.25);
+    color: #ffd6d6;
+}
+
+.diff-output table.diff .diff_chg {
+    background-color: rgba(255, 193, 7, 0.25);
+    color: #fff1c2;
 }
 
 /* Timestamp */

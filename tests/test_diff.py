@@ -56,6 +56,7 @@ def test_generate_side_by_side_diff():
     
     diff = generate_side_by_side_diff(text_a, text_b, "DeviceA", "DeviceB")
     
+    assert "<table" in diff
     assert "DeviceA" in diff
     assert "DeviceB" in diff
 

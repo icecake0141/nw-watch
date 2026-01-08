@@ -347,7 +347,7 @@ class NetworkWatch {
         section.appendChild(controls);
         
         // Diff output
-        const diffOutput = document.createElement('pre');
+        const diffOutput = document.createElement('div');
         diffOutput.className = 'diff-output';
         diffOutput.id = `diff-${device}`;
         diffOutput.textContent = 'Click a button above to view diff';
@@ -364,7 +364,12 @@ class NetworkWatch {
             const data = await response.json();
             
             const diffOutput = document.getElementById(`diff-${device}`);
-            this.renderDiff(diffOutput, data.diff, data.has_diff ? 'No differences found' : 'Not enough history for comparison');
+            this.renderDiff(
+                diffOutput,
+                data.diff,
+                'No differences found',
+                data.diff_format === 'html'
+            );
         } catch (error) {
             console.error('Error loading history diff:', error);
         }
@@ -378,8 +383,12 @@ class NetworkWatch {
             const data = await response.json();
             
             const diffOutput = document.getElementById(`diff-${deviceA}`);
-            const fallback = data.has_diff ? 'No differences found' : 'Data not available for both devices';
-            this.renderDiff(diffOutput, data.diff, fallback);
+            this.renderDiff(
+                diffOutput,
+                data.diff,
+                data.has_diff ? 'No differences found' : 'Data not available for both devices',
+                data.diff_format === 'html'
+            );
         } catch (error) {
             console.error('Error loading device diff:', error);
         }
@@ -394,9 +403,15 @@ class NetworkWatch {
             .replace(/'/g, '&#39;');
     }
 
-    renderDiff(element, diffText, fallbackMessage) {
+    renderDiff(element, diffText, fallbackMessage, isHtml = false) {
         if (!diffText || diffText.length === 0) {
             element.textContent = fallbackMessage;
+            return;
+        }
+
+        if (isHtml) {
+            element.innerHTML = diffText;
+            element.classList.add('diff-output-html');
             return;
         }
 
