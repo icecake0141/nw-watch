@@ -338,6 +338,8 @@ header h1 {
     font-family: 'Courier New', monospace;
     font-size: 13px;
     overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
     max-height: 600px;
     overflow-y: auto;
 }

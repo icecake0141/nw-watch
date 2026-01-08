@@ -410,7 +410,10 @@ class NetworkWatch {
         }
 
         if (isHtml) {
-            element.innerHTML = diffText;
+            const parsed = new DOMParser().parseFromString(diffText, 'text/html');
+            parsed.querySelectorAll('script').forEach(node => node.remove());
+            element.innerHTML = '';
+            element.append(...Array.from(parsed.body.childNodes));
             element.classList.add('diff-output-html');
             return;
         }
