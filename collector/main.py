@@ -3,7 +3,9 @@ import argparse
 import asyncio
 import logging
 import shutil
+import signal
 import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -314,6 +316,19 @@ def main():
     parser.add_argument('--config', required=True, help='Path to config YAML file')
     args = parser.parse_args()
     
+    collector = None
+    
+    def signal_handler(signum, frame):
+        """Handle shutdown signals gracefully."""
+        logger.info("Shutdown signal received, finishing current operations...")
+        if collector:
+            collector.stop()
+        sys.exit(0)
+    
+    # Register signal handlers
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     try:
         config = Config(args.config)
         collector = Collector(config)
@@ -322,8 +337,12 @@ def main():
     
     except KeyboardInterrupt:
         logger.info("Collector stopped by user")
+        if collector:
+            collector.stop()
     except Exception as e:
         logger.error(f"Collector error: {e}", exc_info=True)
+        if collector:
+            collector.stop()
 
 
 if __name__ == '__main__':
