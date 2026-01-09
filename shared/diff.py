@@ -1,6 +1,7 @@
 """Diff generation utilities."""
 import difflib
-from typing import List
+import html
+from typing import List, Tuple
 
 
 def generate_diff(old_text: str, new_text: str) -> str:
@@ -65,3 +66,46 @@ def generate_side_by_side_diff(
         context=context,
         numlines=numlines,
     )
+
+
+def generate_inline_char_diff(text_a: str, text_b: str) -> Tuple[str, str]:
+    """Generate character-level inline diff highlighting for two texts.
+    
+    This function compares two texts character-by-character and returns HTML
+    strings with inline highlighting of differences. Unchanged parts are shown
+    normally, while changes are highlighted with <span> tags.
+    
+    Args:
+        text_a: First text
+        text_b: Second text
+    
+    Returns:
+        Tuple of (highlighted_a, highlighted_b) where each is an HTML string
+        with character-level diff highlighting
+    """
+    # Use SequenceMatcher for character-level diff
+    matcher = difflib.SequenceMatcher(None, text_a, text_b)
+    
+    result_a = []
+    result_b = []
+    
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        text_a_part = text_a[i1:i2]
+        text_b_part = text_b[j1:j2]
+        
+        if tag == 'equal':
+            # Both sides are the same
+            result_a.append(html.escape(text_a_part))
+            result_b.append(html.escape(text_b_part))
+        elif tag == 'replace':
+            # Text was replaced
+            result_a.append(f'<span class="char-diff-remove">{html.escape(text_a_part)}</span>')
+            result_b.append(f'<span class="char-diff-add">{html.escape(text_b_part)}</span>')
+        elif tag == 'delete':
+            # Text only in A
+            result_a.append(f'<span class="char-diff-remove">{html.escape(text_a_part)}</span>')
+        elif tag == 'insert':
+            # Text only in B
+            result_b.append(f'<span class="char-diff-add">{html.escape(text_b_part)}</span>')
+    
+    return ''.join(result_a), ''.join(result_b)
