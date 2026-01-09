@@ -115,6 +115,29 @@ class Config:
         return int(websocket_config.get("ping_interval", 20))
 
     # ------------------------------------------------------------------ #
+    # SSH Connection settings
+    # ------------------------------------------------------------------ #
+    def get_persistent_connections_enabled(self) -> bool:
+        """Check if persistent SSH connections are enabled."""
+        ssh_config = self.data.get("ssh", {})
+        return bool(ssh_config.get("persistent_connections", True))
+
+    def get_connection_timeout(self) -> int:
+        """SSH connection timeout (seconds)."""
+        ssh_config = self.data.get("ssh", {})
+        return int(ssh_config.get("connection_timeout", 100))
+
+    def get_max_reconnect_attempts(self) -> int:
+        """Maximum number of reconnection attempts."""
+        ssh_config = self.data.get("ssh", {})
+        return int(ssh_config.get("max_reconnect_attempts", 3))
+
+    def get_reconnect_backoff_base(self) -> float:
+        """Base time for exponential backoff during reconnection (seconds)."""
+        ssh_config = self.data.get("ssh", {})
+        return float(ssh_config.get("reconnect_backoff_base", 1.0))
+
+    # ------------------------------------------------------------------ #
     # Devices and commands
     # ------------------------------------------------------------------ #
     def get_devices(self) -> List[Dict[str, Any]]:

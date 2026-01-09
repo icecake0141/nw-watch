@@ -12,6 +12,13 @@ websocket:
   enabled: false                 # Enable WebSocket for real-time updates (default: false)
   # ping_interval: 20            # WebSocket ping interval in seconds (optional, default: 20)
 
+# SSH connection settings (optional)
+ssh:
+  persistent_connections: true   # Use persistent SSH connections (default: true)
+  connection_timeout: 100        # SSH connection timeout in seconds (default: 100)
+  max_reconnect_attempts: 3      # Maximum reconnection attempts (default: 3)
+  reconnect_backoff_base: 1.0    # Base time for exponential backoff in seconds (default: 1.0)
+
 # Global filters applied to every command (unless command override exists)
 global_filters:
   line_exclude_substrings:
