@@ -28,17 +28,26 @@ A Python-based network monitoring system that collects command outputs and ping 
   - Success rate percentage and sample counts
   - Average RTT (Round Trip Time) display
   - Last check timestamp
+  - Export ping data (CSV/JSON)
 - **Command Tabs**: Organized view of outputs grouped by command
   - Sortable tabs via configuration
   - Per-device output history (newest first)
   - Expandable run entries showing timestamps, duration, and status
   - Visual badges for success/error, filtered, and truncated states
+  - Export individual outputs (Text/JSON)
+  - Bulk export for all device outputs (JSON)
 - **Comprehensive Diff Views**:
   - **Historical Diff**: Compare previous vs latest output for the same device
   - **Cross-Device Diff**: Compare outputs between different devices for the same command
   - HTML-based side-by-side comparison with color-coded changes
+  - Export diffs (HTML/Text)
 - **Auto-Refresh Control**: Pause/resume auto-refresh with manual refresh option
 - **JST Timezone Display**: All timestamps displayed in Japan Standard Time (UTC+9)
+- **Data Export**: Export command outputs, diffs, and ping data for offline analysis
+  - Individual run export (Text, JSON)
+  - Bulk export for all devices (JSON)
+  - Diff export (HTML, Text)
+  - Ping data export (CSV, JSON)
 
 ## Quick Start
 
@@ -262,6 +271,25 @@ The system uses SQLite with the following schema designed for efficient querying
 - Manual refresh button for on-demand updates, even while paused
 - Polling intervals derived from `interval_seconds` and `ping_interval_seconds`
 
+### Export Functionality
+- **Individual Output Export**: Export single command outputs for offline analysis
+  - Text format: Human-readable format with metadata (timestamp, duration, status)
+  - JSON format: Structured data with all metadata fields
+- **Bulk Export**: Export outputs from all devices for a specific command
+  - JSON format with organized device-level structure
+- **Diff Export**: Save comparison views for documentation or auditing
+  - HTML format: Complete standalone HTML document with styling
+  - Text format: Plain text with diff metadata
+- **Ping Data Export**: Export connectivity data for analysis
+  - CSV format: Suitable for spreadsheet applications and further analysis
+  - JSON format: Structured data with all ping metrics
+- **Use Cases**:
+  - Offline analysis and troubleshooting
+  - Compliance and auditing requirements
+  - Historical record keeping
+  - Integration with other tools and workflows
+  - Data portability and backup
+
 ## Running Tests
 
 ```bash
@@ -307,6 +335,42 @@ To add custom filtering logic:
 - Templates: `webapp/templates/index.html`
 - Styles: `webapp/static/style.css`
 - JavaScript: `webapp/static/app.js`
+
+### Using Export API
+
+The export functionality is available via REST API endpoints:
+
+**Export Individual Run:**
+```bash
+# Text format
+curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=text" -o output.txt
+
+# JSON format
+curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=json" -o output.json
+```
+
+**Export Bulk Runs (All Devices):**
+```bash
+curl "http://localhost:8000/api/export/bulk?command=show%20version&format=json" -o bulk_export.json
+```
+
+**Export Diff:**
+```bash
+# History diff (Previous vs Latest)
+curl "http://localhost:8000/api/export/diff?command=show%20version&device=DeviceA&format=html" -o diff.html
+
+# Device diff (DeviceA vs DeviceB)
+curl "http://localhost:8000/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html" -o diff.html
+```
+
+**Export Ping Data:**
+```bash
+# CSV format (last hour)
+curl "http://localhost:8000/api/export/ping?device=DeviceA&format=csv&window_seconds=3600" -o ping_data.csv
+
+# JSON format (last 24 hours)
+curl "http://localhost:8000/api/export/ping?device=DeviceA&format=json&window_seconds=86400" -o ping_data.json
+```
 
 ## Architecture
 
