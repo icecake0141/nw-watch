@@ -15,6 +15,7 @@ class NetworkWatch {
         this.runPollTimer = null;
         this.pingPollTimer = null;
         this.pauseBanner = null;
+        this.isPolling = false;
         this.websocket = null;
         this.websocketReconnectTimer = null;
         this.websocketReconnectAttempts = 0;
@@ -23,6 +24,7 @@ class NetworkWatch {
         this.maxWebSocketReconnectAttempts = 5;
         this.baseReconnectDelay = 1000;  // 1 second base delay
         this.maxReconnectDelay = 30000;  // 30 seconds max delay
+        this.reconnectBackoffMultiplier = 2;  // Exponential backoff multiplier
         
         this.init();
     }
@@ -151,7 +153,7 @@ class NetworkWatch {
                 this.websocket = null;
                 
                 // Fallback to polling if WebSocket fails
-                if (this.autoRefresh && !this.runPollTimer) {
+                if (this.autoRefresh && !this.isPolling) {
                     console.log('Falling back to polling');
                     this.startPolling();
                 }
@@ -161,7 +163,7 @@ class NetworkWatch {
                     this.websocketReconnectAttempts++;
                     const delay = Math.min(
                         this.maxReconnectDelay, 
-                        this.baseReconnectDelay * Math.pow(2, this.websocketReconnectAttempts - 1)
+                        this.baseReconnectDelay * Math.pow(this.reconnectBackoffMultiplier, this.websocketReconnectAttempts - 1)
                     );
                     console.log(`Attempting to reconnect WebSocket in ${delay}ms (attempt ${this.websocketReconnectAttempts})`);
                     this.websocketReconnectTimer = setTimeout(() => {
@@ -239,6 +241,8 @@ class NetworkWatch {
     startPolling() {
         if (!this.autoRefresh) return;
         
+        this.isPolling = true;
+        
         // Poll ping status
         this.pingPollTimer = setInterval(() => {
             if (this.autoRefresh) {
@@ -255,6 +259,8 @@ class NetworkWatch {
     }
     
     stopPolling() {
+        this.isPolling = false;
+        
         if (this.pingPollTimer) {
             clearInterval(this.pingPollTimer);
             this.pingPollTimer = null;

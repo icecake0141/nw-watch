@@ -29,16 +29,12 @@ from shared.export import (
 )
 from webapp.websocket_manager import manager
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
 # Background task state
 _background_task = None
 _last_db_mtime = None
+_db_mtime_lock = asyncio.Lock()
 
 # Constants for database monitoring
 DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
@@ -62,12 +58,13 @@ async def monitor_database_changes():
             if DATABASE_PATH.exists():
                 current_mtime = DATABASE_PATH.stat().st_mtime
                 
-                if _last_db_mtime is not None and current_mtime > _last_db_mtime:
-                    # Database has been updated, notify WebSocket clients
-                    await manager.broadcast_update("data_update")
-                    logger.debug("Database updated, notified WebSocket clients")
-                
-                _last_db_mtime = current_mtime
+                async with _db_mtime_lock:
+                    if _last_db_mtime is not None and current_mtime > _last_db_mtime:
+                        # Database has been updated, notify WebSocket clients
+                        await manager.broadcast_update("data_update")
+                        logger.debug("Database updated, notified WebSocket clients")
+                    
+                    _last_db_mtime = current_mtime
             
             await asyncio.sleep(check_interval)
         except Exception as exc:
@@ -594,6 +591,8 @@ async def websocket_endpoint(websocket: WebSocket):
             # Echo back for ping/pong or ignore other messages
             if data == "ping":
                 await websocket.send_text("pong")
+            else:
+                logger.debug("Received unexpected WebSocket message: %s", data)
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
     except Exception as exc:
