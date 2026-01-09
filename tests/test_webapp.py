@@ -459,3 +459,22 @@ def test_export_with_malicious_command_name(client):
     assert "../" not in content_disposition
     assert ".._.._etc_passwd" in content_disposition
 
+
+def test_security_headers(client):
+    """Test that security headers are present in responses."""
+    response = client.get("/")
+    
+    # Check for security headers
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+    
+    # Test on API endpoint as well
+    response = client.get("/api/commands")
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+
+
