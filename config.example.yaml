@@ -7,6 +7,11 @@ ping_window_seconds: 60          # Window (seconds) for ping tiles
 history_size: 10                 # Max runs per device/command to keep
 max_output_lines: 500            # Truncate outputs after filtering
 
+# WebSocket settings (optional)
+websocket:
+  enabled: false                 # Enable WebSocket for real-time updates (default: false)
+  # ping_interval: 20            # WebSocket ping interval in seconds (optional, default: 20)
+
 # Global filters applied to every command (unless command override exists)
 global_filters:
   line_exclude_substrings:

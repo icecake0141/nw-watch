@@ -1,14 +1,16 @@
 """Web application for network device monitoring."""
+import asyncio
 import logging
 import math
 import time
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
 
 from yaml import YAMLError
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -25,16 +27,87 @@ from shared.export import (
     export_diff_as_html,
     export_diff_as_text,
 )
+from webapp.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Network Watch")
+# Background task state
+_background_task = None
+_last_db_mtime = None
+_db_mtime_lock = asyncio.Lock()
+
+# Constants for database monitoring
+DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
+
+
+async def monitor_database_changes():
+    """Background task to monitor database changes and notify WebSocket clients."""
+    global _last_db_mtime
+    
+    # Check interval based on config
+    try:
+        config = load_config()
+        check_interval = max(1, math.floor(config.get_interval_seconds() / DATABASE_CHECK_INTERVAL_DIVISOR))
+    except Exception:
+        check_interval = 2
+    
+    logger.info("Starting database monitor task (interval: %ds)", check_interval)
+    
+    while True:
+        try:
+            if DATABASE_PATH.exists():
+                current_mtime = DATABASE_PATH.stat().st_mtime
+                
+                async with _db_mtime_lock:
+                    if _last_db_mtime is not None and current_mtime > _last_db_mtime:
+                        # Database has been updated, notify WebSocket clients
+                        await manager.broadcast_update("data_update")
+                        logger.debug("Database updated, notified WebSocket clients")
+                    
+                    _last_db_mtime = current_mtime
+            
+            await asyncio.sleep(check_interval)
+        except Exception as exc:
+            logger.error("Error in database monitor task: %s", exc)
+            await asyncio.sleep(check_interval)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events."""
+    global _background_task
+    
+    # Startup
+    try:
+        config = load_config()
+        if config.get_websocket_enabled():
+            _background_task = asyncio.create_task(monitor_database_changes())
+            logger.info("WebSocket enabled, started database monitor task")
+        else:
+            logger.info("WebSocket disabled in configuration")
+    except Exception as exc:
+        logger.warning("Could not load config for WebSocket setup: %s", exc)
+    
+    yield
+    
+    # Shutdown
+    if _background_task:
+        _background_task.cancel()
+        try:
+            await _background_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Stopped database monitor task")
+
+
+app = FastAPI(title="Network Watch", lifespan=lifespan)
 
 # Setup templates and static files
 templates = Jinja2Templates(directory="webapp/templates")
 app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
 
 DEFAULT_HISTORY_SIZE = 10
+DATABASE_PATH = Path('data/current.sqlite3')
 
 
 @lru_cache(maxsize=1)
@@ -54,10 +127,9 @@ def resolve_history_size() -> int:
 
 def get_db(history_size: int) -> Optional[Database]:
     """Get database connection."""
-    db_path = Path('data/current.sqlite3')
-    if not db_path.exists():
+    if not DATABASE_PATH.exists():
         return None
-    return Database(str(db_path), history_size=history_size)
+    return Database(str(DATABASE_PATH), history_size=history_size)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -284,6 +356,7 @@ async def get_config():
         interval_seconds = config.get_interval_seconds()
         ping_interval = config.get_ping_interval_seconds()
         ping_window = config.get_ping_window_seconds()
+        websocket_enabled = config.get_websocket_enabled()
         
         # Calculate polling intervals
         run_poll_interval = max(1, math.floor(interval_seconds / 2))
@@ -291,14 +364,16 @@ async def get_config():
         return JSONResponse({
             "run_poll_interval_seconds": run_poll_interval,
             "ping_poll_interval_seconds": ping_interval,
-            "ping_window_seconds": ping_window
+            "ping_window_seconds": ping_window,
+            "websocket_enabled": websocket_enabled
         })
     except Exception:
         # Return defaults if config not available
         return JSONResponse({
             "run_poll_interval_seconds": 2,
             "ping_poll_interval_seconds": 1,
-            "ping_window_seconds": 60
+            "ping_window_seconds": 60,
+            "websocket_enabled": False
         })
 
 
@@ -503,3 +578,24 @@ async def export_ping(device: str, format: str = "csv", window_seconds: int = 36
             )
     finally:
         db.close()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time updates."""
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive and handle incoming messages
+            data = await websocket.receive_text()
+            # Echo back for ping/pong or ignore other messages
+            if data == "ping":
+                await websocket.send_text("pong")
+            else:
+                logger.debug("Received unexpected WebSocket message: %s", data)
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+    except Exception as exc:
+        logger.error("WebSocket error: %s", exc)
+        await manager.disconnect(websocket)
+
