@@ -24,6 +24,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      # Data directory mounted read-only - webapp only reads from database
       - ./data:/app/data:ro
       - ./config.yaml:/app/config.yaml:ro
     command: uvicorn webapp.main:app --host 0.0.0.0 --port 8000

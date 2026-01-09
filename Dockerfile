@@ -1,5 +1,5 @@
-# Multi-stage build for nw-watch
-FROM python:3.11-slim AS base
+# Dockerfile for nw-watch
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app

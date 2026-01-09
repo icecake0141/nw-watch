@@ -135,7 +135,8 @@ class TestDockerBuildProcess:
         except subprocess.TimeoutExpired:
             pytest.fail("Docker build timed out after 180 seconds")
         except subprocess.CalledProcessError as e:
-            pytest.fail(f"Docker build failed: {e.stderr.decode()}")
+            stderr = e.stderr.decode() if e.stderr and isinstance(e.stderr, bytes) else str(e.stderr) if e.stderr else "No error output"
+            pytest.fail(f"Docker build failed: {stderr}")
 
     def test_docker_image_has_correct_structure(self):
         """Test that built Docker image has expected structure."""
@@ -179,7 +180,8 @@ class TestDockerBuildProcess:
         except subprocess.TimeoutExpired:
             pytest.fail("Docker run command timed out")
         except subprocess.CalledProcessError as e:
-            pytest.fail(f"Docker run failed: {e.stderr.decode()}")
+            stderr = e.stderr.decode() if e.stderr and isinstance(e.stderr, bytes) else str(e.stderr) if e.stderr else "No error output"
+            pytest.fail(f"Docker run failed: {stderr}")
 
 
 class TestDockerComposeConfiguration:
