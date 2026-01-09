@@ -17,8 +17,33 @@ def test_format_timestamp_jst():
     # 2024-01-01 00:00:00 UTC = 2024-01-01 09:00:00 JST
     epoch = 1704067200
     result = format_timestamp_jst(epoch)
-    assert "2024-01-01" in result
-    assert "JST" in result
+    assert result == "2024-01-01 09:00:00 JST"
+
+
+def test_format_timestamp_jst_day_boundary():
+    """Test JST timestamp formatting across day boundary."""
+    # 2024-01-01 23:00:00 UTC = 2024-01-02 08:00:00 JST (crosses day boundary)
+    epoch = 1704150000
+    result = format_timestamp_jst(epoch)
+    assert result == "2024-01-02 08:00:00 JST"
+
+
+def test_format_timestamp_jst_various_hours():
+    """Test JST timestamp formatting at various hours."""
+    # 2024-01-01 12:00:00 UTC = 2024-01-01 21:00:00 JST
+    epoch_midday = 1704110400
+    result_midday = format_timestamp_jst(epoch_midday)
+    assert result_midday == "2024-01-01 21:00:00 JST"
+    
+    # 2024-01-01 15:30:45 UTC = 2024-01-02 00:30:45 JST (crosses day boundary)
+    epoch_afternoon = 1704123045
+    result_afternoon = format_timestamp_jst(epoch_afternoon)
+    assert result_afternoon == "2024-01-02 00:30:45 JST"
+    
+    # 2024-01-01 06:00:00 UTC = 2024-01-01 15:00:00 JST
+    epoch_morning = 1704088800
+    result_morning = format_timestamp_jst(epoch_morning)
+    assert result_morning == "2024-01-01 15:00:00 JST"
 
 
 def test_export_run_as_text():

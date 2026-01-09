@@ -2,7 +2,7 @@
 import csv
 import io
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -15,9 +15,9 @@ def format_timestamp_jst(epoch: int) -> str:
     Returns:
         Formatted datetime string in JST (UTC+9)
     """
-    dt = datetime.utcfromtimestamp(epoch)
-    # Add 9 hours for JST
-    jst_dt = dt.replace(hour=dt.hour + 9 if dt.hour < 15 else dt.hour - 15)
+    dt = datetime.fromtimestamp(epoch, tz=timezone.utc)
+    jst_tz = timezone(timedelta(hours=9))
+    jst_dt = dt.astimezone(jst_tz)
     return jst_dt.strftime('%Y-%m-%d %H:%M:%S JST')
 
 
@@ -99,7 +99,7 @@ def export_bulk_runs_as_json(runs_by_device: Dict[str, List[Dict[str, Any]]], co
     """
     export_data = {
         "command": command,
-        "export_timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+        "export_timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
         "devices": {}
     }
     
@@ -164,7 +164,7 @@ def export_ping_data_as_json(ping_samples: List[Dict[str, Any]], device: str) ->
     """
     export_data = {
         "device": device,
-        "export_timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+        "export_timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
         "samples": [
             {
                 "timestamp": format_timestamp_jst(sample['ts_epoch']),
@@ -195,7 +195,7 @@ def export_diff_as_text(diff_html: str, label_a: str, label_b: str) -> str:
     lines.append(f"Network Watch - Diff Export")
     lines.append("=" * 80)
     lines.append(f"Comparing: {label_a} vs {label_b}")
-    lines.append(f"Export Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    lines.append(f"Export Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     lines.append("=" * 80)
     lines.append("")
     lines.append("Note: This is an HTML diff. Please view in a web browser.")
@@ -266,7 +266,7 @@ def export_diff_as_html(diff_html: str, label_a: str, label_b: str) -> str:
     <div class="header">
         <h1>Network Watch - Diff Export</h1>
         <p><strong>Comparing:</strong> {label_a} vs {label_b}</p>
-        <p><strong>Export Time:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+        <p><strong>Export Time:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
     </div>
     {diff_html}
 </body>
