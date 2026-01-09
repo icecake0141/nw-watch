@@ -180,6 +180,24 @@ nw-watch/
 - `history_size`: デバイス／コマンドごとに保持する履歴件数
 - `max_output_lines`: フィルタ後に保持する最大行数（超過分はトリミング）
 
+### WebSocket設定（オプション）
+
+ポーリングの代わりにWebSocketでリアルタイム更新を有効にします:
+
+```yaml
+websocket:
+  enabled: true           # WebSocketサポートを有効化（デフォルト: false）
+  ping_interval: 20       # WebSocket pingインターバル（秒）（オプション、デフォルト: 20）
+```
+
+**WebSocketモードのメリット:**
+- 新しいデータが到着したときの即座の更新（ポーリング遅延なし）
+- サーバー負荷とネットワークトラフィックの削減
+- リアルタイム更新によるより良いユーザーエクスペリエンス
+- WebSocketが失敗した場合の自動的なポーリングへのフォールバック
+
+**注意:** `enabled: false`（デフォルト）の場合、アプリケーションは後方互換性のために従来のHTTPポーリングを使用します。
+
 ### デバイス
 
 - `name`, `host`, `port`, `device_type`, `ping_host`
@@ -188,11 +206,56 @@ nw-watch/
 
 ### コマンド
 
-コマンドは一度定義すると各デバイスで実行されます。任意でフィルターと`sort_order`（タブ順）を設定できます。
+コマンドは一度定義すると各デバイスで実行されます。各コマンドはオプションのフィルター、タブ順序の`sort_order`、および柔軟な実行タイミングのためのオプションの`schedule`をサポートします。
 
 - `command_text`: CLIコマンド
+- `schedule`: オプションのcron式（例: `"0 */6 * * *"`で6時間ごと、`"*/5 * * * *"`で5分ごと）
+  - 指定された場合、コマンドはcronスケジュールに従って実行されます
+  - 省略された場合、コマンドはグローバルの`interval_seconds`を使用します
+  - 最適化されたリソース使用のために、異なるコマンドを異なる頻度で実行できます
 - `filters.line_exclude_substrings`: グローバルな行フィルターを上書き
 - `filters.output_exclude_substrings`: マッチした場合に出力を「フィルタ済み／非表示」として扱う
+
+### コマンドスケジューリング
+
+システムはcron式を使用したコマンド単位のスケジューリングをサポートし、異なるコマンドを異なる間隔で実行できます:
+
+```yaml
+commands:
+  - name: "show_version"
+    command_text: "show version"
+    schedule: "0 */6 * * *"  # 6時間ごと
+  - name: "interfaces_status"
+    command_text: "show interfaces status"
+    schedule: "*/5 * * * *"  # 5分ごと
+  - name: "ip_int_brief"
+    command_text: "show ip interface brief"
+    # スケジュールなし - interval_secondsを使用
+```
+
+**メリット:**
+- 最適化されたリソース使用 - コストの高いコマンドの実行頻度を下げる
+- デバイス負荷の軽減 - コマンド実行を時間的に分散
+- 柔軟な監視戦略 - コマンドごとに異なる更新頻度
+- 有料API呼び出しやレート制限されたデバイスのコスト最適化
+
+**Cron式フォーマット:**
+```
+* * * * *
+│ │ │ │ │
+│ │ │ │ └─── 曜日（0-6、日曜日=0）
+│ │ │ └───── 月（1-12）
+│ │ └─────── 日（1-31）
+│ └───────── 時（0-23）
+└─────────── 分（0-59）
+```
+
+**例:**
+- `"*/5 * * * *"` - 5分ごと
+- `"0 * * * *"` - 毎時0分
+- `"0 */6 * * *"` - 6時間ごと
+- `"0 0 * * *"` - 1日1回、深夜0時
+- `"0 9-17 * * 1-5"` - 月曜日から金曜日の午前9時から午後5時まで、毎時の開始時
 
 ### フィルター
 
@@ -262,6 +325,25 @@ nw-watch/
 - 一時停止中も手動更新ボタンで即時リロード可能
 - ポーリング間隔は `interval_seconds` と `ping_interval_seconds` から算出
 
+### エクスポート機能
+- **個別出力エクスポート**: オフライン分析のために単一のコマンド出力をエクスポート
+  - テキスト形式: メタデータ付きの人間が読める形式（タイムスタンプ、実行時間、ステータス）
+  - JSON形式: すべてのメタデータフィールドを含む構造化データ
+- **一括エクスポート**: 特定のコマンドのすべてのデバイスからの出力をエクスポート
+  - デバイスレベル構造で整理されたJSON形式
+- **差分エクスポート**: ドキュメントまたは監査のために比較ビューを保存
+  - HTML形式: スタイリング付きの完全なスタンドアロンHTMLドキュメント
+  - テキスト形式: 差分メタデータ付きのプレーンテキスト
+- **Pingデータエクスポート**: 分析のために接続データをエクスポート
+  - CSV形式: スプレッドシートアプリケーションおよびさらなる分析に適している
+  - JSON形式: すべてのpingメトリクスを含む構造化データ
+- **ユースケース**:
+  - オフライン分析とトラブルシューティング
+  - コンプライアンスおよび監査要件
+  - 履歴記録の保持
+  - 他のツールおよびワークフローとの統合
+  - データの可搬性とバックアップ
+
 ## テスト実行
 
 ```bash
@@ -308,6 +390,42 @@ pytest --cov=shared --cov=collector --cov=webapp
 - スタイル: `webapp/static/style.css`
 - JavaScript: `webapp/static/app.js`
 
+### エクスポートAPIの使用
+
+エクスポート機能はREST APIエンドポイント経由で利用可能です:
+
+**個別実行のエクスポート:**
+```bash
+# テキスト形式
+curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=text" -o output.txt
+
+# JSON形式
+curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=json" -o output.json
+```
+
+**一括実行のエクスポート（すべてのデバイス）:**
+```bash
+curl "http://localhost:8000/api/export/bulk?command=show%20version&format=json" -o bulk_export.json
+```
+
+**差分のエクスポート:**
+```bash
+# 履歴差分（前回 vs 最新）
+curl "http://localhost:8000/api/export/diff?command=show%20version&device=DeviceA&format=html" -o diff.html
+
+# デバイス差分（DeviceA vs DeviceB）
+curl "http://localhost:8000/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html" -o diff.html
+```
+
+**Pingデータのエクスポート:**
+```bash
+# CSV形式（過去1時間）
+curl "http://localhost:8000/api/export/ping?device=DeviceA&format=csv&window_seconds=3600" -o ping_data.csv
+
+# JSON形式（過去24時間）
+curl "http://localhost:8000/api/export/ping?device=DeviceA&format=json&window_seconds=86400" -o ping_data.json
+```
+
 ## アーキテクチャ
 
 ### データフロー
@@ -318,7 +436,7 @@ pytest --cov=shared --cov=collector --cov=webapp
 4. 結果をセッション専用のSQLiteデータベース（`session_{epoch}.sqlite3`）に保存
 5. 各収集サイクル後にセッションデータベースを`current.sqlite3`にアトミックにコピー
 6. **Web App** が`current.sqlite3`から読み取り（読み取り専用）、FastAPI REST API経由でデータを提供
-7. **フロントエンド** が設定された間隔でAPIエンドポイントをポーリングし、UIを動的に更新
+7. **フロントエンド** がポーリング（デフォルト）またはWebSocket（有効時）経由で更新を受信し、UIを動的に更新
 
 ### データベースライフサイクルとアトミック更新
 
@@ -335,10 +453,36 @@ pytest --cov=shared --cov=collector --cov=webapp
 
 ### ポーリング戦略
 
-フロントエンドのポーリング間隔は設定から自動的に計算されます:
+フロントエンド更新戦略は設定に依存します:
+
+**ポーリングモード（デフォルト、`websocket.enabled: false`）:**
 - **実行結果更新**: `max(1, floor(interval_seconds / 2))` 秒
 - **ping更新**: `ping_interval_seconds` 秒
 - 自動更新トグルを尊重（ユーザーが一時停止/再開可能）
+
+**WebSocketモード（`websocket.enabled: true`）:**
+- データベース更新時のリアルタイムプッシュ通知
+- WebSocket接続時はポーリングタイマーなし
+- 接続が失敗した場合の自動的なポーリングへのフォールバック
+- クライアントが"ping"メッセージを送信、サーバーが"pong"で応答してキープアライブ
+
+### WebSocketプロトコル
+
+WebSocketが有効な場合、クライアントは`/ws`に接続し、JSONメッセージを受信します:
+
+```json
+{
+  "type": "data_update",
+  "timestamp": 1234567890.123
+}
+```
+
+**メッセージタイプ:**
+- `data_update`: 新しいコマンド実行またはpingデータが利用可能（クライアントはすべてのデータを更新すべき）
+- `run_update`: 新しいコマンド実行データが利用可能
+- `ping_update`: 新しいpingデータが利用可能
+
+サーバーはデータベースファイルの変更を監視し、接続されているすべてのクライアントに更新をブロードキャストします。
 
 ### セキュリティ対策
 
