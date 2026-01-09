@@ -9,11 +9,16 @@ class NetworkWatch {
         this.config = {
             run_poll_interval_seconds: 2,
             ping_poll_interval_seconds: 1,
-            ping_window_seconds: 60
+            ping_window_seconds: 60,
+            websocket_enabled: false
         };
         this.runPollTimer = null;
         this.pingPollTimer = null;
         this.pauseBanner = null;
+        this.websocket = null;
+        this.websocketReconnectTimer = null;
+        this.websocketReconnectAttempts = 0;
+        this.maxWebSocketReconnectAttempts = 5;
         
         this.init();
     }
@@ -30,8 +35,12 @@ class NetworkWatch {
         this.setupEventListeners();
         this.renderCommandTabs();
         
-        // Start polling
-        this.startPolling();
+        // Start WebSocket or polling based on config
+        if (this.config.websocket_enabled) {
+            this.connectWebSocket();
+        } else {
+            this.startPolling();
+        }
         
         // Initial data load
         await this.updatePingStatus();
@@ -86,12 +95,120 @@ class NetworkWatch {
         
         if (this.autoRefresh) {
             btn.textContent = '⏸ Pause Auto-Refresh';
-            this.startPolling();
+            if (this.config.websocket_enabled) {
+                // WebSocket handles updates automatically when connected
+                if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+                    this.connectWebSocket();
+                }
+            } else {
+                this.startPolling();
+            }
             this.showPauseBanner(false);
         } else {
             btn.textContent = '▶ Resume Auto-Refresh';
             this.stopPolling();
             this.showPauseBanner(true);
+        }
+    }
+
+    connectWebSocket() {
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            return;
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+        try {
+            this.websocket = new WebSocket(wsUrl);
+
+            this.websocket.onopen = () => {
+                console.log('WebSocket connected');
+                this.websocketReconnectAttempts = 0;
+                // Stop polling when WebSocket is connected
+                this.stopPolling();
+            };
+
+            this.websocket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(message);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            this.websocket.onclose = () => {
+                console.log('WebSocket disconnected');
+                this.websocket = null;
+                
+                // Fallback to polling if WebSocket fails
+                if (this.autoRefresh && !this.runPollTimer) {
+                    console.log('Falling back to polling');
+                    this.startPolling();
+                }
+
+                // Attempt to reconnect
+                if (this.websocketReconnectAttempts < this.maxWebSocketReconnectAttempts) {
+                    this.websocketReconnectAttempts++;
+                    const delay = Math.min(30000, 1000 * Math.pow(2, this.websocketReconnectAttempts));
+                    console.log(`Attempting to reconnect WebSocket in ${delay}ms (attempt ${this.websocketReconnectAttempts})`);
+                    this.websocketReconnectTimer = setTimeout(() => {
+                        if (this.autoRefresh && this.config.websocket_enabled) {
+                            this.connectWebSocket();
+                        }
+                    }, delay);
+                }
+            };
+        } catch (error) {
+            console.error('Error creating WebSocket:', error);
+            // Fallback to polling
+            if (this.autoRefresh) {
+                this.startPolling();
+            }
+        }
+    }
+
+    handleWebSocketMessage(message) {
+        if (!this.autoRefresh) {
+            return;
+        }
+
+        switch (message.type) {
+            case 'run_update':
+                // New command run data available
+                if (this.currentCommand) {
+                    this.updateCommandData(this.currentCommand);
+                }
+                break;
+            case 'ping_update':
+                // New ping data available
+                this.updatePingStatus();
+                break;
+            case 'data_update':
+                // General data update
+                this.updatePingStatus();
+                if (this.currentCommand) {
+                    this.updateCommandData(this.currentCommand);
+                }
+                break;
+            default:
+                console.log('Unknown WebSocket message type:', message.type);
+        }
+    }
+
+    disconnectWebSocket() {
+        if (this.websocketReconnectTimer) {
+            clearTimeout(this.websocketReconnectTimer);
+            this.websocketReconnectTimer = null;
+        }
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
         }
     }
 

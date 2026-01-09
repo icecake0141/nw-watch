@@ -8,7 +8,7 @@ from typing import Dict, Optional
 
 from yaml import YAMLError
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 from shared.config import Config
 from shared.db import Database
 from shared.diff import generate_side_by_side_diff
+from webapp.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,7 @@ async def get_config():
         interval_seconds = config.get_interval_seconds()
         ping_interval = config.get_ping_interval_seconds()
         ping_window = config.get_ping_window_seconds()
+        websocket_enabled = config.get_websocket_enabled()
         
         # Calculate polling intervals
         run_poll_interval = max(1, math.floor(interval_seconds / 2))
@@ -282,12 +284,33 @@ async def get_config():
         return JSONResponse({
             "run_poll_interval_seconds": run_poll_interval,
             "ping_poll_interval_seconds": ping_interval,
-            "ping_window_seconds": ping_window
+            "ping_window_seconds": ping_window,
+            "websocket_enabled": websocket_enabled
         })
     except Exception:
         # Return defaults if config not available
         return JSONResponse({
             "run_poll_interval_seconds": 2,
             "ping_poll_interval_seconds": 1,
-            "ping_window_seconds": 60
+            "ping_window_seconds": 60,
+            "websocket_enabled": False
         })
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time updates."""
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive and handle incoming messages
+            data = await websocket.receive_text()
+            # Echo back for ping/pong or ignore other messages
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+    except Exception as exc:
+        logger.error("WebSocket error: %s", exc)
+        await manager.disconnect(websocket)
+
