@@ -108,8 +108,8 @@ class TestCollectorDatabaseIntegration:
             original_line_count=10
         )
         
-        # Verify data was stored using get_latest_runs
-        runs = integration_db.get_latest_runs("show version", "TestDevice1", limit=1)
+        # Verify data was stored using get_latest_runs (device_name, command_text)
+        runs = integration_db.get_latest_runs("TestDevice1", "show version", limit=1)
         assert len(runs) == 1
         assert runs[0]["output_text"] == "Cisco IOS Software, Version 15.0"
     
@@ -146,6 +146,9 @@ class TestCollectorDatabaseIntegration:
         """Test that old runs are cleaned up according to history_size."""
         history_size = 3
         
+        # Set history_size on the database instance
+        integration_db.history_size = history_size
+        
         # Insert more runs than history_size
         for i in range(10):
             integration_db.insert_run(
@@ -158,12 +161,16 @@ class TestCollectorDatabaseIntegration:
                 original_line_count=5
             )
         
-        # Cleanup old runs (private method)
-        integration_db._cleanup_old_runs(history_size)
+        # Get device and command IDs for cleanup
+        device_id = integration_db.get_or_create_device("TestDevice1")
+        command_id = integration_db.get_or_create_command("show version")
+        
+        # Cleanup old runs (private method needs device_id and command_id)
+        integration_db._cleanup_old_runs(device_id, command_id)
         
         # Verify only history_size runs remain
-        runs = integration_db.get_latest_runs("show version", "TestDevice1", limit=10)
-        assert len(runs) <= history_size
+        runs = integration_db.get_latest_runs("TestDevice1", "show version", limit=10)
+        assert len(runs) == history_size
 
 
 class TestEndToEndFlow:
@@ -193,7 +200,7 @@ class TestEndToEndFlow:
                 )
         
         # 3. Verify database has data
-        runs = db.get_latest_runs("show version", "TestDevice1", limit=10)
+        runs = db.get_latest_runs("TestDevice1", "show version", limit=10)
         assert len(runs) >= 1
         
         db.close()
@@ -268,7 +275,7 @@ Interface GigabitEthernet0/1
         
         # Verify current database has data
         current_db = Database(str(current_db_path))
-        runs = current_db.get_latest_runs("show version", "TestDevice1", limit=10)
+        runs = current_db.get_latest_runs("TestDevice1", "show version", limit=10)
         assert len(runs) == 1
         current_db.close()
 
@@ -299,7 +306,7 @@ class TestConcurrentAccess:
         
         # All readers should be able to read
         for reader in readers:
-            runs = reader.get_latest_runs("show version", "TestDevice1", limit=10)
+            runs = reader.get_latest_runs("TestDevice1", "show version", limit=10)
             assert len(runs) == 1
             reader.close()
     
@@ -318,7 +325,7 @@ class TestConcurrentAccess:
             )
         
         # Verify all runs are retrievable
-        runs = integration_db.get_latest_runs("show version", "TestDevice1", limit=20)
+        runs = integration_db.get_latest_runs("TestDevice1", "show version", limit=20)
         assert len(runs) == 10
         
         # Verify they're in correct order (newest first)
@@ -385,24 +392,19 @@ class TestDataExport:
         )
         
         # Get run from database
-        runs = integration_db.get_latest_runs("show version", "TestDevice1", limit=1)
+        runs = integration_db.get_latest_runs("TestDevice1", "show version", limit=1)
         run = runs[0]
         
-        # Export and verify
-        exported = export_run_as_json(
-            run["output_text"],
-            run["ts_epoch"],
-            run["duration_ms"],
-            run["ok"] == 1,
-            run["error_message"],
-            run["is_filtered"] == 1,
-            run["is_truncated"] == 1,
-            run["original_line_count"]
-        )
+        # Export and verify (export_run_as_json takes run dict, device, command)
+        exported = export_run_as_json(run, "TestDevice1", "show version")
         
         import json
         data = json.loads(exported)
         
         assert data["output"] == "Test output"
-        assert data["success"] is True
+        assert data["status"] == "success"
         assert data["duration_ms"] == 123.45
+        assert data["device"] == "TestDevice1"
+        assert data["command"] == "show version"
+        assert data["is_filtered"] is False
+        assert data["is_truncated"] is False
