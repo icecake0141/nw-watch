@@ -20,6 +20,11 @@ from shared.db import Database
 from shared.diff import generate_side_by_side_diff
 from webapp.websocket_manager import manager
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Background task state
