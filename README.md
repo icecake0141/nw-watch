@@ -668,55 +668,59 @@ MIT License
 
 ## Troubleshooting
 
-### Docker Issues
+For comprehensive troubleshooting information, see the [Troubleshooting Guide](docs/TROUBLESHOOTING.md).
 
-#### Container fails to start
+### Quick Reference
+
+#### Docker Issues
+
+##### Container fails to start
 - Check logs: `docker-compose logs collector` or `docker-compose logs webapp`
 - Verify configuration file exists: `ls -la config.yaml`
 - Ensure `.env` file has correct passwords
 - Check port 8000 is not already in use: `lsof -i :8000` or `netstat -an | grep 8000`
 
-#### Cannot connect to network devices from Docker
+##### Cannot connect to network devices from Docker
 - Ensure Docker container can reach your network devices
 - Check if devices are on the same network or accessible from Docker network
 - If devices are on host network, use `host.docker.internal` (on macOS/Windows) or host IP address
 - Consider using `network_mode: "host"` in docker-compose.yml for direct network access
 
-#### Database permission errors
+##### Database permission errors
 - Check data directory permissions: `ls -la data/`
 - Ensure data directory exists and is writable: `chmod 755 data/`
 - If using volumes, verify volume mount permissions
 
-#### Want to rebuild after code changes
+##### Want to rebuild after code changes
 ```bash
 docker-compose down
 docker-compose build --no-cache
 docker-compose up -d
 ```
 
-#### Container keeps restarting
+##### Container keeps restarting
 - Check logs for errors: `docker-compose logs -f collector`
 - Verify config.yaml is valid YAML
 - Ensure all required environment variables are set
 - Check if there are any network issues preventing SSH connections
 
-### Local Installation Issues
+#### Local Installation Issues
 
-### Collector won't connect to device
+##### Collector won't connect to device
 - Verify SSH credentials
 - Check `device_type` matches your device
 - Ensure network connectivity to `host:port`
 - Review logs for specific errors
 
-### Web UI shows "No data available"
+##### Web UI shows "No data available"
 - Ensure collector is running
 - Check that `data/current.sqlite3` exists
 - Verify collector has successfully executed at least one command
 
-### Outputs are too long
+##### Outputs are too long
 - Adjust `max_output_lines` in config
 - Add more entries to `global_line_exclusions`
 
-### Timestamps are wrong
+##### Timestamps are wrong
 - Frontend converts UTC to JST (UTC+9)
 - Collector stores all timestamps in UTC epoch seconds
