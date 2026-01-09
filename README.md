@@ -270,7 +270,7 @@ commands:
 - `"0 * * * *"` - Every hour at minute 0
 - `"0 */6 * * *"` - Every 6 hours
 - `"0 0 * * *"` - Once per day at midnight
-- `"0 9-17 * * 1-5"` - Every hour from 9 AM to 5 PM, Monday through Friday
+- `"0 9-17 * * 1-5"` - At the start of every hour from 9 AM to 5 PM, Monday through Friday
 
 ### Filters
 
