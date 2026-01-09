@@ -302,20 +302,36 @@ class NetworkWatch {
     
     async updateCommandData(command) {
         try {
+            // Fetch side-by-side data for character-level diff
+            const sideBySideResponse = await fetch(`/api/runs/${encodeURIComponent(command)}/side_by_side`);
+            const sideBySideData = await sideBySideResponse.json();
+            
+            // Also fetch regular run data for history
             const response = await fetch(`/api/runs/${encodeURIComponent(command)}`);
             const data = await response.json();
             
-            this.renderCommandContent(command, data.runs);
+            this.renderCommandContent(command, data.runs, sideBySideData);
         } catch (error) {
             console.error('Error loading command data:', error);
         }
     }
     
-    renderCommandContent(command, runsData) {
+    renderCommandContent(command, runsData, sideBySideData) {
         const contentContainer = document.getElementById('commandContent');
         contentContainer.innerHTML = '';
         
-        // Render each device's runs
+        // Check if we have side-by-side data
+        if (sideBySideData && sideBySideData.devices && sideBySideData.devices.length >= 2) {
+            // Render side-by-side comparison view
+            this.renderSideBySideView(command, sideBySideData);
+            
+            // Add separator
+            const separator = document.createElement('hr');
+            separator.style.margin = '30px 0';
+            contentContainer.appendChild(separator);
+        }
+        
+        // Render traditional per-device run history
         for (const [device, runs] of Object.entries(runsData)) {
             const deviceSection = document.createElement('div');
             deviceSection.className = 'device-section';
@@ -356,6 +372,105 @@ class NetworkWatch {
             
             contentContainer.appendChild(deviceSection);
         }
+    }
+    
+    renderSideBySideView(command, sideBySideData) {
+        const contentContainer = document.getElementById('commandContent');
+        
+        // Create side-by-side section
+        const sideBySideSection = document.createElement('div');
+        sideBySideSection.className = 'side-by-side-section';
+        
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = 'Side-by-Side Comparison (Character-level Diff)';
+        title.style.marginBottom = '15px';
+        sideBySideSection.appendChild(title);
+        
+        // Container for the two device outputs
+        const comparisonContainer = document.createElement('div');
+        comparisonContainer.className = 'comparison-container';
+        
+        // Render each device
+        sideBySideData.devices.forEach(deviceData => {
+            const devicePanel = document.createElement('div');
+            devicePanel.className = 'device-panel';
+            
+            // Device header
+            const header = document.createElement('div');
+            header.className = 'device-panel-header';
+            
+            const deviceName = document.createElement('h3');
+            deviceName.textContent = deviceData.name;
+            header.appendChild(deviceName);
+            
+            // Metadata
+            const meta = document.createElement('div');
+            meta.className = 'device-panel-meta';
+            const timestamp = this.formatTimestampJST(deviceData.run.ts_epoch);
+            const duration = deviceData.run.duration_ms ? `${deviceData.run.duration_ms.toFixed(2)}ms` : 'N/A';
+            meta.innerHTML = `
+                <span>${timestamp}</span> | 
+                Duration: ${duration}
+                ${deviceData.run.original_line_count ? ` | Lines: ${deviceData.run.original_line_count}` : ''}
+            `;
+            header.appendChild(meta);
+            
+            // Badges
+            const badges = document.createElement('div');
+            badges.className = 'run-badges';
+            
+            if (deviceData.run.ok) {
+                const badge = document.createElement('span');
+                badge.className = 'badge success';
+                badge.textContent = 'Success';
+                badges.appendChild(badge);
+            } else {
+                const badge = document.createElement('span');
+                badge.className = 'badge error';
+                badge.textContent = 'Error';
+                badges.appendChild(badge);
+            }
+            
+            if (deviceData.run.is_filtered) {
+                const badge = document.createElement('span');
+                badge.className = 'badge filtered';
+                badge.textContent = 'Filtered';
+                badges.appendChild(badge);
+            }
+            
+            if (deviceData.run.is_truncated) {
+                const badge = document.createElement('span');
+                badge.className = 'badge truncated';
+                badge.textContent = 'Truncated';
+                badges.appendChild(badge);
+            }
+            
+            header.appendChild(badges);
+            devicePanel.appendChild(header);
+            
+            // Output with character-level diff highlighting
+            const outputContainer = document.createElement('div');
+            outputContainer.className = 'device-panel-output';
+            
+            if (deviceData.run.ok) {
+                const outputPre = document.createElement('pre');
+                outputPre.className = 'output-text-char-diff';
+                outputPre.innerHTML = deviceData.run.output_html || this.escapeHtml(deviceData.run.output_text);
+                outputContainer.appendChild(outputPre);
+            } else {
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'error-message';
+                errorMsg.textContent = `Error: ${deviceData.run.error_message || 'Unknown error'}`;
+                outputContainer.appendChild(errorMsg);
+            }
+            
+            devicePanel.appendChild(outputContainer);
+            comparisonContainer.appendChild(devicePanel);
+        });
+        
+        sideBySideSection.appendChild(comparisonContainer);
+        contentContainer.appendChild(sideBySideSection);
     }
     
     createRunEntry(run, command, index) {

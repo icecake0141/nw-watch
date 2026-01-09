@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 
 from shared.config import Config
 from shared.db import Database
-from shared.diff import generate_side_by_side_diff
+from shared.diff import generate_side_by_side_diff, generate_inline_char_diff
 from shared.export import (
     export_run_as_text,
     export_run_as_json,
@@ -220,6 +220,93 @@ async def get_runs(command: str, device: Optional[str] = None, limit: int = DEFA
             result[dev] = runs
         
         return JSONResponse({"runs": result})
+    finally:
+        db.close()
+
+
+@app.get("/api/runs/{command}/side_by_side")
+async def get_runs_side_by_side(command: str):
+    """Get command runs for all devices with character-level diff highlighting.
+    
+    Returns the latest run for each device with inline character-level diff
+    highlighting to show differences between devices.
+    """
+    db = get_db(resolve_history_size())
+    if not db:
+        return JSONResponse({"devices": []})
+    
+    try:
+        devices = db.get_all_devices()
+        
+        if len(devices) < 2:
+            # Need at least 2 devices for comparison
+            return JSONResponse({
+                "devices": [],
+                "error": "Need at least 2 devices for side-by-side comparison"
+            })
+        
+        # Get latest run for each device
+        device_runs = {}
+        for device in devices:
+            runs = db.get_latest_runs(device, command, limit=1, include_filtered=False)
+            if runs:
+                device_runs[device] = runs[0]
+        
+        if len(device_runs) < 2:
+            return JSONResponse({
+                "devices": [],
+                "error": "Need at least 2 devices with data for comparison"
+            })
+        
+        # For now, compare first two devices
+        # In future, this could be extended to support N-way comparison
+        device_list = sorted(device_runs.keys())
+        device_a = device_list[0]
+        device_b = device_list[1]
+        
+        run_a = device_runs[device_a]
+        run_b = device_runs[device_b]
+        
+        text_a = run_a.get('output_text', '')
+        text_b = run_b.get('output_text', '')
+        
+        # Generate character-level diff
+        highlighted_a, highlighted_b = generate_inline_char_diff(text_a, text_b)
+        
+        # Build response
+        result = {
+            "devices": [
+                {
+                    "name": device_a,
+                    "run": {
+                        "ts_epoch": run_a['ts_epoch'],
+                        "duration_ms": run_a['duration_ms'],
+                        "ok": run_a['ok'],
+                        "is_truncated": run_a.get('is_truncated', False),
+                        "is_filtered": run_a.get('is_filtered', False),
+                        "original_line_count": run_a.get('original_line_count'),
+                        "output_text": text_a,
+                        "output_html": highlighted_a
+                    }
+                },
+                {
+                    "name": device_b,
+                    "run": {
+                        "ts_epoch": run_b['ts_epoch'],
+                        "duration_ms": run_b['duration_ms'],
+                        "ok": run_b['ok'],
+                        "is_truncated": run_b.get('is_truncated', False),
+                        "is_filtered": run_b.get('is_filtered', False),
+                        "original_line_count": run_b.get('original_line_count'),
+                        "output_text": text_b,
+                        "output_html": highlighted_b
+                    }
+                }
+            ],
+            "has_diff": text_a != text_b
+        }
+        
+        return JSONResponse(result)
     finally:
         db.close()
 

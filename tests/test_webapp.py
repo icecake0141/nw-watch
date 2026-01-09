@@ -190,6 +190,34 @@ def test_get_device_diff(client):
     assert "has_diff" in data
 
 
+def test_get_runs_side_by_side(client):
+    """Test getting side-by-side comparison with character-level diff."""
+    response = client.get("/api/runs/show%20version/side_by_side")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "devices" in data
+    assert len(data["devices"]) == 2
+    assert "has_diff" in data
+    
+    # Check first device
+    device_a = data["devices"][0]
+    assert "name" in device_a
+    assert "run" in device_a
+    assert "output_text" in device_a["run"]
+    assert "output_html" in device_a["run"]
+    
+    # Check second device
+    device_b = data["devices"][1]
+    assert "name" in device_b
+    assert "run" in device_b
+    assert "output_text" in device_b["run"]
+    assert "output_html" in device_b["run"]
+    
+    # Since Version 1.0 and Version 2.0 are different, should have diff
+    assert data["has_diff"] is True
+
+
 def test_get_ping_status(client):
     """Test getting ping status."""
     response = client.get("/api/ping?window_seconds=60")
