@@ -528,7 +528,6 @@ async def export_diff(
             )
         else:  # text format
             content = export_diff_as_text(diff_html, label_a, label_b)
-            content += "\n" + diff_html  # Append raw HTML
             filename = f"{filename_prefix}_{int(time.time())}.txt"
             return PlainTextResponse(
                 content=content,
