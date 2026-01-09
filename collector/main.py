@@ -348,7 +348,7 @@ class Collector:
                     # No commands configured, use default interval
                     sleep_time = self.config.get_interval_seconds()
                 else:
-                    # Sleep until next command, but check at least every 60 seconds
+                    # Sleep until next command, but check at most every 60 seconds
                     # and no less than 1 second to avoid busy waiting
                     sleep_time = max(1, min(60, min_wait))
                 
