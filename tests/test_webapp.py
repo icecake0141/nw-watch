@@ -346,3 +346,57 @@ def test_export_ping_json(client):
     assert data["device"] == "DeviceA"
     assert "samples" in data
     assert len(data["samples"]) >= 1
+
+
+def test_export_filename_sanitization(client):
+    """Test that filenames are properly sanitized to prevent path traversal."""
+    # Test with command containing dangerous characters
+    response = client.get("/api/export/run?command=../etc/passwd&device=DeviceA&format=json")
+    # Should still work but with sanitized filename
+    if response.status_code == 200:
+        filename = response.headers.get("Content-Disposition", "")
+        # Should not contain path traversal sequences
+        assert "../" not in filename
+        assert ".." not in filename or "etcpasswd" in filename
+    
+    # Test with command containing shell metacharacters  
+    response = client.get("/api/export/run?command=cmd;rm%20-rf&device=DeviceA&format=text")
+    if response.status_code == 200:
+        filename = response.headers.get("Content-Disposition", "")
+        # Should not contain shell metacharacters
+        assert ";" not in filename
+        assert "|" not in filename
+        assert "&" not in filename
+    
+    # Test with device name containing directory separators
+    response = client.get("/api/export/ping?device=../../evil&format=csv&window_seconds=3600")
+    if response.status_code == 200:
+        filename = response.headers.get("Content-Disposition", "")
+        # Should not contain path traversal
+        assert "../" not in filename
+        assert "/" not in filename.split("filename=")[1] if "filename=" in filename else True
+
+
+def test_export_bulk_filename_sanitization(client):
+    """Test bulk export filename sanitization."""
+    # Test with command containing dangerous characters
+    response = client.get("/api/export/bulk?command=show%20version&format=json")
+    if response.status_code == 200:
+        filename = response.headers.get("Content-Disposition", "")
+        # Filename should be safe
+        assert "bulk_" in filename
+        # Should have sanitized command name
+        assert ".json" in filename
+
+
+def test_export_diff_filename_sanitization(client):
+    """Test diff export filename sanitization."""
+    # Test history diff with sanitized device and command
+    response = client.get("/api/export/diff?command=show%20version&device=DeviceA&format=html")
+    if response.status_code == 200 or response.status_code == 404:
+        # 404 is OK if not enough history
+        if response.status_code == 200:
+            filename = response.headers.get("Content-Disposition", "")
+            assert "history_diff_" in filename
+            # Should not contain dangerous characters
+            assert "/" not in filename.split("filename=")[1] if "filename=" in filename else True

@@ -2,8 +2,61 @@
 import csv
 import io
 import json
+import re
 from datetime import datetime
 from typing import Any, Dict, List
+
+
+def sanitize_filename_component(text: str, max_length: int = 100) -> str:
+    """Sanitize text for safe use in filenames.
+    
+    This function prevents path traversal attacks and ensures filesystem compatibility
+    by removing or replacing dangerous characters from user-provided text.
+    
+    Args:
+        text: Text to sanitize (e.g., command name, device name)
+        max_length: Maximum length of the sanitized output
+        
+    Returns:
+        Sanitized string safe for use in filenames
+        
+    Security:
+        - Removes path traversal sequences (../)
+        - Removes directory separators (/, \\)
+        - Removes control characters and null bytes
+        - Removes shell metacharacters
+        - Replaces whitespace with underscores
+        - Ensures result is not empty
+    """
+    if not text:
+        return "unnamed"
+    
+    # Remove any null bytes and control characters
+    text = ''.join(char for char in text if ord(char) >= 32)
+    
+    # Remove or replace dangerous characters:
+    # - Directory separators: / \
+    # - Path traversal: . (when used in sequences like ..)
+    # - Shell metacharacters: | & ; $ ` < > ( ) [ ] { } ! * ? ' " ~
+    # Replace spaces and other whitespace with underscores
+    text = re.sub(r'[\\/]', '', text)  # Remove directory separators
+    text = re.sub(r'\.\.+', '', text)  # Remove .. sequences
+    text = re.sub(r'[|&;$`<>(){}\[\]!*?\'"~]', '', text)  # Remove shell metacharacters
+    text = re.sub(r'\s+', '_', text)  # Replace whitespace with underscore
+    text = re.sub(r'[^\w\-_.]', '', text)  # Keep only alphanumeric, dash, underscore, dot
+    
+    # Ensure no leading/trailing dots or dashes (can cause issues on some systems)
+    text = text.strip('.-_')
+    
+    # Truncate to max length
+    if len(text) > max_length:
+        text = text[:max_length]
+    
+    # Ensure result is not empty
+    if not text:
+        return "unnamed"
+    
+    return text
 
 
 def format_timestamp_jst(epoch: int) -> str:

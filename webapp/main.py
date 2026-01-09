@@ -26,6 +26,7 @@ from shared.export import (
     export_ping_data_as_json,
     export_diff_as_html,
     export_diff_as_text,
+    sanitize_filename_component,
 )
 from webapp.websocket_manager import manager
 
@@ -398,7 +399,9 @@ async def export_run(command: str, device: str, format: str = "text"):
         
         if format == "json":
             content = export_run_as_json(run, device, command)
-            filename = f"{device}_{command.replace(' ', '_')}_{run['ts_epoch']}.json"
+            safe_device = sanitize_filename_component(device)
+            safe_command = sanitize_filename_component(command)
+            filename = f"{safe_device}_{safe_command}_{run['ts_epoch']}.json"
             return Response(
                 content=content,
                 media_type="application/json",
@@ -406,7 +409,9 @@ async def export_run(command: str, device: str, format: str = "text"):
             )
         else:  # text format
             content = export_run_as_text(run, device, command)
-            filename = f"{device}_{command.replace(' ', '_')}_{run['ts_epoch']}.txt"
+            safe_device = sanitize_filename_component(device)
+            safe_command = sanitize_filename_component(command)
+            filename = f"{safe_device}_{safe_command}_{run['ts_epoch']}.txt"
             return PlainTextResponse(
                 content=content,
                 headers={"Content-Disposition": f"attachment; filename={filename}"}
@@ -440,7 +445,8 @@ async def export_bulk(command: str, format: str = "json"):
             return JSONResponse({"error": "No data available"}, status_code=404)
         
         content = export_bulk_runs_as_json(runs_by_device, command)
-        filename = f"bulk_{command.replace(' ', '_')}_{int(time.time())}.json"
+        safe_command = sanitize_filename_component(command)
+        filename = f"bulk_{safe_command}_{int(time.time())}.json"
         
         return Response(
             content=content,
@@ -494,7 +500,9 @@ async def export_diff(
             )
             label_a = "Previous"
             label_b = "Latest"
-            filename_prefix = f"history_diff_{device}_{command.replace(' ', '_')}"
+            safe_device = sanitize_filename_component(device)
+            safe_command = sanitize_filename_component(command)
+            filename_prefix = f"history_diff_{safe_device}_{safe_command}"
             
         elif device_a and device_b:
             # Device diff
@@ -514,7 +522,10 @@ async def export_diff(
             )
             label_a = device_a
             label_b = device_b
-            filename_prefix = f"device_diff_{device_a}_vs_{device_b}_{command.replace(' ', '_')}"
+            safe_device_a = sanitize_filename_component(device_a)
+            safe_device_b = sanitize_filename_component(device_b)
+            safe_command = sanitize_filename_component(command)
+            filename_prefix = f"device_diff_{safe_device_a}_vs_{safe_device_b}_{safe_command}"
         else:
             return JSONResponse({"error": "Invalid parameters"}, status_code=400)
         
@@ -561,7 +572,8 @@ async def export_ping(device: str, format: str = "csv", window_seconds: int = 36
         
         if format == "json":
             content = export_ping_data_as_json(samples, device)
-            filename = f"ping_{device}_{int(time.time())}.json"
+            safe_device = sanitize_filename_component(device)
+            filename = f"ping_{safe_device}_{int(time.time())}.json"
             return Response(
                 content=content,
                 media_type="application/json",
@@ -569,7 +581,8 @@ async def export_ping(device: str, format: str = "csv", window_seconds: int = 36
             )
         else:  # csv format
             content = export_ping_data_as_csv(samples, device)
-            filename = f"ping_{device}_{int(time.time())}.csv"
+            safe_device = sanitize_filename_component(device)
+            filename = f"ping_{safe_device}_{int(time.time())}.csv"
             return Response(
                 content=content,
                 media_type="text/csv",

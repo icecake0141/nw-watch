@@ -9,6 +9,7 @@ from shared.export import (
     export_diff_as_html,
     export_diff_as_text,
     format_timestamp_jst,
+    sanitize_filename_component,
 )
 
 
@@ -19,6 +20,86 @@ def test_format_timestamp_jst():
     result = format_timestamp_jst(epoch)
     assert "2024-01-01" in result
     assert "JST" in result
+
+
+def test_sanitize_filename_component_basic():
+    """Test basic filename sanitization."""
+    # Normal text with spaces should be converted to underscores
+    assert sanitize_filename_component("show version") == "show_version"
+    assert sanitize_filename_component("ping 192.168.1.1") == "ping_192.168.1.1"
+
+
+def test_sanitize_filename_component_path_traversal():
+    """Test that path traversal attempts are blocked."""
+    # Path traversal sequences should be removed
+    assert sanitize_filename_component("../../etc/passwd") == "etcpasswd"
+    assert sanitize_filename_component("../../../evil") == "evil"
+    assert sanitize_filename_component("...") == "unnamed"  # Returns "unnamed" when empty
+    assert sanitize_filename_component("....") == "unnamed"  # Returns "unnamed" when empty
+    
+    # Directory separators should be removed
+    assert sanitize_filename_component("etc/passwd") == "etcpasswd"
+    assert sanitize_filename_component("windows\\system32") == "windowssystem32"
+    assert sanitize_filename_component("/etc/passwd") == "etcpasswd"
+    assert sanitize_filename_component("\\etc\\passwd") == "etcpasswd"
+
+
+def test_sanitize_filename_component_shell_metacharacters():
+    """Test that shell metacharacters are removed."""
+    # Shell metacharacters should be stripped
+    assert sanitize_filename_component("command | grep test") == "command_grep_test"
+    assert sanitize_filename_component("cmd && evil") == "cmd_evil"
+    assert sanitize_filename_component("test;rm -rf") == "testrm_-rf"
+    assert sanitize_filename_component("$(evil)") == "evil"
+    assert sanitize_filename_component("`whoami`") == "whoami"
+    assert sanitize_filename_component("test<file") == "testfile"
+    assert sanitize_filename_component("test>file") == "testfile"
+
+
+def test_sanitize_filename_component_control_characters():
+    """Test that control characters and null bytes are removed."""
+    # Null bytes and control characters should be removed
+    assert sanitize_filename_component("test\x00evil") == "testevil"
+    assert sanitize_filename_component("test\n\r\tevil") == "testevil"
+    assert sanitize_filename_component("test\x01\x02\x03") == "test"
+
+
+def test_sanitize_filename_component_edge_cases():
+    """Test edge cases for filename sanitization."""
+    # Empty or None input
+    assert sanitize_filename_component("") == "unnamed"
+    assert sanitize_filename_component(None) == "unnamed"
+    
+    # Only dangerous characters
+    assert sanitize_filename_component("///") == "unnamed"
+    assert sanitize_filename_component("...") == "unnamed"
+    assert sanitize_filename_component("|||") == "unnamed"
+    
+    # Leading/trailing special chars should be stripped
+    assert sanitize_filename_component("...test...") == "test"
+    assert sanitize_filename_component("---test---") == "test"
+    assert sanitize_filename_component("___test___") == "test"
+
+
+def test_sanitize_filename_component_max_length():
+    """Test that filenames are truncated to max length."""
+    long_text = "a" * 200
+    result = sanitize_filename_component(long_text)
+    assert len(result) <= 100
+    assert result == "a" * 100
+    
+    # Test with custom max_length
+    result = sanitize_filename_component(long_text, max_length=50)
+    assert len(result) == 50
+
+
+def test_sanitize_filename_component_unicode():
+    """Test handling of unicode characters."""
+    # Unicode characters should be preserved if alphanumeric
+    result = sanitize_filename_component("test_データ_123")
+    # Note: \w in Python regex includes unicode letters
+    assert "test" in result
+    assert "123" in result
 
 
 def test_export_run_as_text():
