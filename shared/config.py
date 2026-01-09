@@ -196,6 +196,11 @@ class Config:
             return self._schedule_cache[command]
         
         # Fallback for commands not in cache (shouldn't happen normally)
+        logger.warning(
+            "Command '%s' not found in schedule cache, performing fallback lookup. "
+            "This may indicate a configuration initialization issue.",
+            command
+        )
         for cmd in self.get_commands():
             if cmd.get("command_text") == command or cmd.get("name") == command:
                 schedule = cmd.get("schedule")

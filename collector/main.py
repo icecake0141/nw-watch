@@ -341,9 +341,15 @@ class Collector:
                     wait_time = max(0, next_run - now)
                     min_wait = min(min_wait, wait_time)
                 
-                # Sleep until next command, but check at least every 60 seconds
-                # and no less than 1 second to avoid busy waiting
-                sleep_time = max(1, min(60, min_wait))
+                # Handle empty commands or no scheduled commands
+                if min_wait == float('inf'):
+                    # No commands configured, use default interval
+                    sleep_time = self.config.get_interval_seconds()
+                else:
+                    # Sleep until next command, but check at least every 60 seconds
+                    # and no less than 1 second to avoid busy waiting
+                    sleep_time = max(1, min(60, min_wait))
+                
                 await asyncio.sleep(sleep_time)
         
         # Schedule ping collection
