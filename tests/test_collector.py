@@ -89,7 +89,6 @@ devices:
 """
         )
         
-        import os
         os.environ["TEST_PASSWORD"] = "test"
         
         with patch('collector.main.asyncio.run') as mock_asyncio_run:
