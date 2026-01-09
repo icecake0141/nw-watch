@@ -170,15 +170,14 @@ devices:
                         
                         # Now simulate signal handling by directly calling the handler
                         # Get the signal handler that was registered
-                        import signal as signal_module
-                        current_sigterm_handler = signal_module.getsignal(signal_module.SIGTERM)
+                        current_sigterm_handler = signal.getsignal(signal.SIGTERM)
                         
                         # The handler should be our signal_handler function
                         # We can't easily test sys.exit(0), but we can verify the stop was called
                         with patch.object(collector_instance, 'stop') as mock_stop:
                             with patch('sys.exit') as mock_exit:
                                 # Call the signal handler
-                                current_sigterm_handler(signal_module.SIGTERM, None)
+                                current_sigterm_handler(signal.SIGTERM, None)
                                 
                                 # Verify stop was called
                                 mock_stop.assert_called_once()
