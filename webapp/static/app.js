@@ -113,7 +113,15 @@ class NetworkWatch {
     
     loadThemePreference() {
         const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        // Check system preference with fallback for older browsers
+        let prefersDark = false;
+        try {
+            prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch (e) {
+            // Older browsers may not support matchMedia
+            console.log('matchMedia not supported, using light theme');
+        }
         
         // Apply saved theme, or use system preference if no saved theme
         if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {

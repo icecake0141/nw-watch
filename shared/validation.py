@@ -35,7 +35,7 @@ class CommandConfig(BaseModel):
         if v is not None:
             try:
                 croniter(v)
-            except (ValueError, KeyError) as e:
+            except ValueError as e:
                 raise ValueError(f"Invalid cron schedule '{v}': {e}")
         return v
 
