@@ -325,12 +325,23 @@ class Collector:
         """Main collection loop."""
         ping_interval_seconds = self.config.get_ping_interval_seconds()
         
-        # Schedule command collection - check every second for commands due to run
+        # Schedule command collection with intelligent sleep intervals
         async def command_loop():
             while self.running:
                 await self.collect_commands()
-                # Check every second to see if any command needs to run
-                await asyncio.sleep(1)
+                
+                # Calculate minimum time until next command needs to run
+                now = time.time()
+                min_wait = float('inf')
+                for cmd in self.commands:
+                    next_run = self.command_next_run.get(cmd, now)
+                    wait_time = max(0, next_run - now)
+                    min_wait = min(min_wait, wait_time)
+                
+                # Sleep until next command, but check at least every 60 seconds
+                # and no less than 1 second to avoid busy waiting
+                sleep_time = max(1, min(60, min_wait))
+                await asyncio.sleep(sleep_time)
         
         # Schedule ping collection
         async def ping_loop():

@@ -169,7 +169,7 @@ class Config:
                     try:
                         croniter(schedule)
                         return schedule
-                    except (ValueError, KeyError) as e:
+                    except ValueError as e:
                         logger.error(
                             "Invalid cron schedule '%s' for command '%s': %s",
                             schedule,
@@ -177,5 +177,6 @@ class Config:
                             e,
                         )
                         return None
-                break
+                # Command found but no schedule
+                return None
         return None
