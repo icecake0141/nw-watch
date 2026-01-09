@@ -6,6 +6,9 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 from croniter import croniter
+from pydantic import ValidationError
+
+from shared.validation import ConfigSchema
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,20 @@ class Config:
         self.config_path = Path(config_path)
         with open(self.config_path, "r") as f:
             # Ensure we always have a dictionary to read from
-            self.data: Dict[str, Any] = yaml.safe_load(f) or {}
+            raw_data = yaml.safe_load(f) or {}
+        
+        # Validate configuration with Pydantic
+        try:
+            self.schema = ConfigSchema(**raw_data)
+        except ValidationError as e:
+            logger.error("Configuration validation failed:")
+            for error in e.errors():
+                location = " -> ".join(str(loc) for loc in error["loc"])
+                logger.error("  %s: %s", location, error["msg"])
+            raise ValueError(f"Invalid configuration in {config_path}") from e
+        
+        # Store raw data for backward compatibility
+        self.data: Dict[str, Any] = raw_data
         
         # Cache for command schedules to avoid repeated lookups
         self._schedule_cache: Dict[str, Optional[str]] = {}

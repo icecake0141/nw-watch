@@ -1,4 +1,5 @@
 """Tests for command scheduling functionality."""
+import pytest
 import time
 from pathlib import Path
 
@@ -29,6 +30,7 @@ devices:
     host: "1.1.1.1"
     username: "admin"
     password_env_key: "PW"
+    device_type: "cisco_ios"
 """
     )
     
@@ -57,14 +59,15 @@ devices:
     host: "1.1.1.1"
     username: "admin"
     password_env_key: "PW"
+    device_type: "cisco_ios"
 """
     )
     
     monkeypatch.setenv("PW", "secret")
-    config = Config(str(cfg_path))
     
-    # Invalid schedule should return None
-    assert config.get_command_schedule("show version") is None
+    # Invalid schedule should raise ValueError during config loading
+    with pytest.raises(ValueError, match="Invalid configuration"):
+        Config(str(cfg_path))
 
 
 def test_croniter_next_execution():
@@ -103,6 +106,7 @@ devices:
     host: "1.1.1.1"
     username: "admin"
     password_env_key: "PW"
+    device_type: "cisco_ios"
 """
     )
     
@@ -137,6 +141,7 @@ devices:
     host: "1.1.1.1"
     username: "admin"
     password_env_key: "PW"
+    device_type: "cisco_ios"
 """
     )
     

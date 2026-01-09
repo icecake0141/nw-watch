@@ -33,6 +33,7 @@ devices:
     host: "1.1.1.1"
     username: "admin"
     password_env_key: "PW_A"
+    device_type: "cisco_ios"
 """
     )
 
