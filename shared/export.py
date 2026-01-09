@@ -3,7 +3,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 def format_timestamp_jst(epoch: int) -> str:
