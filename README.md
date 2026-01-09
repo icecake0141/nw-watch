@@ -8,6 +8,11 @@ A Python-based network monitoring system that collects command outputs and ping 
 
 ### Data Collection
 - **Multi-Device SSH Collection**: Connect to multiple network devices simultaneously via SSH using Netmiko
+- **Persistent SSH Connections**: Maintain long-lived SSH connections per device to reduce authentication overhead
+  - Configurable connection persistence (enabled by default)
+  - Automatic reconnection with exponential backoff on connection failures
+  - Thread-safe command execution with per-device locking
+  - Graceful connection cleanup on shutdown
 - **Flexible Command Scheduling**: Per-command cron scheduling for optimized resource usage
   - Run different commands at different intervals (e.g., version check every 6 hours, interface status every 5 minutes)
   - Backward compatible - commands without schedule use global interval
@@ -299,6 +304,33 @@ websocket:
 - Automatic fallback to polling if WebSocket fails
 
 **Note:** When `enabled: false` (default), the application uses traditional HTTP polling for backward compatibility.
+
+### SSH Connection settings (optional)
+
+Configure persistent SSH connection behavior:
+
+```yaml
+ssh:
+  persistent_connections: true   # Use persistent SSH connections (default: true)
+  connection_timeout: 100        # SSH connection timeout in seconds (default: 100)
+  max_reconnect_attempts: 3      # Maximum reconnection attempts (default: 3)
+  reconnect_backoff_base: 1.0    # Base time for exponential backoff in seconds (default: 1.0)
+```
+
+**Benefits of persistent connections:**
+- **Reduced Authentication Overhead**: SSH connection is established once and reused across multiple commands
+- **Lower Resource Usage**: Eliminates repeated TCP handshakes and SSH negotiations
+- **Rate Limit Avoidance**: Prevents triggering rate limits on devices due to frequent connection attempts
+- **Improved Performance**: Faster command execution without connection setup delay
+
+**Connection Management:**
+- Each device maintains one persistent SSH connection that is reused for all commands
+- Connections are automatically reconnected if they become stale or fail
+- Thread-safe execution ensures only one command runs on a connection at a time
+- Exponential backoff prevents overwhelming devices during connectivity issues
+- All connections are gracefully closed on collector shutdown
+
+**Legacy Mode:** Set `persistent_connections: false` to use the original behavior of creating a new connection for each command execution (not recommended for production use).
 
 ### Devices
 

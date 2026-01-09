@@ -6,6 +6,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -14,6 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from croniter import croniter
 from netmiko import ConnectHandler
+from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
 from shared.config import Config
 from shared.db import Database
@@ -35,6 +37,102 @@ class DeviceCollector:
         self.config = config
         self.device_name = device_config['name']
         self.max_output_lines = self.config.get_max_output_lines()
+        
+        # Persistent connection support
+        self.persistent_connections_enabled = self.config.get_persistent_connections_enabled()
+        self.connection_timeout = self.config.get_connection_timeout()
+        self.max_reconnect_attempts = self.config.get_max_reconnect_attempts()
+        self.reconnect_backoff_base = self.config.get_reconnect_backoff_base()
+        
+        # Connection state (only used if persistent_connections_enabled)
+        self._connection: Optional[ConnectHandler] = None
+        self._connection_lock = threading.Lock()
+        
+        if self.persistent_connections_enabled:
+            logger.info(f"Persistent connections enabled for {self.device_name}")
+    
+    def _get_connection_params(self) -> Dict[str, Any]:
+        """Get connection parameters for Netmiko."""
+        password = self.config.get_device_password(self.device_config)
+        if password is None:
+            password_env_key = self.device_config.get("password_env_key")
+            if password_env_key:
+                raise ValueError(
+                    f"Password not provided for device '{self.device_name}'; set environment variable '{password_env_key}'"
+                )
+            raise ValueError(
+                f"Password not provided for device '{self.device_name}' and no password_env_key set in config"
+            )
+        
+        return {
+            'device_type': self.device_config['device_type'],
+            'host': self.device_config['host'],
+            'port': self.device_config.get('port', 22),
+            'username': self.device_config['username'],
+            'password': password,
+            'timeout': self.connection_timeout,
+        }
+    
+    def _connect(self) -> ConnectHandler:
+        """Establish a new connection to the device."""
+        params = self._get_connection_params()
+        logger.info(f"Establishing SSH connection to {self.device_name}")
+        return ConnectHandler(**params)
+    
+    def _is_connection_alive(self) -> bool:
+        """Check if the current connection is alive."""
+        if self._connection is None:
+            return False
+        
+        try:
+            # Send a simple command to check connection
+            self._connection.find_prompt()
+            return True
+        except Exception as e:
+            logger.debug(f"Connection check failed for {self.device_name}: {e}")
+            return False
+    
+    def _ensure_connected(self) -> ConnectHandler:
+        """Ensure we have a live connection, reconnecting if necessary.
+        
+        Must be called with _connection_lock held.
+        Returns a valid connection or raises an exception.
+        """
+        # Check if current connection is alive
+        if self._connection is not None and self._is_connection_alive():
+            return self._connection
+        
+        # Need to reconnect
+        if self._connection is not None:
+            logger.warning(f"Connection to {self.device_name} is dead, reconnecting...")
+            try:
+                self._connection.disconnect()
+            except Exception:
+                pass
+            self._connection = None
+        
+        # Attempt to connect with retries and exponential backoff
+        last_exception = None
+        for attempt in range(self.max_reconnect_attempts):
+            try:
+                self._connection = self._connect()
+                logger.info(f"Successfully connected to {self.device_name} (attempt {attempt + 1})")
+                return self._connection
+            except (NetmikoTimeoutException, NetmikoAuthenticationException, Exception) as e:
+                last_exception = e
+                logger.error(
+                    f"Connection attempt {attempt + 1}/{self.max_reconnect_attempts} "
+                    f"failed for {self.device_name}: {e}"
+                )
+                
+                if attempt < self.max_reconnect_attempts - 1:
+                    # Exponential backoff
+                    sleep_time = self.reconnect_backoff_base * (2 ** attempt)
+                    logger.info(f"Waiting {sleep_time:.2f}s before retry...")
+                    time.sleep(sleep_time)
+        
+        # All attempts failed
+        raise Exception(f"Failed to connect to {self.device_name} after {self.max_reconnect_attempts} attempts: {last_exception}")
     
     def execute_command(self, command: str, db: Database) -> None:
         """Execute a single command on the device."""
@@ -46,29 +144,36 @@ class DeviceCollector:
         output_exclusions = self.config.get_command_output_exclusions(command)
         
         try:
-            password_env_key = self.device_config.get("password_env_key")
-            password = self.config.get_device_password(self.device_config)
-            if password is None:
-                if password_env_key:
+            if self.persistent_connections_enabled:
+                # Use persistent connection with lock
+                with self._connection_lock:
+                    connection = self._ensure_connected()
+                    output = connection.send_command(command)
+            else:
+                # Legacy mode: create new connection for each command
+                password = self.config.get_device_password(self.device_config)
+                if password is None:
+                    password_env_key = self.device_config.get("password_env_key")
+                    if password_env_key:
+                        raise ValueError(
+                            f"Password not provided for device '{self.device_name}'; set environment variable '{password_env_key}'"
+                        )
                     raise ValueError(
-                        f"Password not provided for device '{self.device_name}'; set environment variable '{password_env_key}'"
+                        f"Password not provided for device '{self.device_name}' and no password_env_key set in config"
                     )
-                raise ValueError(
-                    f"Password not provided for device '{self.device_name}' and no password_env_key set in config"
-                )
 
-            # Connect to device
-            connection = ConnectHandler(
-                device_type=self.device_config['device_type'],
-                host=self.device_config['host'],
-                port=self.device_config.get('port', 22),
-                username=self.device_config['username'],
-                password=password,
-            )
-            
-            # Execute command
-            output = connection.send_command(command)
-            connection.disconnect()
+                # Connect to device
+                connection = ConnectHandler(
+                    device_type=self.device_config['device_type'],
+                    host=self.device_config['host'],
+                    port=self.device_config.get('port', 22),
+                    username=self.device_config['username'],
+                    password=password,
+                )
+                
+                # Execute command
+                output = connection.send_command(command)
+                connection.disconnect()
             
             duration_ms = (time.time() - start_time) * 1000
             
@@ -111,6 +216,19 @@ class DeviceCollector:
             )
             
             logger.error(f"Error executing '{command}' on {self.device_name}: {error_msg}")
+    
+    def close(self) -> None:
+        """Close the persistent connection if open."""
+        if self.persistent_connections_enabled:
+            with self._connection_lock:
+                if self._connection is not None:
+                    try:
+                        logger.info(f"Closing persistent connection to {self.device_name}")
+                        self._connection.disconnect()
+                    except Exception as e:
+                        logger.error(f"Error closing connection to {self.device_name}: {e}")
+                    finally:
+                        self._connection = None
     
     def ping_device(self, db: Database) -> None:
         """Ping the device and store result."""
@@ -199,6 +317,13 @@ class Collector:
         self.running = True
         self.commands: List[str] = self._resolve_commands()
         
+        # Create persistent DeviceCollector instances
+        self.device_collectors: Dict[str, DeviceCollector] = {}
+        for device_config in self.devices:
+            collector = DeviceCollector(device_config, self.config)
+            self.device_collectors[device_config['name']] = collector
+            logger.info(f"Created DeviceCollector for {device_config['name']}")
+        
         # Track next execution time and schedule for each command
         self.command_next_run: Dict[str, float] = {}
         self.command_schedules: Dict[str, Optional[str]] = {}  # Cache schedules
@@ -253,8 +378,7 @@ class Collector:
         now = time.time()
         interval_seconds = self.config.get_interval_seconds()
         
-        for device_config in self.devices:
-            collector = DeviceCollector(device_config, self.config)
+        for device_name, collector in self.device_collectors.items():
             for command in self.commands:
                 # Check if this command should run now
                 next_run = self.command_next_run.get(command, now)
@@ -291,8 +415,7 @@ class Collector:
         loop = asyncio.get_event_loop()
         futures = []
         
-        for device_config in self.devices:
-            collector = DeviceCollector(device_config, self.config)
+        for device_name, collector in self.device_collectors.items():
             future = loop.run_in_executor(
                 self.executor,
                 collector.ping_device,
@@ -370,6 +493,14 @@ class Collector:
         """Stop the collector."""
         self.running = False
         self.executor.shutdown(wait=True)
+        
+        # Close all device collectors (persistent connections)
+        for device_name, collector in self.device_collectors.items():
+            try:
+                collector.close()
+            except Exception as e:
+                logger.error(f"Error closing collector for {device_name}: {e}")
+        
         self.db.close()
 
 
