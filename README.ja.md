@@ -42,6 +42,88 @@ Python製のネットワーク監視システムです。複数のネットワ�
 
 ## クイックスタート
 
+### オプション1: Docker（推奨）
+
+nw-watchを実行する最も簡単な方法は、DockerとDocker Composeを使用することです。
+
+#### 前提条件
+
+- Docker Engine 20.10以上
+- Docker Compose 2.0以上
+
+#### 手順
+
+1. **リポジトリをクローン**
+
+```bash
+git clone https://github.com/icecake0141/nw-watch.git
+cd nw-watch
+```
+
+2. **設定ファイルを作成**
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+`config.yaml` をデバイス情報で編集します（下記の設定セクションを参照）。
+
+3. **環境変数を設定**
+
+```bash
+cp .env.example .env
+```
+
+`.env` を編集してデバイスのパスワードを追加します:
+
+```bash
+DEVICEA_PASSWORD=your_password_here
+DEVICEB_PASSWORD=your_password_here
+```
+
+4. **サービスを起動**
+
+```bash
+docker-compose up -d
+```
+
+これにより:
+- Dockerイメージをビルド
+- コレクターサービスを起動
+- Webアプリケーションサービスを起動
+- サービス間の共有ネットワークを作成
+
+5. **Webインターフェースにアクセス**
+
+ブラウザで以下のURLにアクセスします:
+
+```
+http://localhost:8000
+```
+
+6. **ログを表示**
+
+```bash
+# すべてのログを表示
+docker-compose logs -f
+
+# コレクターのログのみ表示
+docker-compose logs -f collector
+
+# Webアプリのログのみ表示
+docker-compose logs -f webapp
+```
+
+7. **サービスを停止**
+
+```bash
+docker-compose down
+```
+
+### オプション2: ローカルインストール
+
+Dockerを使用せずにnw-watchをローカルで実行する場合:
+
 ### 1. 依存関係をインストール
 
 ```bash
@@ -162,9 +244,14 @@ nw-watch/
 │   ├── test_filters.py
 │   ├── test_truncate.py
 │   ├── test_db.py
+│   ├── test_docker.py
 │   └── test_webapp.py
 ├── data/              # DB保存先（実行時に生成）
 │   └── .gitkeep
+├── Dockerfile         # Dockerイメージ定義
+├── docker-compose.yml # Docker Composeオーケストレーション
+├── .dockerignore      # Dockerビルド除外設定
+├── .env.example       # 環境変数テンプレート
 ├── config.example.yaml
 ├── pyproject.toml
 └── README.md
@@ -533,6 +620,40 @@ WebSocketが有効な場合、クライアントは`/ws`に接続し、JSONメ�
 MIT License
 
 ## トラブルシューティング
+
+### Docker関連の問題
+
+#### コンテナが起動しない
+- ログを確認: `docker-compose logs collector` または `docker-compose logs webapp`
+- 設定ファイルの存在を確認: `ls -la config.yaml`
+- `.env` ファイルに正しいパスワードが設定されているか確認
+- ポート8000が既に使用されていないか確認: `lsof -i :8000` または `netstat -an | grep 8000`
+
+#### Dockerからネットワークデバイスへ接続できない
+- Dockerコンテナからネットワークデバイスへ到達可能か確認
+- デバイスが同じネットワーク上にあるか、Dockerネットワークからアクセス可能か確認
+- デバイスがホストネットワーク上にある場合、`host.docker.internal`（macOS/Windows）またはホストのIPアドレスを使用
+- 直接ネットワークアクセスが必要な場合、docker-compose.ymlで `network_mode: "host"` の使用を検討
+
+#### データベースの権限エラー
+- dataディレクトリの権限を確認: `ls -la data/`
+- dataディレクトリが存在し書き込み可能か確認: `chmod 755 data/`
+- ボリュームを使用している場合、ボリュームマウントの権限を確認
+
+#### コード変更後に再ビルドしたい
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+#### コンテナが再起動を繰り返す
+- エラーのログを確認: `docker-compose logs -f collector`
+- config.yamlが有効なYAML形式か確認
+- 必要な環境変数がすべて設定されているか確認
+- SSH接続を妨げるネットワーク問題がないか確認
+
+### ローカルインストールの問題
 
 ### コレクターがデバイスに接続できない
 - SSH資格情報を確認

@@ -1,24 +1,16 @@
-# Python
-__pycache__/
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
+dist/
+build/
 
 # Virtual environments
 venv/
@@ -37,17 +29,25 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+tests/
 
-# Database files (except .gitkeep)
+# Database files
 data/*.sqlite3
 data/*.sqlite3.tmp
 
-# Config (keep example)
+# Config (will be mounted)
 config.yaml
 
-# Environment variables
-.env
+# Documentation
+docs/
+*.md
+!README.md
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

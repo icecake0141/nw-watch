@@ -57,6 +57,88 @@ A Python-based network monitoring system that collects command outputs and ping 
 
 ## Quick Start
 
+### Option 1: Docker (Recommended)
+
+The easiest way to run nw-watch is using Docker and Docker Compose.
+
+#### Prerequisites
+
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+
+#### Steps
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/icecake0141/nw-watch.git
+cd nw-watch
+```
+
+2. **Create configuration file**
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+Edit `config.yaml` with your device details (see configuration section below).
+
+3. **Set up environment variables**
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your device passwords:
+
+```bash
+DEVICEA_PASSWORD=your_password_here
+DEVICEB_PASSWORD=your_password_here
+```
+
+4. **Start the services**
+
+```bash
+docker-compose up -d
+```
+
+This will:
+- Build the Docker image
+- Start the collector service
+- Start the web application service
+- Create a shared network for the services
+
+5. **Access the Web Interface**
+
+Open your browser and navigate to:
+
+```
+http://localhost:8000
+```
+
+6. **View logs**
+
+```bash
+# View all logs
+docker-compose logs -f
+
+# View collector logs only
+docker-compose logs -f collector
+
+# View webapp logs only
+docker-compose logs -f webapp
+```
+
+7. **Stop the services**
+
+```bash
+docker-compose down
+```
+
+### Option 2: Local Installation
+
+If you prefer to run nw-watch locally without Docker:
+
 ### 1. Install Dependencies
 
 ```bash
@@ -177,9 +259,14 @@ nw-watch/
 │   ├── test_filters.py
 │   ├── test_truncate.py
 │   ├── test_db.py
+│   ├── test_docker.py
 │   └── test_webapp.py
 ├── data/              # Database storage (created at runtime)
 │   └── .gitkeep
+├── Dockerfile         # Docker image definition
+├── docker-compose.yml # Docker Compose orchestration
+├── .dockerignore      # Docker build exclusions
+├── .env.example       # Environment variables template
 ├── config.example.yaml
 ├── pyproject.toml
 └── README.md
@@ -548,6 +635,40 @@ The server monitors the database file for changes and broadcasts updates to all 
 MIT License
 
 ## Troubleshooting
+
+### Docker Issues
+
+#### Container fails to start
+- Check logs: `docker-compose logs collector` or `docker-compose logs webapp`
+- Verify configuration file exists: `ls -la config.yaml`
+- Ensure `.env` file has correct passwords
+- Check port 8000 is not already in use: `lsof -i :8000` or `netstat -an | grep 8000`
+
+#### Cannot connect to network devices from Docker
+- Ensure Docker container can reach your network devices
+- Check if devices are on the same network or accessible from Docker network
+- If devices are on host network, use `host.docker.internal` (on macOS/Windows) or host IP address
+- Consider using `network_mode: "host"` in docker-compose.yml for direct network access
+
+#### Database permission errors
+- Check data directory permissions: `ls -la data/`
+- Ensure data directory exists and is writable: `chmod 755 data/`
+- If using volumes, verify volume mount permissions
+
+#### Want to rebuild after code changes
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+#### Container keeps restarting
+- Check logs for errors: `docker-compose logs -f collector`
+- Verify config.yaml is valid YAML
+- Ensure all required environment variables are set
+- Check if there are any network issues preventing SSH connections
+
+### Local Installation Issues
 
 ### Collector won't connect to device
 - Verify SSH credentials
