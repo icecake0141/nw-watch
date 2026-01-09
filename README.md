@@ -1,24 +1,44 @@
-# nw-watch - Dual-Device Network CLI Monitor
+# nw-watch - Network Device CLI Monitor
 
-A Python-based network monitoring system that collects command outputs and ping data from multiple network devices via SSH and displays them in a real-time web interface with diff capabilities.
+A Python-based network monitoring system that collects command outputs and ping data from multiple network devices via SSH and displays them in a real-time web interface with comprehensive diff capabilities.
 
-> 日本語: [README.ja.md](README.ja.md) / Web UI スクリーンショット: [docs/webui-screenshots.md](docs/webui-screenshots.md)
+> 日本語版: [README.ja.md](README.ja.md) | Web UI Screenshots: [docs/webui-screenshots.md](docs/webui-screenshots.md)
 
 ## Features
 
-- **Multi-Device SSH Collection**: Connect to multiple network devices and execute commands in parallel
-- **Continuous Ping Monitoring**: Track device connectivity with 1-second ping intervals
-- **Real-Time Web Interface**: FastAPI-based web application with auto-refreshing UI
-- **Command History**: Store and display the latest 10 runs per device/command
-- **Diff Views**: 
-  - Compare previous vs latest output for the same device
-  - Compare outputs between different devices for the same command
-- **Output Filtering**: 
-  - Filter out lines containing specific substrings
-  - Mark outputs as filtered based on error patterns
-  - Truncate long outputs to configurable line limits
-- **Time-Series Ping Data**: Visual status indicators with success rates and RTT metrics
-- **JST Timezone Display**: All timestamps are displayed in Japan Standard Time
+### Data Collection
+- **Multi-Device SSH Collection**: Connect to multiple network devices simultaneously via SSH using Netmiko
+- **Parallel Execution**: Commands executed in parallel across devices using ThreadPoolExecutor
+- **Continuous Ping Monitoring**: Track device reachability with configurable ping intervals (default: 1 second)
+- **Command History**: Configurable retention of command execution history (default: 10 runs per device/command)
+- **Robust Error Handling**: Gracefully handles connection failures and command errors with detailed logging
+
+### Output Processing
+- **Smart Line Filtering**: Remove lines containing specific substrings from command outputs
+  - Global filters apply to all commands
+  - Per-command filter overrides for fine-grained control
+- **Output Exclusion Patterns**: Automatically mark and hide outputs containing error patterns (e.g., "% Invalid", "% Ambiguous")
+- **Output Truncation**: Limit output length to configurable line counts to prevent database bloat
+- **Metadata Tracking**: Records original line counts, truncation status, and filter status for each run
+
+### Web Interface
+- **Real-Time Updates**: FastAPI-based web application with configurable auto-refresh intervals
+- **Device Connectivity Dashboard**: Visual ping timeline showing 60-second connectivity history
+  - Color-coded tiles (green: success, red: failure, gray: no data)
+  - Success rate percentage and sample counts
+  - Average RTT (Round Trip Time) display
+  - Last check timestamp
+- **Command Tabs**: Organized view of outputs grouped by command
+  - Sortable tabs via configuration
+  - Per-device output history (newest first)
+  - Expandable run entries showing timestamps, duration, and status
+  - Visual badges for success/error, filtered, and truncated states
+- **Comprehensive Diff Views**:
+  - **Historical Diff**: Compare previous vs latest output for the same device
+  - **Cross-Device Diff**: Compare outputs between different devices for the same command
+  - HTML-based side-by-side comparison with color-coded changes
+- **Auto-Refresh Control**: Pause/resume auto-refresh with manual refresh option
+- **JST Timezone Display**: All timestamps displayed in Japan Standard Time (UTC+9)
 
 ## Quick Start
 
@@ -182,20 +202,43 @@ Commands are defined once and run against each device. Each command supports opt
 
 ## Database Schema
 
-The system uses SQLite with the following schema:
+The system uses SQLite with the following schema designed for efficient querying and atomic updates:
 
-- **devices**: Device registry (id, name)
-- **commands**: Command registry (id, command_text)
-- **runs**: Command execution history
-  - ts_epoch: Timestamp (UTC seconds)
-  - output_text: Processed command output
-  - ok: Success/failure flag
-  - error_message: Error details if failed
-  - duration_ms: Execution time
-  - is_filtered: Output contains filter patterns
-  - is_truncated: Output was truncated
-  - original_line_count: Original line count before filtering
-- **ping_samples**: Ping results (ts_epoch, ok, rtt_ms, error_message)
+### Tables
+
+**devices**
+- `id`: Primary key (auto-increment)
+- `name`: Unique device name
+
+**commands**
+- `id`: Primary key (auto-increment)
+- `command_text`: Unique command text
+
+**runs** - Command execution history
+- `id`: Primary key (auto-increment)
+- `device_id`: Foreign key to devices
+- `command_id`: Foreign key to commands
+- `ts_epoch`: Timestamp in UTC epoch seconds
+- `output_text`: Processed command output (after filtering/truncation)
+- `ok`: Success flag (1 for success, 0 for failure)
+- `error_message`: Error details if failed
+- `duration_ms`: Execution time in milliseconds
+- `is_filtered`: Flag indicating output matched exclusion patterns
+- `is_truncated`: Flag indicating output was truncated
+- `original_line_count`: Line count before filtering/truncation
+
+**ping_samples** - Ping monitoring data
+- `id`: Primary key (auto-increment)
+- `device_id`: Foreign key to devices
+- `ts_epoch`: Timestamp in UTC epoch seconds
+- `ok`: Success flag (1 for success, 0 for failure)
+- `rtt_ms`: Round-trip time in milliseconds (null on failure)
+- `error_message`: Error details if failed
+
+### Indexes
+- `idx_runs_device_command`: Composite index on (device_id, command_id) for fast run queries
+- `idx_runs_ts`: Index on ts_epoch for time-based queries
+- `idx_ping_device_ts`: Composite index on (device_id, ts_epoch) for ping timeline queries
 
 ## Web UI Features
 
@@ -269,27 +312,40 @@ To add custom filtering logic:
 
 ### Data Flow
 
-1. **Collector** connects to devices via SSH (Netmiko)
-2. Commands are executed in parallel using ThreadPoolExecutor
-3. Outputs are filtered and truncated per configuration
-4. Results are stored in session-specific SQLite database
-5. Session database is atomically copied to `current.sqlite3`
-6. **Web App** reads from `current.sqlite3` and serves via FastAPI
-7. **Frontend** polls API endpoints and updates UI
+1. **Collector** connects to devices via SSH using Netmiko
+2. Commands are executed in parallel using ThreadPoolExecutor (configurable max workers: 20)
+3. Raw outputs are processed through filtering and truncation pipeline
+4. Results are stored in session-specific SQLite database (`session_{epoch}.sqlite3`)
+5. Session database is atomically copied to `current.sqlite3` after each collection cycle
+6. **Web App** reads from `current.sqlite3` (read-only) and serves data via FastAPI REST API
+7. **Frontend** polls API endpoints at configured intervals and updates UI dynamically
 
-### Database Lifecycle
+### Database Lifecycle and Atomic Updates
 
-- New session creates `data/session_{epoch}.sqlite3`
-- Each update creates temporary copy `current.sqlite3.tmp`
-- Old `current.sqlite3` is deleted
-- Temporary file is renamed to `current.sqlite3` (atomic operation)
-- Ensures readers always see consistent database state
+The system ensures data consistency through atomic database operations:
+
+1. New collector session creates `data/session_{epoch}.sqlite3`
+2. All collection updates go to the session database
+3. After each collection cycle:
+   - Create temporary copy: `current.sqlite3.tmp`
+   - Delete old `current.sqlite3` (if exists)
+   - Atomically rename `current.sqlite3.tmp` to `current.sqlite3`
+4. Web app always reads from stable `current.sqlite3`
+5. Ensures readers never see incomplete or inconsistent data
 
 ### Polling Strategy
 
-- **Run Updates**: `max(1, floor(interval_seconds/2))` seconds
+Frontend polling intervals are automatically calculated from configuration:
+- **Run Updates**: `max(1, floor(interval_seconds / 2))` seconds
 - **Ping Updates**: `ping_interval_seconds` seconds
-- Frontend respects auto-refresh toggle
+- Respects auto-refresh toggle (can be paused/resumed by user)
+
+### Security Measures
+
+- **Input Validation**: Ping hosts validated with regex to prevent command injection
+- **Environment Variables**: Passwords stored in environment variables (not in config files)
+- **SSH Connection**: Uses Netmiko's secure SSH connection handling
+- **File Permissions**: Recommends restrictive permissions on config files (chmod 600)
 
 ## Requirements
 
@@ -299,12 +355,34 @@ To add custom filtering logic:
 
 ## Security Considerations
 
-**Important**: Store credentials in environment variables (preferred). The default config uses `password_env_key` so plaintext passwords are unnecessary. For production use:
+**Important**: This system handles network device credentials and should be deployed with appropriate security measures:
 
-- Keep secrets in environment variables or a secret manager
-- Implement encrypted configuration files if required
-- Restrict file permissions on config.yaml (e.g., `chmod 600 config.yaml`)
-- Consider using SSH key-based authentication where supported
+### Credential Management
+- **Environment Variables**: Use `password_env_key` in configuration to reference environment variables (recommended approach)
+- **Avoid Plaintext**: Never store passwords directly in `config.yaml` (legacy fallback exists but logs warnings)
+- **Secret Managers**: For production, consider integration with secret management systems (HashiCorp Vault, AWS Secrets Manager, etc.)
+
+### File Permissions
+- Restrict config file access: `chmod 600 config.yaml`
+- Ensure database directory has appropriate permissions
+- Limit access to the application to trusted users
+
+### Network Security
+- Use SSH key-based authentication where supported by devices
+- Deploy web interface behind reverse proxy with authentication
+- Consider using HTTPS for web interface in production
+- Restrict network access to SSH ports on monitored devices
+
+### Input Validation
+- Ping hosts validated with regex pattern to prevent command injection
+- Configuration validated on load to prevent malformed data
+
+### Best Practices
+- Run collector and web app with minimal required privileges
+- Use dedicated service accounts for SSH connections
+- Implement network segmentation for management interfaces
+- Regularly update dependencies for security patches
+- Monitor logs for suspicious activity
 
 ## License
 
