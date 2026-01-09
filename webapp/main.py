@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import math
+import re
 import time
 from contextlib import asynccontextmanager
 from functools import lru_cache
@@ -38,6 +39,48 @@ _db_mtime_lock = asyncio.Lock()
 
 # Constants for database monitoring
 DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
+
+
+def sanitize_filename(text: str) -> str:
+    """
+    Sanitize a string to make it safe for use in filenames.
+    
+    Removes or replaces characters that could cause security issues or 
+    filesystem problems, including path traversal sequences, path separators,
+    and other special characters.
+    
+    Args:
+        text: The text to sanitize
+        
+    Returns:
+        A safe filename component with dangerous characters removed or replaced
+    """
+    # Replace null bytes
+    text = text.replace('\0', '')
+    
+    # Replace path separators and dangerous characters with underscores
+    # This includes: / \ : * ? " < > |
+    text = re.sub(r'[/\\:*?"<>|]', '_', text)
+    
+    # Remove any path traversal patterns
+    text = text.replace('..', '')
+    
+    # Replace spaces and other whitespace with underscores
+    text = re.sub(r'\s+', '_', text)
+    
+    # Remove leading/trailing dots and underscores to prevent hidden files
+    text = text.strip('._')
+    
+    # Ensure the result is not empty
+    if not text:
+        text = 'unnamed'
+    
+    # Limit length to prevent filesystem issues (most filesystems support 255 chars)
+    max_length = 200
+    if len(text) > max_length:
+        text = text[:max_length].rstrip('._')
+    
+    return text
 
 
 async def monitor_database_changes():
@@ -398,7 +441,7 @@ async def export_run(command: str, device: str, format: str = "text"):
         
         if format == "json":
             content = export_run_as_json(run, device, command)
-            filename = f"{device}_{command.replace(' ', '_')}_{run['ts_epoch']}.json"
+            filename = f"{sanitize_filename(device)}_{sanitize_filename(command)}_{run['ts_epoch']}.json"
             return Response(
                 content=content,
                 media_type="application/json",
@@ -406,7 +449,7 @@ async def export_run(command: str, device: str, format: str = "text"):
             )
         else:  # text format
             content = export_run_as_text(run, device, command)
-            filename = f"{device}_{command.replace(' ', '_')}_{run['ts_epoch']}.txt"
+            filename = f"{sanitize_filename(device)}_{sanitize_filename(command)}_{run['ts_epoch']}.txt"
             return PlainTextResponse(
                 content=content,
                 headers={"Content-Disposition": f"attachment; filename={filename}"}
@@ -440,7 +483,7 @@ async def export_bulk(command: str, format: str = "json"):
             return JSONResponse({"error": "No data available"}, status_code=404)
         
         content = export_bulk_runs_as_json(runs_by_device, command)
-        filename = f"bulk_{command.replace(' ', '_')}_{int(time.time())}.json"
+        filename = f"bulk_{sanitize_filename(command)}_{int(time.time())}.json"
         
         return Response(
             content=content,
@@ -494,7 +537,7 @@ async def export_diff(
             )
             label_a = "Previous"
             label_b = "Latest"
-            filename_prefix = f"history_diff_{device}_{command.replace(' ', '_')}"
+            filename_prefix = f"history_diff_{sanitize_filename(device)}_{sanitize_filename(command)}"
             
         elif device_a and device_b:
             # Device diff
@@ -514,7 +557,7 @@ async def export_diff(
             )
             label_a = device_a
             label_b = device_b
-            filename_prefix = f"device_diff_{device_a}_vs_{device_b}_{command.replace(' ', '_')}"
+            filename_prefix = f"device_diff_{sanitize_filename(device_a)}_vs_{sanitize_filename(device_b)}_{sanitize_filename(command)}"
         else:
             return JSONResponse({"error": "Invalid parameters"}, status_code=400)
         
@@ -561,7 +604,7 @@ async def export_ping(device: str, format: str = "csv", window_seconds: int = 36
         
         if format == "json":
             content = export_ping_data_as_json(samples, device)
-            filename = f"ping_{device}_{int(time.time())}.json"
+            filename = f"ping_{sanitize_filename(device)}_{int(time.time())}.json"
             return Response(
                 content=content,
                 media_type="application/json",
@@ -569,7 +612,7 @@ async def export_ping(device: str, format: str = "csv", window_seconds: int = 36
             )
         else:  # csv format
             content = export_ping_data_as_csv(samples, device)
-            filename = f"ping_{device}_{int(time.time())}.csv"
+            filename = f"ping_{sanitize_filename(device)}_{int(time.time())}.csv"
             return Response(
                 content=content,
                 media_type="text/csv",

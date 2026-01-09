@@ -346,3 +346,87 @@ def test_export_ping_json(client):
     assert data["device"] == "DeviceA"
     assert "samples" in data
     assert len(data["samples"]) >= 1
+
+
+def test_sanitize_filename():
+    """Test filename sanitization."""
+    from webapp.main import sanitize_filename
+    
+    # Test basic sanitization - spaces replaced with underscores
+    assert sanitize_filename("show version") == "show_version"
+    
+    # Test path traversal prevention
+    assert ".." not in sanitize_filename("../etc/passwd")
+    assert ".." not in sanitize_filename("..\\windows\\system32")
+    
+    # Test path separator removal
+    result = sanitize_filename("path/to/file")
+    assert "/" not in result
+    assert "\\" not in result
+    
+    # Test dangerous characters removed
+    dangerous = 'test:file*name?with"special<chars>|'
+    result = sanitize_filename(dangerous)
+    assert not any(c in result for c in ':*?"<>|/')
+    
+    # Test null byte removal
+    assert "\0" not in sanitize_filename("test\0file")
+    
+    # Test leading/trailing dots and underscores removed
+    assert not sanitize_filename("..test..").startswith(".")
+    assert not sanitize_filename("__test__").startswith("_")
+    
+    # Test empty string handling
+    assert sanitize_filename("") == "unnamed"
+    assert sanitize_filename("...") == "unnamed"
+    
+    # Test length limiting
+    long_string = "a" * 300
+    result = sanitize_filename(long_string)
+    assert len(result) <= 200
+    
+    # Test multiple whitespace characters
+    assert sanitize_filename("test  \t\n  file") == "test_file"
+
+
+def test_export_with_dangerous_filenames(client):
+    """Test that export endpoints sanitize filenames properly."""
+    # Insert a run with a device name containing path traversal
+    db = Database('data/current.sqlite3')
+    db.insert_run(
+        device_name="../malicious",
+        command_text="show version",
+        ts_epoch=1000010,
+        output_text="Test output",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=5
+    )
+    
+    # Insert a run with special characters in command
+    db.insert_run(
+        device_name="DeviceC",
+        command_text="show:/config*",
+        ts_epoch=1000011,
+        output_text="Config output",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=5
+    )
+    db.close()
+    
+    # Test export with path traversal device name
+    response = client.get("/api/export/run?command=show%20version&device=../malicious&format=text")
+    assert response.status_code == 200
+    # Verify the filename doesn't contain path traversal
+    content_disposition = response.headers.get("Content-Disposition", "")
+    assert ".." not in content_disposition
+    assert "/" not in content_disposition.split("filename=")[1] if "filename=" in content_disposition else True
+    
+    # Test export with dangerous command characters
+    response = client.get("/api/export/run?command=show:/config*&device=DeviceC&format=json")
+    assert response.status_code == 200
+    content_disposition = response.headers.get("Content-Disposition", "")
+    # Verify dangerous characters are not in filename
+    assert ":" not in content_disposition.split("filename=")[1] if "filename=" in content_disposition else True
+    assert "*" not in content_disposition.split("filename=")[1] if "filename=" in content_disposition else True
