@@ -562,6 +562,114 @@ curl "http://localhost:8000/api/export/ping?device=DeviceA&format=json&window_se
 
 ## Architecture
 
+### System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Network Devices"
+        D1[Device A<br/>Router/Switch]
+        D2[Device B<br/>Router/Switch]
+        D3[Device N<br/>Router/Switch]
+    end
+    
+    subgraph "Collector Service"
+        C[Collector<br/>Python/Netmiko]
+        SSH[SSH Connections<br/>Persistent/On-demand]
+        FILTER[Output Processing<br/>Filters & Truncation]
+        SCHED[Scheduler<br/>Cron/Interval]
+        PING[Ping Monitor<br/>Continuous]
+    end
+    
+    subgraph "Data Storage"
+        SESSION[(Session DB<br/>session_XXXX.sqlite3)]
+        CURRENT[(Current DB<br/>current.sqlite3)]
+    end
+    
+    subgraph "Web Application"
+        API[FastAPI Server<br/>REST API]
+        WS[WebSocket Manager<br/>Real-time Updates]
+        STATIC[Static Files<br/>HTML/CSS/JS]
+    end
+    
+    subgraph "Browser"
+        UI[Web UI<br/>Auto-refresh/WebSocket]
+        DIFF[Diff Viewer<br/>Side-by-side]
+        EXPORT[Export Tools<br/>JSON/CSV/HTML]
+    end
+    
+    CONFIG[config.yaml<br/>Configuration]
+    ENV[.env<br/>Credentials]
+    
+    %% Data collection flow
+    CONFIG --> C
+    ENV --> C
+    C --> SCHED
+    SCHED --> SSH
+    SSH --> D1
+    SSH --> D2
+    SSH --> D3
+    D1 -.Command Output.-> SSH
+    D2 -.Command Output.-> SSH
+    D3 -.Command Output.-> SSH
+    SSH --> FILTER
+    
+    C --> PING
+    PING -.ICMP.-> D1
+    PING -.ICMP.-> D2
+    PING -.ICMP.-> D3
+    
+    %% Database updates
+    FILTER --> SESSION
+    PING --> SESSION
+    SESSION -.Atomic Copy.-> CURRENT
+    
+    %% Web application flow
+    CONFIG --> API
+    CURRENT --> API
+    API --> WS
+    API --> STATIC
+    WS -.Real-time Updates.-> UI
+    STATIC --> UI
+    UI --> DIFF
+    UI --> EXPORT
+    
+    %% Styling
+    classDef device fill:#e1f5ff,stroke:#01579b
+    classDef collector fill:#fff3e0,stroke:#e65100
+    classDef storage fill:#f3e5f5,stroke:#4a148c
+    classDef webapp fill:#e8f5e9,stroke:#1b5e20
+    classDef browser fill:#fce4ec,stroke:#880e4f
+    classDef config fill:#fff9c4,stroke:#f57f17
+    
+    class D1,D2,D3 device
+    class C,SSH,FILTER,SCHED,PING collector
+    class SESSION,CURRENT storage
+    class API,WS,STATIC webapp
+    class UI,DIFF,EXPORT browser
+    class CONFIG,ENV config
+```
+
+### Component Interactions
+
+**Data Collection:**
+- Collector reads configuration and credentials
+- Scheduler determines when to execute commands (cron or interval-based)
+- SSH connections execute commands on devices (persistent or per-command)
+- Ping monitor continuously checks device reachability
+- Output processor applies filters and truncation
+
+**Data Storage:**
+- Session database (`session_*.sqlite3`) receives all updates
+- Atomic copy creates/updates `current.sqlite3` after each cycle
+- Web app reads from stable `current.sqlite3` (never sees partial updates)
+
+**Data Presentation:**
+- FastAPI serves REST API and static files
+- WebSocket manager broadcasts real-time updates (optional)
+- Browser UI polls or receives WebSocket notifications
+- Diff viewer shows changes between runs or devices
+- Export tools generate downloadable reports
+
 ### Data Flow
 
 1. **Collector** connects to devices via SSH using Netmiko
