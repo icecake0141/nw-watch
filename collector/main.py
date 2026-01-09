@@ -379,14 +379,14 @@ def main():
     parser.add_argument('--config', required=True, help='Path to config YAML file')
     args = parser.parse_args()
     
-    collector = None
-    
     def signal_handler(signum, frame):
         """Handle shutdown signals gracefully."""
         logger.info("Shutdown signal received, finishing current operations...")
         if collector:
             collector.stop()
         sys.exit(0)
+    
+    collector = None
     
     # Register signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
