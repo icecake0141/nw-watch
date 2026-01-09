@@ -102,6 +102,19 @@ class Config:
         )
 
     # ------------------------------------------------------------------ #
+    # WebSocket settings
+    # ------------------------------------------------------------------ #
+    def get_websocket_enabled(self) -> bool:
+        """Check if WebSocket is enabled."""
+        websocket_config = self.data.get("websocket", {})
+        return bool(websocket_config.get("enabled", False))
+
+    def get_websocket_ping_interval(self) -> int:
+        """WebSocket ping interval (seconds)."""
+        websocket_config = self.data.get("websocket", {})
+        return int(websocket_config.get("ping_interval", 20))
+
+    # ------------------------------------------------------------------ #
     # Devices and commands
     # ------------------------------------------------------------------ #
     def get_devices(self) -> List[Dict[str, Any]]:
