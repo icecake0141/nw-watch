@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import re
+import unicodedata
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -23,30 +24,36 @@ def sanitize_filename_component(text: str, max_length: int = 100) -> str:
     Security:
         - Removes path traversal sequences (../)
         - Removes directory separators (/, \\)
-        - Removes control characters and null bytes
+        - Removes all Unicode control characters
         - Removes shell metacharacters
+        - Removes dots to prevent path traversal
         - Replaces whitespace with underscores
         - Ensures result is not empty
     """
     if not text:
         return "unnamed"
     
-    # Remove any null bytes and control characters
-    text = ''.join(char for char in text if ord(char) >= 32)
+    # Remove Unicode control characters comprehensively using unicodedata
+    # This handles zero-width characters, RTL overrides, etc.
+    text = ''.join(
+        char for char in text 
+        if unicodedata.category(char)[0] not in ('C',)  # C = Control characters
+    )
     
-    # Remove or replace dangerous characters:
-    # - Directory separators: / \
-    # - Path traversal: . (when used in sequences like ..)
-    # - Shell metacharacters: | & ; $ ` < > ( ) [ ] { } ! * ? ' " ~
-    # Replace spaces and other whitespace with underscores
-    text = re.sub(r'[\\/]', '', text)  # Remove directory separators
-    text = re.sub(r'\.\.+', '', text)  # Remove .. sequences
-    text = re.sub(r'[|&;$`<>(){}\[\]!*?\'"~]', '', text)  # Remove shell metacharacters
-    text = re.sub(r'\s+', '_', text)  # Replace whitespace with underscore
-    text = re.sub(r'[^\w\-_.]', '', text)  # Keep only alphanumeric, dash, underscore, dot
+    # Apply whitelist approach first: keep only safe characters
+    # This prevents bypassing through encoding issues
+    # Only allow: alphanumeric, space, dash, underscore
+    text = re.sub(r'[^\w\s\-]', '', text)
     
-    # Ensure no leading/trailing dots or dashes (can cause issues on some systems)
-    text = text.strip('.-_')
+    # Replace whitespace with underscores
+    text = re.sub(r'\s+', '_', text)
+    
+    # Remove any remaining dangerous sequences that might have been created
+    # Remove directory separators (should already be gone, but belt-and-suspenders)
+    text = re.sub(r'[\\/]', '', text)
+    
+    # Ensure no leading/trailing dashes or underscores (can cause issues on some systems)
+    text = text.strip('-_')
     
     # Truncate to max length
     if len(text) > max_length:

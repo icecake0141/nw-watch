@@ -26,7 +26,8 @@ def test_sanitize_filename_component_basic():
     """Test basic filename sanitization."""
     # Normal text with spaces should be converted to underscores
     assert sanitize_filename_component("show version") == "show_version"
-    assert sanitize_filename_component("ping 192.168.1.1") == "ping_192.168.1.1"
+    # Dots are removed to prevent path traversal
+    assert sanitize_filename_component("ping 192.168.1.1") == "ping_19216811"
 
 
 def test_sanitize_filename_component_path_traversal():
