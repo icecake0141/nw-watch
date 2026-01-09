@@ -533,3 +533,84 @@ header h1 {
     border-top: 1px solid rgba(0, 0, 0, 0.1);
     justify-content: center;
 }
+
+/* Side-by-Side Comparison Styles */
+.side-by-side-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.device-panel {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.device-panel-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+}
+
+.device-panel-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+}
+
+.device-panel-meta {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+}
+
+.device-panel-output {
+    padding: 15px;
+    background: #f8f9fa;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.output-text-char-diff {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Character-level diff highlighting */
+.char-diff-add {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 2px 0;
+    border-radius: 2px;
+}
+
+.char-diff-remove {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 2px 0;
+    border-radius: 2px;
+    text-decoration: line-through;
+}
+
+/* Responsive design for side-by-side view */
+@media (max-width: 1200px) {
+    .comparison-container {
+        grid-template-columns: 1fr;
+    }
+}
