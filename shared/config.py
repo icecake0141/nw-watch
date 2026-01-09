@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from croniter import croniter
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,36 @@ class Config:
         with open(self.config_path, "r") as f:
             # Ensure we always have a dictionary to read from
             self.data: Dict[str, Any] = yaml.safe_load(f) or {}
+        
+        # Cache for command schedules to avoid repeated lookups
+        self._schedule_cache: Dict[str, Optional[str]] = {}
+        self._initialize_schedule_cache()
+    
+    def _validate_and_cache_schedule(self, command: str, schedule: str) -> Optional[str]:
+        """Validate a cron schedule and return it if valid, None otherwise."""
+        try:
+            croniter(schedule)
+            return schedule
+        except ValueError as e:
+            logger.error(
+                "Invalid cron schedule '%s' for command '%s': %s",
+                schedule,
+                command,
+                e,
+            )
+            return None
+    
+    def _initialize_schedule_cache(self):
+        """Pre-compute and cache all command schedules."""
+        for cmd in self.get_commands():
+            command_text = cmd.get("command_text")
+            if command_text:
+                schedule = cmd.get("schedule")
+                if schedule:
+                    validated_schedule = self._validate_and_cache_schedule(command_text, schedule)
+                    self._schedule_cache[command_text] = validated_schedule
+                else:
+                    self._schedule_cache[command_text] = None
 
     # ------------------------------------------------------------------ #
     # Basic settings
@@ -157,3 +188,30 @@ class Config:
         if filters["output_exclude_substrings"] is not None:
             return filters["output_exclude_substrings"]
         return self.get_global_output_exclusions()
+
+    def get_command_schedule(self, command: str) -> Optional[str]:
+        """Get cron schedule for a specific command, if configured."""
+        # Use cache if available
+        if command in self._schedule_cache:
+            return self._schedule_cache[command]
+        
+        # Fallback for commands not in cache (shouldn't happen normally)
+        logger.warning(
+            "Command '%s' not found in schedule cache, performing fallback lookup. "
+            "This may indicate a configuration initialization issue.",
+            command
+        )
+        for cmd in self.get_commands():
+            if cmd.get("command_text") == command or cmd.get("name") == command:
+                schedule = cmd.get("schedule")
+                if schedule:
+                    validated_schedule = self._validate_and_cache_schedule(command, schedule)
+                    self._schedule_cache[command] = validated_schedule
+                    return validated_schedule
+                # Command found but no schedule
+                self._schedule_cache[command] = None
+                return None
+        
+        # Command not found
+        self._schedule_cache[command] = None
+        return None

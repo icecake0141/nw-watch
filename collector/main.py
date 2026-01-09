@@ -6,9 +6,11 @@ import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from croniter import croniter
 from netmiko import ConnectHandler
 
 from shared.config import Config
@@ -194,6 +196,34 @@ class Collector:
         self.executor = ThreadPoolExecutor(max_workers=20)
         self.running = True
         self.commands: List[str] = self._resolve_commands()
+        
+        # Track next execution time and schedule for each command
+        self.command_next_run: Dict[str, float] = {}
+        self.command_schedules: Dict[str, Optional[str]] = {}  # Cache schedules
+        self._initialize_command_schedules()
+
+    def _initialize_command_schedules(self):
+        """Initialize next run times for all commands and cache schedules."""
+        now = time.time()
+        for command in self.commands:
+            schedule = self.config.get_command_schedule(command)
+            self.command_schedules[command] = schedule  # Cache the schedule
+            
+            if schedule:
+                # Command has a cron schedule
+                cron = croniter(schedule, now)
+                self.command_next_run[command] = cron.get_next()
+                logger.info(
+                    f"Command '{command}' scheduled with cron '{schedule}', "
+                    f"next run at {datetime.fromtimestamp(self.command_next_run[command])}"
+                )
+            else:
+                # Command uses interval_seconds, run immediately
+                self.command_next_run[command] = now
+                logger.info(
+                    f"Command '{command}' uses interval scheduling, "
+                    f"interval={self.config.get_interval_seconds()}s"
+                )
 
     def _resolve_commands(self) -> List[str]:
         """Build command list honoring global commands or per-device fallbacks."""
@@ -215,28 +245,44 @@ class Collector:
         return ordered
     
     async def collect_commands(self):
-        """Collect commands from all devices."""
+        """Collect commands from all devices (only commands due to run)."""
         loop = asyncio.get_event_loop()
         futures = []
+        now = time.time()
+        interval_seconds = self.config.get_interval_seconds()
         
         for device_config in self.devices:
             collector = DeviceCollector(device_config, self.config)
             for command in self.commands:
-                # Run in thread pool to avoid blocking
-                future = loop.run_in_executor(
-                    self.executor,
-                    collector.execute_command,
-                    command,
-                    self.db
-                )
-                futures.append(future)
+                # Check if this command should run now
+                next_run = self.command_next_run.get(command, now)
+                if now >= next_run:
+                    # Run in thread pool to avoid blocking
+                    future = loop.run_in_executor(
+                        self.executor,
+                        collector.execute_command,
+                        command,
+                        self.db
+                    )
+                    futures.append(future)
+                    
+                    # Update next run time using cached schedule
+                    schedule = self.command_schedules.get(command)
+                    if schedule:
+                        # Use cron schedule
+                        cron = croniter(schedule, now)
+                        self.command_next_run[command] = cron.get_next()
+                    else:
+                        # Use interval_seconds
+                        self.command_next_run[command] = now + interval_seconds
         
         # Wait for all commands to complete
         if futures:
             await asyncio.gather(*futures, return_exceptions=True)
         
         # Atomically update current.sqlite3
-        self._update_current_db()
+        if futures:  # Only update if we actually ran commands
+            self._update_current_db()
     
     async def collect_pings(self):
         """Collect pings from all devices."""
@@ -280,14 +326,31 @@ class Collector:
     
     async def run(self):
         """Main collection loop."""
-        interval_seconds = self.config.get_interval_seconds()
         ping_interval_seconds = self.config.get_ping_interval_seconds()
         
-        # Schedule command collection
+        # Schedule command collection with intelligent sleep intervals
         async def command_loop():
             while self.running:
                 await self.collect_commands()
-                await asyncio.sleep(interval_seconds)
+                
+                # Calculate minimum time until next command needs to run
+                now = time.time()
+                min_wait = float('inf')
+                for cmd in self.commands:
+                    next_run = self.command_next_run.get(cmd, now)
+                    wait_time = max(0, next_run - now)
+                    min_wait = min(min_wait, wait_time)
+                
+                # Handle empty commands or no scheduled commands
+                if min_wait == float('inf'):
+                    # No commands configured, use default interval
+                    sleep_time = self.config.get_interval_seconds()
+                else:
+                    # Sleep until next command, but check at least every 60 seconds
+                    # and no less than 1 second to avoid busy waiting
+                    sleep_time = max(1, min(60, min_wait))
+                
+                await asyncio.sleep(sleep_time)
         
         # Schedule ping collection
         async def ping_loop():
