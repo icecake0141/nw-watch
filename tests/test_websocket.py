@@ -1,11 +1,16 @@
 """Tests for WebSocket functionality."""
+import asyncio
+import os
+import shutil
+import tempfile
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
-import tempfile
-import os
-from pathlib import Path
-from shared.db import Database
+
 from shared.config import Config
+from shared.db import Database
 
 
 @pytest.fixture
@@ -43,7 +48,6 @@ def client(test_db, monkeypatch):
     current_db = data_dir / 'current.sqlite3'
     
     # Copy test db to current.sqlite3
-    import shutil
     shutil.copy2(test_db, current_db)
     
     from webapp.main import app
@@ -80,7 +84,6 @@ def test_api_config_includes_websocket_flag(client):
 def test_websocket_manager_broadcast():
     """Test WebSocket connection manager broadcast functionality."""
     from webapp.websocket_manager import ConnectionManager
-    import asyncio
     
     manager = ConnectionManager()
     
@@ -129,8 +132,6 @@ websocket:
 def test_websocket_manager_connect_disconnect():
     """Test WebSocket connection manager connect/disconnect."""
     from webapp.websocket_manager import ConnectionManager
-    from unittest.mock import AsyncMock, MagicMock
-    import asyncio
     
     manager = ConnectionManager()
     

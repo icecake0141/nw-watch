@@ -18,7 +18,11 @@ class NetworkWatch {
         this.websocket = null;
         this.websocketReconnectTimer = null;
         this.websocketReconnectAttempts = 0;
+        
+        // WebSocket reconnection settings
         this.maxWebSocketReconnectAttempts = 5;
+        this.baseReconnectDelay = 1000;  // 1 second base delay
+        this.maxReconnectDelay = 30000;  // 30 seconds max delay
         
         this.init();
     }
@@ -155,7 +159,10 @@ class NetworkWatch {
                 // Attempt to reconnect
                 if (this.websocketReconnectAttempts < this.maxWebSocketReconnectAttempts) {
                     this.websocketReconnectAttempts++;
-                    const delay = Math.min(30000, 1000 * Math.pow(2, this.websocketReconnectAttempts));
+                    const delay = Math.min(
+                        this.maxReconnectDelay, 
+                        this.baseReconnectDelay * Math.pow(2, this.websocketReconnectAttempts)
+                    );
                     console.log(`Attempting to reconnect WebSocket in ${delay}ms (attempt ${this.websocketReconnectAttempts})`);
                     this.websocketReconnectTimer = setTimeout(() => {
                         if (this.autoRefresh && this.config.websocket_enabled) {

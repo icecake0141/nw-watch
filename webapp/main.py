@@ -35,7 +35,6 @@ _last_db_mtime = None
 async def monitor_database_changes():
     """Background task to monitor database changes and notify WebSocket clients."""
     global _last_db_mtime
-    db_path = Path('data/current.sqlite3')
     
     # Check interval based on config
     try:
@@ -48,8 +47,8 @@ async def monitor_database_changes():
     
     while True:
         try:
-            if db_path.exists():
-                current_mtime = db_path.stat().st_mtime
+            if DATABASE_PATH.exists():
+                current_mtime = DATABASE_PATH.stat().st_mtime
                 
                 if _last_db_mtime is not None and current_mtime > _last_db_mtime:
                     # Database has been updated, notify WebSocket clients
@@ -99,6 +98,7 @@ templates = Jinja2Templates(directory="webapp/templates")
 app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
 
 DEFAULT_HISTORY_SIZE = 10
+DATABASE_PATH = Path('data/current.sqlite3')
 
 
 @lru_cache(maxsize=1)
@@ -118,10 +118,9 @@ def resolve_history_size() -> int:
 
 def get_db(history_size: int) -> Optional[Database]:
     """Get database connection."""
-    db_path = Path('data/current.sqlite3')
-    if not db_path.exists():
+    if not DATABASE_PATH.exists():
         return None
-    return Database(str(db_path), history_size=history_size)
+    return Database(str(DATABASE_PATH), history_size=history_size)
 
 
 @app.get("/", response_class=HTMLResponse)

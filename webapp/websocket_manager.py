@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Set
 from fastapi import WebSocket
 
@@ -56,7 +57,7 @@ class ConnectionManager:
         """Broadcast an update notification to all clients."""
         message = {
             "type": update_type,
-            "timestamp": asyncio.get_event_loop().time(),
+            "timestamp": time.time(),
         }
         if data:
             message["data"] = data
