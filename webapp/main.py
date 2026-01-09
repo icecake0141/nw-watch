@@ -31,6 +31,9 @@ logger = logging.getLogger(__name__)
 _background_task = None
 _last_db_mtime = None
 
+# Constants for database monitoring
+DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
+
 
 async def monitor_database_changes():
     """Background task to monitor database changes and notify WebSocket clients."""
@@ -39,7 +42,7 @@ async def monitor_database_changes():
     # Check interval based on config
     try:
         config = load_config()
-        check_interval = max(1, math.floor(config.get_interval_seconds() / 2))
+        check_interval = max(1, math.floor(config.get_interval_seconds() / DATABASE_CHECK_INTERVAL_DIVISOR))
     except Exception:
         check_interval = 2
     

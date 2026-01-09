@@ -38,9 +38,11 @@ class ConnectionManager:
         message_json = json.dumps(message)
         disconnected = set()
 
+        # Copy connections while holding lock
         async with self._lock:
             connections = list(self.active_connections)
 
+        # Send to all connections without holding lock
         for websocket in connections:
             try:
                 await websocket.send_text(message_json)
@@ -48,6 +50,7 @@ class ConnectionManager:
                 logger.warning("Error sending to WebSocket client: %s", exc)
                 disconnected.add(websocket)
 
+        # Remove disconnected clients
         if disconnected:
             async with self._lock:
                 self.active_connections -= disconnected

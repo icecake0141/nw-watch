@@ -161,7 +161,7 @@ class NetworkWatch {
                     this.websocketReconnectAttempts++;
                     const delay = Math.min(
                         this.maxReconnectDelay, 
-                        this.baseReconnectDelay * Math.pow(2, this.websocketReconnectAttempts)
+                        this.baseReconnectDelay * Math.pow(2, this.websocketReconnectAttempts - 1)
                     );
                     console.log(`Attempting to reconnect WebSocket in ${delay}ms (attempt ${this.websocketReconnectAttempts})`);
                     this.websocketReconnectTimer = setTimeout(() => {
