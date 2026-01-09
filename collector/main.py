@@ -197,15 +197,18 @@ class Collector:
         self.running = True
         self.commands: List[str] = self._resolve_commands()
         
-        # Track next execution time for each command
+        # Track next execution time and schedule for each command
         self.command_next_run: Dict[str, float] = {}
+        self.command_schedules: Dict[str, Optional[str]] = {}  # Cache schedules
         self._initialize_command_schedules()
 
     def _initialize_command_schedules(self):
-        """Initialize next run times for all commands."""
+        """Initialize next run times for all commands and cache schedules."""
         now = time.time()
         for command in self.commands:
             schedule = self.config.get_command_schedule(command)
+            self.command_schedules[command] = schedule  # Cache the schedule
+            
             if schedule:
                 # Command has a cron schedule
                 cron = croniter(schedule, now)
@@ -263,8 +266,8 @@ class Collector:
                     )
                     futures.append(future)
                     
-                    # Update next run time
-                    schedule = self.config.get_command_schedule(command)
+                    # Update next run time using cached schedule
+                    schedule = self.command_schedules.get(command)
                     if schedule:
                         # Use cron schedule
                         cron = croniter(schedule, now)

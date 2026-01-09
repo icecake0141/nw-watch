@@ -19,6 +19,32 @@ class Config:
         with open(self.config_path, "r") as f:
             # Ensure we always have a dictionary to read from
             self.data: Dict[str, Any] = yaml.safe_load(f) or {}
+        
+        # Cache for command schedules to avoid repeated lookups
+        self._schedule_cache: Dict[str, Optional[str]] = {}
+        self._initialize_schedule_cache()
+    
+    def _initialize_schedule_cache(self):
+        """Pre-compute and cache all command schedules."""
+        for cmd in self.get_commands():
+            command_text = cmd.get("command_text")
+            if command_text:
+                schedule = cmd.get("schedule")
+                if schedule:
+                    # Validate cron expression
+                    try:
+                        croniter(schedule)
+                        self._schedule_cache[command_text] = schedule
+                    except ValueError as e:
+                        logger.error(
+                            "Invalid cron schedule '%s' for command '%s': %s",
+                            schedule,
+                            command_text,
+                            e,
+                        )
+                        self._schedule_cache[command_text] = None
+                else:
+                    self._schedule_cache[command_text] = None
 
     # ------------------------------------------------------------------ #
     # Basic settings
@@ -161,6 +187,11 @@ class Config:
 
     def get_command_schedule(self, command: str) -> Optional[str]:
         """Get cron schedule for a specific command, if configured."""
+        # Use cache if available
+        if command in self._schedule_cache:
+            return self._schedule_cache[command]
+        
+        # Fallback for commands not in cache (shouldn't happen normally)
         for cmd in self.get_commands():
             if cmd.get("command_text") == command or cmd.get("name") == command:
                 schedule = cmd.get("schedule")
@@ -168,6 +199,7 @@ class Config:
                     # Validate cron expression
                     try:
                         croniter(schedule)
+                        self._schedule_cache[command] = schedule
                         return schedule
                     except ValueError as e:
                         logger.error(
@@ -176,7 +208,12 @@ class Config:
                             command,
                             e,
                         )
+                        self._schedule_cache[command] = None
                         return None
                 # Command found but no schedule
+                self._schedule_cache[command] = None
                 return None
+        
+        # Command not found
+        self._schedule_cache[command] = None
         return None
