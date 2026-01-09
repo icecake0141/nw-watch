@@ -8,6 +8,9 @@ A Python-based network monitoring system that collects command outputs and ping 
 
 ### Data Collection
 - **Multi-Device SSH Collection**: Connect to multiple network devices simultaneously via SSH using Netmiko
+- **Flexible Command Scheduling**: Per-command cron scheduling for optimized resource usage
+  - Run different commands at different intervals (e.g., version check every 6 hours, interface status every 5 minutes)
+  - Backward compatible - commands without schedule use global interval
 - **Parallel Execution**: Commands executed in parallel across devices using ThreadPoolExecutor
 - **Continuous Ping Monitoring**: Track device reachability with configurable ping intervals (default: 1 second)
 - **Command History**: Configurable retention of command execution history (default: 10 runs per device/command)
@@ -188,11 +191,56 @@ nw-watch/
 
 ### Commands
 
-Commands are defined once and run against each device. Each command supports optional filters and a `sort_order` for tab ordering.
+Commands are defined once and run against each device. Each command supports optional filters, a `sort_order` for tab ordering, and an optional `schedule` for flexible execution timing.
 
 - `command_text`: CLI command
+- `schedule`: Optional cron expression (e.g., `"0 */6 * * *"` for every 6 hours, `"*/5 * * * *"` for every 5 minutes)
+  - If provided, the command runs according to the cron schedule
+  - If omitted, the command uses the global `interval_seconds`
+  - Allows different commands to run at different frequencies for optimized resource usage
 - `filters.line_exclude_substrings`: Override global line filters
 - `filters.output_exclude_substrings`: Mark run as filtered/hidden when matched
+
+### Command Scheduling
+
+The system supports per-command scheduling using cron expressions, allowing different commands to run at different intervals:
+
+```yaml
+commands:
+  - name: "show_version"
+    command_text: "show version"
+    schedule: "0 */6 * * *"  # Every 6 hours
+  - name: "interfaces_status"
+    command_text: "show interfaces status"
+    schedule: "*/5 * * * *"  # Every 5 minutes
+  - name: "ip_int_brief"
+    command_text: "show ip interface brief"
+    # No schedule - uses interval_seconds
+```
+
+**Benefits:**
+- Optimized resource usage - run expensive commands less frequently
+- Reduced device load - distribute command execution over time
+- Flexible monitoring strategies - different update frequencies per command
+- Cost optimization for paid API calls or rate-limited devices
+
+**Cron Expression Format:**
+```
+* * * * *
+│ │ │ │ │
+│ │ │ │ └─── Day of week (0-6, Sunday=0)
+│ │ │ └───── Month (1-12)
+│ │ └─────── Day of month (1-31)
+│ └───────── Hour (0-23)
+└─────────── Minute (0-59)
+```
+
+**Examples:**
+- `"*/5 * * * *"` - Every 5 minutes
+- `"0 * * * *"` - Every hour at minute 0
+- `"0 */6 * * *"` - Every 6 hours
+- `"0 0 * * *"` - Once per day at midnight
+- `"0 9-17 * * 1-5"` - Every hour from 9 AM to 5 PM, Monday through Friday
 
 ### Filters
 

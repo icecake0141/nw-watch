@@ -22,15 +22,18 @@ commands:
   - name: "show_version"
     command_text: "show version"
     sort_order: 1
+    schedule: "0 */6 * * *"  # Optional: cron schedule (every 6 hours). If omitted, uses interval_seconds
     filters:
       line_exclude_substrings:
         - "uptime"
   - name: "interfaces_status"
     command_text: "show interfaces status"
     sort_order: 2
+    schedule: "*/5 * * * *"  # Optional: every 5 minutes
   - name: "ip_int_brief"
     command_text: "show ip interface brief"
     sort_order: 3
+    # No schedule specified - uses global interval_seconds
 
 # Devices to monitor
 devices:

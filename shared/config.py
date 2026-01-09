@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from croniter import croniter
 
 logger = logging.getLogger(__name__)
 
@@ -157,3 +158,24 @@ class Config:
         if filters["output_exclude_substrings"] is not None:
             return filters["output_exclude_substrings"]
         return self.get_global_output_exclusions()
+
+    def get_command_schedule(self, command: str) -> Optional[str]:
+        """Get cron schedule for a specific command, if configured."""
+        for cmd in self.get_commands():
+            if cmd.get("command_text") == command or cmd.get("name") == command:
+                schedule = cmd.get("schedule")
+                if schedule:
+                    # Validate cron expression
+                    try:
+                        croniter(schedule)
+                        return schedule
+                    except (ValueError, KeyError) as e:
+                        logger.error(
+                            "Invalid cron schedule '%s' for command '%s': %s",
+                            schedule,
+                            command,
+                            e,
+                        )
+                        return None
+                break
+        return None
