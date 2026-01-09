@@ -190,8 +190,17 @@ class NetworkWatch {
             const deviceSection = document.createElement('div');
             deviceSection.className = 'device-section';
             
-            const deviceHeader = document.createElement('h3');
-            deviceHeader.textContent = `Device: ${device}`;
+            const deviceHeader = document.createElement('div');
+            deviceHeader.className = 'device-header-section';
+            deviceHeader.innerHTML = `<h3>Device: ${device}</h3>`;
+            
+            // Add bulk export button
+            const bulkExportBtn = document.createElement('button');
+            bulkExportBtn.className = 'bulk-export-btn';
+            bulkExportBtn.textContent = '📦 Export All Outputs (JSON)';
+            bulkExportBtn.addEventListener('click', () => this.exportBulk(command));
+            deviceHeader.appendChild(bulkExportBtn);
+            
             deviceSection.appendChild(deviceHeader);
             
             // Render run history
@@ -202,7 +211,9 @@ class NetworkWatch {
                 historyDiv.innerHTML = '<p class="loading">No data available</p>';
             } else {
                 runs.forEach((run, index) => {
-                    const runEntry = this.createRunEntry(run, index);
+                    // Attach device name to run for export
+                    run._device = device;
+                    const runEntry = this.createRunEntry(run, command, index);
                     historyDiv.appendChild(runEntry);
                 });
             }
@@ -217,7 +228,7 @@ class NetworkWatch {
         }
     }
     
-    createRunEntry(run, index) {
+    createRunEntry(run, command, index) {
         const entry = document.createElement('div');
         entry.className = 'run-entry';
         
@@ -298,7 +309,62 @@ class NetworkWatch {
         entry.appendChild(header);
         entry.appendChild(output);
         
+        // Add export buttons
+        if (run.ok) {
+            const exportControls = this.createExportControls(run, command, index);
+            entry.appendChild(exportControls);
+        }
+        
         return entry;
+    }
+    
+    createExportControls(run, command, index) {
+        const controls = document.createElement('div');
+        controls.className = 'export-controls';
+        
+        // Get device name from the DOM context (will be set by parent)
+        const deviceName = run._device || '';
+        
+        const exportTextBtn = document.createElement('button');
+        exportTextBtn.className = 'export-btn';
+        exportTextBtn.textContent = '📄 Export as Text';
+        exportTextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.exportRun(command, deviceName, 'text');
+        });
+        
+        const exportJsonBtn = document.createElement('button');
+        exportJsonBtn.className = 'export-btn';
+        exportJsonBtn.textContent = '📋 Export as JSON';
+        exportJsonBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.exportRun(command, deviceName, 'json');
+        });
+        
+        controls.appendChild(exportTextBtn);
+        controls.appendChild(exportJsonBtn);
+        
+        return controls;
+    }
+    
+    async exportRun(command, device, format) {
+        try {
+            const url = `/api/export/run?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}`;
+            window.location.href = url;
+        } catch (error) {
+            console.error('Error exporting run:', error);
+            alert('Failed to export data');
+        }
+    }
+    
+    async exportBulk(command) {
+        try {
+            const url = `/api/export/bulk?command=${encodeURIComponent(command)}&format=json`;
+            window.location.href = url;
+        } catch (error) {
+            console.error('Error exporting bulk data:', error);
+            alert('Failed to export bulk data');
+        }
     }
     
     createDiffSection(command, device) {
@@ -353,6 +419,26 @@ class NetworkWatch {
         diffOutput.textContent = 'Click a button above to view diff';
         section.appendChild(diffOutput);
         
+        // Diff export controls
+        const exportControls = document.createElement('div');
+        exportControls.className = 'diff-export-controls';
+        exportControls.style.display = 'none';  // Hidden until diff is shown
+        exportControls.id = `diff-export-${device}`;
+        
+        const exportHtmlBtn = document.createElement('button');
+        exportHtmlBtn.className = 'export-btn';
+        exportHtmlBtn.textContent = '📄 Export Diff (HTML)';
+        exportHtmlBtn.addEventListener('click', () => this.exportDiff(command, device, 'html'));
+        
+        const exportTextBtn = document.createElement('button');
+        exportTextBtn.className = 'export-btn';
+        exportTextBtn.textContent = '📋 Export Diff (Text)';
+        exportTextBtn.addEventListener('click', () => this.exportDiff(command, device, 'text'));
+        
+        exportControls.appendChild(exportHtmlBtn);
+        exportControls.appendChild(exportTextBtn);
+        section.appendChild(exportControls);
+        
         return section;
     }
     
@@ -370,6 +456,15 @@ class NetworkWatch {
                 'No differences found',
                 data.diff_format === 'html'
             );
+            
+            // Show export controls and store diff context
+            const exportControls = document.getElementById(`diff-export-${device}`);
+            if (exportControls) {
+                exportControls.style.display = 'block';
+                exportControls.dataset.diffType = 'history';
+                exportControls.dataset.command = command;
+                exportControls.dataset.device = device;
+            }
         } catch (error) {
             console.error('Error loading history diff:', error);
         }
@@ -389,8 +484,44 @@ class NetworkWatch {
                 data.has_diff ? 'No differences found' : 'Data not available for both devices',
                 data.diff_format === 'html'
             );
+            
+            // Show export controls and store diff context
+            const exportControls = document.getElementById(`diff-export-${deviceA}`);
+            if (exportControls) {
+                exportControls.style.display = 'block';
+                exportControls.dataset.diffType = 'device';
+                exportControls.dataset.command = command;
+                exportControls.dataset.deviceA = deviceA;
+                exportControls.dataset.deviceB = deviceB;
+            }
         } catch (error) {
             console.error('Error loading device diff:', error);
+        }
+    }
+    
+    async exportDiff(command, device, format) {
+        const exportControls = document.getElementById(`diff-export-${device}`);
+        if (!exportControls) return;
+        
+        const diffType = exportControls.dataset.diffType;
+        let url;
+        
+        if (diffType === 'history') {
+            url = `/api/export/diff?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}`;
+        } else if (diffType === 'device') {
+            const deviceA = exportControls.dataset.deviceA;
+            const deviceB = exportControls.dataset.deviceB;
+            url = `/api/export/diff?command=${encodeURIComponent(command)}&device_a=${encodeURIComponent(deviceA)}&device_b=${encodeURIComponent(deviceB)}&format=${format}`;
+        } else {
+            console.error('Unknown diff type');
+            return;
+        }
+        
+        try {
+            window.location.href = url;
+        } catch (error) {
+            console.error('Error exporting diff:', error);
+            alert('Failed to export diff');
         }
     }
 
@@ -513,11 +644,40 @@ class NetworkWatch {
             });
 
             tile.appendChild(timelineWrapper);
+            
+            // Add ping export buttons
+            const pingExportControls = document.createElement('div');
+            pingExportControls.className = 'ping-export-controls';
+            
+            const exportCsvBtn = document.createElement('button');
+            exportCsvBtn.className = 'export-btn-small';
+            exportCsvBtn.textContent = '📊 Export CSV';
+            exportCsvBtn.addEventListener('click', () => this.exportPing(device, 'csv'));
+            
+            const exportJsonBtn = document.createElement('button');
+            exportJsonBtn.className = 'export-btn-small';
+            exportJsonBtn.textContent = '📋 Export JSON';
+            exportJsonBtn.addEventListener('click', () => this.exportPing(device, 'json'));
+            
+            pingExportControls.appendChild(exportCsvBtn);
+            pingExportControls.appendChild(exportJsonBtn);
+            tile.appendChild(pingExportControls);
+            
             container.appendChild(tile);
         }
         
         if (Object.keys(pingStatus).length === 0) {
             container.innerHTML = '<p class="loading">No ping data available</p>';
+        }
+    }
+    
+    async exportPing(device, format) {
+        try {
+            const url = `/api/export/ping?device=${encodeURIComponent(device)}&format=${format}&window_seconds=3600`;
+            window.location.href = url;
+        } catch (error) {
+            console.error('Error exporting ping data:', error);
+            alert('Failed to export ping data');
         }
     }
     

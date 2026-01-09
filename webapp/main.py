@@ -9,13 +9,22 @@ from typing import Dict, Optional
 from yaml import YAMLError
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from shared.config import Config
 from shared.db import Database
 from shared.diff import generate_side_by_side_diff
+from shared.export import (
+    export_run_as_text,
+    export_run_as_json,
+    export_bulk_runs_as_json,
+    export_ping_data_as_csv,
+    export_ping_data_as_json,
+    export_diff_as_html,
+    export_diff_as_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -291,3 +300,206 @@ async def get_config():
             "ping_poll_interval_seconds": 1,
             "ping_window_seconds": 60
         })
+
+
+@app.get("/api/export/run")
+async def export_run(command: str, device: str, format: str = "text"):
+    """Export a single command run output.
+    
+    Args:
+        command: Command text
+        device: Device name
+        format: Export format ('text' or 'json')
+    """
+    db = get_db(resolve_history_size())
+    if not db:
+        return JSONResponse({"error": "Database not available"}, status_code=503)
+    
+    try:
+        run = db.get_latest_run(device, command, include_filtered=False)
+        
+        if not run:
+            return JSONResponse({"error": "No data available"}, status_code=404)
+        
+        if format == "json":
+            content = export_run_as_json(run, device, command)
+            filename = f"{device}_{command.replace(' ', '_')}_{run['ts_epoch']}.json"
+            return Response(
+                content=content,
+                media_type="application/json",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        else:  # text format
+            content = export_run_as_text(run, device, command)
+            filename = f"{device}_{command.replace(' ', '_')}_{run['ts_epoch']}.txt"
+            return PlainTextResponse(
+                content=content,
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+    finally:
+        db.close()
+
+
+@app.get("/api/export/bulk")
+async def export_bulk(command: str, format: str = "json"):
+    """Export all device outputs for a command.
+    
+    Args:
+        command: Command text
+        format: Export format (only 'json' supported currently)
+    """
+    db = get_db(resolve_history_size())
+    if not db:
+        return JSONResponse({"error": "Database not available"}, status_code=503)
+    
+    try:
+        devices = db.get_all_devices()
+        runs_by_device = {}
+        
+        for device in devices:
+            runs = db.get_latest_runs(device, command, limit=1, include_filtered=False)
+            if runs:
+                runs_by_device[device] = runs
+        
+        if not runs_by_device:
+            return JSONResponse({"error": "No data available"}, status_code=404)
+        
+        content = export_bulk_runs_as_json(runs_by_device, command)
+        filename = f"bulk_{command.replace(' ', '_')}_{int(time.time())}.json"
+        
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    finally:
+        db.close()
+
+
+@app.get("/api/export/diff")
+async def export_diff(
+    command: str,
+    device: Optional[str] = None,
+    device_a: Optional[str] = None,
+    device_b: Optional[str] = None,
+    format: str = "html"
+):
+    """Export diff view.
+    
+    Args:
+        command: Command text
+        device: Device name for history diff
+        device_a: First device for device comparison
+        device_b: Second device for device comparison
+        format: Export format ('html' or 'text')
+    """
+    db = get_db(resolve_history_size())
+    if not db:
+        return JSONResponse({"error": "Database not available"}, status_code=503)
+    
+    try:
+        # Determine diff type
+        if device and not device_a and not device_b:
+            # History diff
+            runs = db.get_latest_runs(device, command, limit=2, include_filtered=False)
+            
+            if len(runs) < 2:
+                return JSONResponse({"error": "Not enough history for comparison"}, status_code=404)
+            
+            latest = runs[0]
+            previous = runs[1]
+            
+            previous_text = previous.get('output_text', '')
+            latest_text = latest.get('output_text', '')
+            diff_html = generate_side_by_side_diff(
+                previous_text,
+                latest_text,
+                label_a="Previous",
+                label_b="Latest"
+            )
+            label_a = "Previous"
+            label_b = "Latest"
+            filename_prefix = f"history_diff_{device}_{command.replace(' ', '_')}"
+            
+        elif device_a and device_b:
+            # Device diff
+            run_a = db.get_latest_run(device_a, command, include_filtered=False)
+            run_b = db.get_latest_run(device_b, command, include_filtered=False)
+            
+            if not run_a or not run_b:
+                return JSONResponse({"error": "Data not available for both devices"}, status_code=404)
+            
+            run_a_text = run_a.get('output_text', '')
+            run_b_text = run_b.get('output_text', '')
+            diff_html = generate_side_by_side_diff(
+                run_a_text,
+                run_b_text,
+                label_a=device_a,
+                label_b=device_b
+            )
+            label_a = device_a
+            label_b = device_b
+            filename_prefix = f"device_diff_{device_a}_vs_{device_b}_{command.replace(' ', '_')}"
+        else:
+            return JSONResponse({"error": "Invalid parameters"}, status_code=400)
+        
+        if format == "html":
+            content = export_diff_as_html(diff_html, label_a, label_b)
+            filename = f"{filename_prefix}_{int(time.time())}.html"
+            return Response(
+                content=content,
+                media_type="text/html",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        else:  # text format
+            content = export_diff_as_text(diff_html, label_a, label_b)
+            content += "\n" + diff_html  # Append raw HTML
+            filename = f"{filename_prefix}_{int(time.time())}.txt"
+            return PlainTextResponse(
+                content=content,
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+    finally:
+        db.close()
+
+
+@app.get("/api/export/ping")
+async def export_ping(device: str, format: str = "csv", window_seconds: int = 3600):
+    """Export ping data for a device.
+    
+    Args:
+        device: Device name
+        format: Export format ('csv' or 'json')
+        window_seconds: Time window in seconds (default: 1 hour)
+    """
+    db = get_db(resolve_history_size())
+    if not db:
+        return JSONResponse({"error": "Database not available"}, status_code=503)
+    
+    try:
+        current_ts = int(time.time())
+        since_ts = current_ts - window_seconds
+        
+        samples = db.get_ping_samples(device, since_ts)
+        
+        if not samples:
+            return JSONResponse({"error": "No ping data available"}, status_code=404)
+        
+        if format == "json":
+            content = export_ping_data_as_json(samples, device)
+            filename = f"ping_{device}_{int(time.time())}.json"
+            return Response(
+                content=content,
+                media_type="application/json",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        else:  # csv format
+            content = export_ping_data_as_csv(samples, device)
+            filename = f"ping_{device}_{int(time.time())}.csv"
+            return Response(
+                content=content,
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+    finally:
+        db.close()
