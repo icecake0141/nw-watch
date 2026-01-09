@@ -347,7 +347,7 @@ class NetworkWatch {
         section.appendChild(controls);
         
         // Diff output
-        const diffOutput = document.createElement('pre');
+        const diffOutput = document.createElement('div');
         diffOutput.className = 'diff-output';
         diffOutput.id = `diff-${device}`;
         diffOutput.textContent = 'Click a button above to view diff';
@@ -364,7 +364,12 @@ class NetworkWatch {
             const data = await response.json();
             
             const diffOutput = document.getElementById(`diff-${device}`);
-            this.renderDiff(diffOutput, data.diff, data.has_diff ? 'No differences found' : 'Not enough history for comparison');
+            this.renderDiff(
+                diffOutput,
+                data.diff,
+                'No differences found',
+                data.diff_format === 'html'
+            );
         } catch (error) {
             console.error('Error loading history diff:', error);
         }
@@ -378,8 +383,12 @@ class NetworkWatch {
             const data = await response.json();
             
             const diffOutput = document.getElementById(`diff-${deviceA}`);
-            const fallback = data.has_diff ? 'No differences found' : 'Data not available for both devices';
-            this.renderDiff(diffOutput, data.diff, fallback);
+            this.renderDiff(
+                diffOutput,
+                data.diff,
+                data.has_diff ? 'No differences found' : 'Data not available for both devices',
+                data.diff_format === 'html'
+            );
         } catch (error) {
             console.error('Error loading device diff:', error);
         }
@@ -394,9 +403,35 @@ class NetworkWatch {
             .replace(/'/g, '&#39;');
     }
 
-    renderDiff(element, diffText, fallbackMessage) {
+    renderDiff(element, diffText, fallbackMessage, isHtml = false) {
         if (!diffText || diffText.length === 0) {
             element.textContent = fallbackMessage;
+            return;
+        }
+
+        if (isHtml) {
+            const parsed = new DOMParser().parseFromString(diffText, 'text/html');
+            parsed.querySelectorAll('script').forEach(node => node.remove());
+            parsed.querySelectorAll('*').forEach(node => {
+                Array.from(node.attributes).forEach(attr => {
+                    const name = attr.name.toLowerCase();
+                    const value = (attr.value || '').trim();
+                    const lowerValue = value.toLowerCase();
+                    const unsafeProtocols = ['javascript:', 'vbscript:', 'data:text/html'];
+                    if (name.startsWith('on')) {
+                        node.removeAttribute(attr.name);
+                    }
+                    if ((name === 'href' || name === 'src') && unsafeProtocols.some(proto => lowerValue.startsWith(proto))) {
+                        node.removeAttribute(attr.name);
+                    }
+                    if (name === 'style' && /expression|javascript:/i.test(value)) {
+                        node.removeAttribute(attr.name);
+                    }
+                });
+            });
+            element.innerHTML = '';
+            element.append(...Array.from(parsed.body.childNodes));
+            element.classList.add('diff-output-html');
             return;
         }
 

@@ -27,28 +27,41 @@ def generate_diff(old_text: str, new_text: str) -> str:
     return ''.join(diff)
 
 
-def generate_side_by_side_diff(text_a: str, text_b: str, label_a: str = "A", 
-                                label_b: str = "B") -> str:
-    """Generate side-by-side diff between two texts.
+def generate_side_by_side_diff(
+    text_a: str,
+    text_b: str,
+    label_a: str = "A",
+    label_b: str = "B",
+    context: bool = False,
+    numlines: int = 0,
+) -> str:
+    """Generate HTML side-by-side diff between two texts.
     
     Args:
         text_a: First text
         text_b: Second text
         label_a: Label for first text
         label_b: Label for second text
+        context: Show contextual lines only (like unified diff). Defaults to False to
+            include all lines.
+        numlines: Number of context lines when context=True. Ignored when context is False.
     
     Returns:
-        Side-by-side diff as string
+        HTML table representing side-by-side diff. Empty string when texts match.
+    
+    Note:
+        Context/numlines are provided for callers that want trimmed output;
+        current API usage renders full diffs by default.
     """
-    lines_a = text_a.splitlines()
-    lines_b = text_b.splitlines()
-    
-    diff = difflib.unified_diff(
-        lines_a,
-        lines_b,
-        fromfile=label_a,
-        tofile=label_b,
-        lineterm=''
+    if text_a == text_b:
+        return ""
+
+    html_diff = difflib.HtmlDiff(wrapcolumn=80)
+    return html_diff.make_table(
+        text_a.splitlines(),
+        text_b.splitlines(),
+        fromdesc=label_a,
+        todesc=label_b,
+        context=context,
+        numlines=numlines,
     )
-    
-    return '\n'.join(diff)

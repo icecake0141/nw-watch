@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 from shared.config import Config
 from shared.db import Database
-from shared.diff import generate_diff, generate_side_by_side_diff
+from shared.diff import generate_side_by_side_diff
 
 logger = logging.getLogger(__name__)
 
@@ -137,20 +137,27 @@ async def get_history_diff(command: str, device: str):
         if len(runs) < 2:
             return JSONResponse({
                 "diff": "Not enough history for comparison",
-                "has_diff": False
+                "has_diff": False,
+                "diff_format": "text"
             })
         
         latest = runs[0]
         previous = runs[1]
         
-        diff = generate_diff(
-            previous.get('output_text', ''),
-            latest.get('output_text', '')
+        previous_text = previous.get('output_text', '')
+        latest_text = latest.get('output_text', '')
+        diff = generate_side_by_side_diff(
+            previous_text,
+            latest_text,
+            label_a="Previous",
+            label_b="Latest"
         )
+        has_diff = previous_text != latest_text
         
         return JSONResponse({
             "diff": diff,
-            "has_diff": len(diff) > 0,
+            "diff_format": "html",
+            "has_diff": has_diff,
             "latest_ts": latest['ts_epoch'],
             "previous_ts": previous['ts_epoch']
         })
@@ -172,19 +179,24 @@ async def get_device_diff(command: str, device_a: str, device_b: str):
         if not run_a or not run_b:
             return JSONResponse({
                 "diff": "Data not available for both devices",
-                "has_diff": False
+                "has_diff": False,
+                "diff_format": "text"
             })
         
+        run_a_text = run_a.get('output_text', '')
+        run_b_text = run_b.get('output_text', '')
         diff = generate_side_by_side_diff(
-            run_a.get('output_text', ''),
-            run_b.get('output_text', ''),
+            run_a_text,
+            run_b_text,
             label_a=device_a,
             label_b=device_b
         )
+        has_diff = run_a_text != run_b_text
         
         return JSONResponse({
             "diff": diff,
-            "has_diff": len(diff) > 0,
+            "diff_format": "html",
+            "has_diff": has_diff,
             "device_a_ts": run_a['ts_epoch'],
             "device_b_ts": run_b['ts_epoch']
         })

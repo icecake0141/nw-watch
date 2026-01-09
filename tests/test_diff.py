@@ -56,6 +56,7 @@ def test_generate_side_by_side_diff():
     
     diff = generate_side_by_side_diff(text_a, text_b, "DeviceA", "DeviceB")
     
+    assert "<table" in diff
     assert "DeviceA" in diff
     assert "DeviceB" in diff
 
@@ -66,5 +67,5 @@ def test_generate_side_by_side_diff_identical():
     
     diff = generate_side_by_side_diff(text, text, "A", "B")
     
-    # Identical texts should produce no diff markers
-    assert diff == "" or ("---" not in diff and "+++" not in diff)
+    # Identical texts should produce no diff output
+    assert diff == ""
