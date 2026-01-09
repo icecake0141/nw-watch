@@ -346,3 +346,88 @@ def test_export_ping_json(client):
     assert data["device"] == "DeviceA"
     assert "samples" in data
     assert len(data["samples"]) >= 1
+
+
+def test_sanitize_filename():
+    """Test filename sanitization function."""
+    from webapp.main import sanitize_filename
+    
+    # Normal cases - should pass through unchanged
+    assert sanitize_filename("device1") == "device1"
+    assert sanitize_filename("show_version") == "show_version"
+    assert sanitize_filename("device-a.txt") == "device-a.txt"
+    
+    # Path traversal attempts - should be sanitized
+    assert sanitize_filename("../etc/passwd") == ".._etc_passwd"
+    assert sanitize_filename("../../secrets") == ".._.._secrets"
+    assert sanitize_filename("/etc/passwd") == "_etc_passwd"
+    
+    # Special characters - should be replaced with underscores
+    assert sanitize_filename("device/name") == "device_name"
+    assert sanitize_filename("cmd with spaces") == "cmd_with_spaces"
+    assert sanitize_filename("test:file") == "test_file"
+    assert sanitize_filename("file|name") == "file_name"
+    assert sanitize_filename("test*wild") == "test_wild"
+    
+    # Null bytes and other dangerous characters
+    assert sanitize_filename("test\x00file") == "test_file"
+    assert sanitize_filename("test\nfile") == "test_file"
+    
+    # Unicode characters - should be replaced
+    assert sanitize_filename("device™") == "device_"
+    assert sanitize_filename("测试设备") == "____"
+
+
+def test_export_with_malicious_device_name(client):
+    """Test that export endpoints sanitize device names to prevent path traversal."""
+    # Add a device with a malicious name to the database
+    db = Database('data/current.sqlite3')
+    db.insert_run(
+        device_name="../../../evil",
+        command_text="show version",
+        ts_epoch=1000003,
+        output_text="Hacked",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=5
+    )
+    db.close()
+    
+    # Test export - filename should be sanitized
+    response = client.get("/api/export/run?command=show%20version&device=../../../evil&format=json")
+    assert response.status_code == 200
+    
+    # Check that the filename is sanitized in the Content-Disposition header
+    content_disposition = response.headers.get("Content-Disposition", "")
+    assert "filename=" in content_disposition
+    # The path traversal attempt should be sanitized
+    assert "../" not in content_disposition
+    assert ".._.._.._evil" in content_disposition
+
+
+def test_export_with_malicious_command_name(client):
+    """Test that export endpoints sanitize command names to prevent path traversal."""
+    # Add a command with a malicious name to the database
+    db = Database('data/current.sqlite3')
+    db.insert_run(
+        device_name="DeviceA",
+        command_text="../../etc/passwd",
+        ts_epoch=1000004,
+        output_text="Hacked",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=5
+    )
+    db.close()
+    
+    # Test export - filename should be sanitized
+    response = client.get("/api/export/run?command=../../etc/passwd&device=DeviceA&format=json")
+    assert response.status_code == 200
+    
+    # Check that the filename is sanitized in the Content-Disposition header
+    content_disposition = response.headers.get("Content-Disposition", "")
+    assert "filename=" in content_disposition
+    # The path traversal attempt should be sanitized
+    assert "../" not in content_disposition
+    assert ".._.._etc_passwd" in content_disposition
+
