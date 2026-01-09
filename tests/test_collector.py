@@ -1,5 +1,4 @@
 """Tests for collector graceful shutdown."""
-import asyncio
 import os
 import signal
 import tempfile
