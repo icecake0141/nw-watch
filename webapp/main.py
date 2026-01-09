@@ -1,7 +1,9 @@
 """Web application for network device monitoring."""
+import asyncio
 import logging
 import math
 import time
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
@@ -20,7 +22,72 @@ from webapp.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Network Watch")
+# Background task state
+_background_task = None
+_last_db_mtime = None
+
+
+async def monitor_database_changes():
+    """Background task to monitor database changes and notify WebSocket clients."""
+    global _last_db_mtime
+    db_path = Path('data/current.sqlite3')
+    
+    # Check interval based on config
+    try:
+        config = load_config()
+        check_interval = max(1, math.floor(config.get_interval_seconds() / 2))
+    except Exception:
+        check_interval = 2
+    
+    logger.info("Starting database monitor task (interval: %ds)", check_interval)
+    
+    while True:
+        try:
+            if db_path.exists():
+                current_mtime = db_path.stat().st_mtime
+                
+                if _last_db_mtime is not None and current_mtime > _last_db_mtime:
+                    # Database has been updated, notify WebSocket clients
+                    await manager.broadcast_update("data_update")
+                    logger.debug("Database updated, notified WebSocket clients")
+                
+                _last_db_mtime = current_mtime
+            
+            await asyncio.sleep(check_interval)
+        except Exception as exc:
+            logger.error("Error in database monitor task: %s", exc)
+            await asyncio.sleep(check_interval)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events."""
+    global _background_task
+    
+    # Startup
+    try:
+        config = load_config()
+        if config.get_websocket_enabled():
+            _background_task = asyncio.create_task(monitor_database_changes())
+            logger.info("WebSocket enabled, started database monitor task")
+        else:
+            logger.info("WebSocket disabled in configuration")
+    except Exception as exc:
+        logger.warning("Could not load config for WebSocket setup: %s", exc)
+    
+    yield
+    
+    # Shutdown
+    if _background_task:
+        _background_task.cancel()
+        try:
+            await _background_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Stopped database monitor task")
+
+
+app = FastAPI(title="Network Watch", lifespan=lifespan)
 
 # Setup templates and static files
 templates = Jinja2Templates(directory="webapp/templates")

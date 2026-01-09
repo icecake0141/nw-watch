@@ -23,6 +23,9 @@ A Python-based network monitoring system that collects command outputs and ping 
 
 ### Web Interface
 - **Real-Time Updates**: FastAPI-based web application with configurable auto-refresh intervals
+  - Supports both polling and WebSocket modes for real-time updates
+  - WebSocket provides instant updates when enabled (optional)
+  - Automatic fallback to polling if WebSocket unavailable
 - **Device Connectivity Dashboard**: Visual ping timeline showing 60-second connectivity history
   - Color-coded tiles (green: success, red: failure, gray: no data)
   - Success rate percentage and sample counts
@@ -180,6 +183,24 @@ nw-watch/
 - `history_size`: Number of runs to keep per device/command
 - `max_output_lines`: Max lines retained after filtering (truncates above this)
 
+### WebSocket settings (optional)
+
+Enable WebSocket for real-time updates instead of polling:
+
+```yaml
+websocket:
+  enabled: true           # Enable WebSocket support (default: false)
+  ping_interval: 20       # WebSocket ping interval in seconds (optional, default: 20)
+```
+
+**Benefits of WebSocket mode:**
+- Instant updates when new data arrives (no polling delay)
+- Reduced server load and network traffic
+- Better user experience with real-time updates
+- Automatic fallback to polling if WebSocket fails
+
+**Note:** When `enabled: false` (default), the application uses traditional HTTP polling for backward compatibility.
+
 ### Devices
 
 - `name`, `host`, `port`, `device_type`, `ping_host`
@@ -318,7 +339,7 @@ To add custom filtering logic:
 4. Results are stored in session-specific SQLite database (`session_{epoch}.sqlite3`)
 5. Session database is atomically copied to `current.sqlite3` after each collection cycle
 6. **Web App** reads from `current.sqlite3` (read-only) and serves data via FastAPI REST API
-7. **Frontend** polls API endpoints at configured intervals and updates UI dynamically
+7. **Frontend** receives updates via polling (default) or WebSocket (when enabled) and updates UI dynamically
 
 ### Database Lifecycle and Atomic Updates
 
@@ -335,10 +356,36 @@ The system ensures data consistency through atomic database operations:
 
 ### Polling Strategy
 
-Frontend polling intervals are automatically calculated from configuration:
+Frontend update strategy depends on configuration:
+
+**Polling Mode (default, `websocket.enabled: false`):**
 - **Run Updates**: `max(1, floor(interval_seconds / 2))` seconds
 - **Ping Updates**: `ping_interval_seconds` seconds
 - Respects auto-refresh toggle (can be paused/resumed by user)
+
+**WebSocket Mode (`websocket.enabled: true`):**
+- Real-time push notifications when database updates
+- No polling timers when WebSocket connected
+- Automatic fallback to polling if connection fails
+- Client sends "ping" messages; server responds with "pong" for keepalive
+
+### WebSocket Protocol
+
+When WebSocket is enabled, the client connects to `/ws` and receives JSON messages:
+
+```json
+{
+  "type": "data_update",
+  "timestamp": 1234567890.123
+}
+```
+
+**Message Types:**
+- `data_update`: New command run or ping data available (client should refresh all data)
+- `run_update`: New command run data available
+- `ping_update`: New ping data available
+
+The server monitors the database file for changes and broadcasts updates to all connected clients.
 
 ### Security Measures
 
