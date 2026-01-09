@@ -6,6 +6,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
 
 
+# JST timezone constant (UTC+9)
+JST_TIMEZONE = timezone(timedelta(hours=9))
+
+
 def format_timestamp_jst(epoch: int) -> str:
     """Format UTC epoch timestamp as JST datetime string.
     
@@ -17,8 +21,7 @@ def format_timestamp_jst(epoch: int) -> str:
     """
     dt = datetime.fromtimestamp(epoch, tz=timezone.utc)
     # Convert to JST (UTC+9)
-    jst_tz = timezone(timedelta(hours=9))
-    jst_dt = dt.astimezone(jst_tz)
+    jst_dt = dt.astimezone(JST_TIMEZONE)
     return jst_dt.strftime('%Y-%m-%d %H:%M:%S JST')
 
 
