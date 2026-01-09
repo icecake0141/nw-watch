@@ -477,7 +477,7 @@ class NetworkWatch {
         return controls;
     }
     
-    async exportRun(command, device, format) {
+    exportRun(command, device, format) {
         try {
             const url = `/api/export/run?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}`;
             window.location.href = url;
@@ -487,7 +487,7 @@ class NetworkWatch {
         }
     }
     
-    async exportBulk(command) {
+    exportBulk(command) {
         try {
             const url = `/api/export/bulk?command=${encodeURIComponent(command)}&format=json`;
             window.location.href = url;
@@ -629,7 +629,7 @@ class NetworkWatch {
         }
     }
     
-    async exportDiff(command, device, format) {
+    exportDiff(command, device, format) {
         const exportControls = document.getElementById(`diff-export-${device}`);
         if (!exportControls) return;
         
@@ -801,7 +801,7 @@ class NetworkWatch {
         }
     }
     
-    async exportPing(device, format) {
+    exportPing(device, format) {
         try {
             const url = `/api/export/ping?device=${encodeURIComponent(device)}&format=${format}&window_seconds=3600`;
             window.location.href = url;
