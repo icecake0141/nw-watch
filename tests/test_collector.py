@@ -1,5 +1,6 @@
 """Tests for collector graceful shutdown."""
 import asyncio
+import os
 import signal
 import sys
 import tempfile
@@ -37,7 +38,6 @@ devices:
         )
         
         # Set the password environment variable
-        import os
         os.environ["TEST_PASSWORD"] = "test"
         
         config = Config(str(cfg_path))
@@ -45,8 +45,7 @@ devices:
         # Change to tmp_dir so data folder is created there
         original_cwd = Path.cwd()
         try:
-            import os as os_module
-            os_module.chdir(tmp_dir)
+            os.chdir(tmp_dir)
             
             collector = Collector(config)
             
@@ -63,7 +62,7 @@ devices:
             # Executor should be shutdown (we can't easily verify this without internal state)
             # DB should be closed (we can't easily verify this without internal state)
         finally:
-            os_module.chdir(original_cwd)
+            os.chdir(original_cwd)
 
 
 def test_signal_handler_registration():
@@ -102,8 +101,7 @@ devices:
                     # Change to tmp_dir so data folder is created there
                     original_cwd = Path.cwd()
                     try:
-                        import os as os_module
-                        os_module.chdir(tmp_dir)
+                        os.chdir(tmp_dir)
                         
                         main()
                         
@@ -117,7 +115,7 @@ devices:
                         assert signal.SIGTERM in signals_registered
                         assert signal.SIGINT in signals_registered
                     finally:
-                        os_module.chdir(original_cwd)
+                        os.chdir(original_cwd)
 
 
 def test_signal_handler_calls_stop():
@@ -144,7 +142,6 @@ devices:
 """
         )
         
-        import os
         os.environ["TEST_PASSWORD"] = "test"
         
         with patch('collector.main.asyncio.run') as mock_asyncio_run:
@@ -155,8 +152,7 @@ devices:
                 # Change to tmp_dir so data folder is created there
                 original_cwd = Path.cwd()
                 try:
-                    import os as os_module
-                    os_module.chdir(tmp_dir)
+                    os.chdir(tmp_dir)
                     
                     # Capture the collector instance from within main()
                     original_collector_init = Collector.__init__
@@ -190,4 +186,4 @@ devices:
                                 # Verify sys.exit was called
                                 mock_exit.assert_called_once_with(0)
                 finally:
-                    os_module.chdir(original_cwd)
+                    os.chdir(original_cwd)
