@@ -358,6 +358,9 @@ def test_sanitize_filename():
     # Test path traversal prevention
     assert ".." not in sanitize_filename("../etc/passwd")
     assert ".." not in sanitize_filename("..\\windows\\system32")
+    # Test that multiple dots are also handled (e.g., '...')
+    assert ".." not in sanitize_filename("...secrets")
+    assert ".." not in sanitize_filename("....config")
     
     # Test path separator removal
     result = sanitize_filename("path/to/file")
@@ -420,13 +423,17 @@ def test_export_with_dangerous_filenames(client):
     assert response.status_code == 200
     # Verify the filename doesn't contain path traversal
     content_disposition = response.headers.get("Content-Disposition", "")
-    assert ".." not in content_disposition
-    assert "/" not in content_disposition.split("filename=")[1] if "filename=" in content_disposition else True
+    assert "filename=" in content_disposition, "Content-Disposition header should contain filename"
+    filename = content_disposition.split("filename=")[1]
+    assert ".." not in filename
+    assert "/" not in filename
     
     # Test export with dangerous command characters
     response = client.get("/api/export/run?command=show:/config*&device=DeviceC&format=json")
     assert response.status_code == 200
     content_disposition = response.headers.get("Content-Disposition", "")
     # Verify dangerous characters are not in filename
-    assert ":" not in content_disposition.split("filename=")[1] if "filename=" in content_disposition else True
-    assert "*" not in content_disposition.split("filename=")[1] if "filename=" in content_disposition else True
+    assert "filename=" in content_disposition, "Content-Disposition header should contain filename"
+    filename = content_disposition.split("filename=")[1]
+    assert ":" not in filename
+    assert "*" not in filename

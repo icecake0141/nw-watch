@@ -40,6 +40,9 @@ _db_mtime_lock = asyncio.Lock()
 # Constants for database monitoring
 DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
 
+# Maximum length for filename components (most filesystems support 255 chars)
+MAX_FILENAME_LENGTH = 200
+
 
 def sanitize_filename(text: str) -> str:
     """
@@ -62,8 +65,9 @@ def sanitize_filename(text: str) -> str:
     # This includes: / \ : * ? " < > |
     text = re.sub(r'[/\\:*?"<>|]', '_', text)
     
-    # Remove any path traversal patterns
-    text = text.replace('..', '')
+    # Remove any path traversal patterns (iterate to handle patterns like '...')
+    while '..' in text:
+        text = text.replace('..', '')
     
     # Replace spaces and other whitespace with underscores
     text = re.sub(r'\s+', '_', text)
@@ -75,10 +79,9 @@ def sanitize_filename(text: str) -> str:
     if not text:
         text = 'unnamed'
     
-    # Limit length to prevent filesystem issues (most filesystems support 255 chars)
-    max_length = 200
-    if len(text) > max_length:
-        text = text[:max_length].rstrip('._')
+    # Limit length to prevent filesystem issues
+    if len(text) > MAX_FILENAME_LENGTH:
+        text = text[:MAX_FILENAME_LENGTH].rstrip('._')
     
     return text
 
