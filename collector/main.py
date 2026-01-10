@@ -335,7 +335,7 @@ class Collector:
         self.executor = ThreadPoolExecutor(max_workers=20)
         self.running = True
         self.commands: List[str] = self._resolve_commands()
-        
+
         # Cache global interval to avoid repeated method calls
         self.global_interval = self.config.get_interval_seconds()
 
@@ -354,11 +354,11 @@ class Collector:
     def _initialize_command_intervals(self):
         """Initialize next run times for all commands and cache intervals."""
         now = time.time()
-        
+
         for command in self.commands:
             # Get command-specific interval or use global interval
             cmd_interval = self.config.get_command_interval(command)
-            
+
             if cmd_interval is not None:
                 # Command has a specific interval (5-60 seconds)
                 self.command_intervals[command] = cmd_interval
@@ -371,7 +371,7 @@ class Collector:
                 logger.info(
                     f"Command '{command}' uses global interval {self.global_interval}s"
                 )
-            
+
             # All commands run immediately on first iteration
             self.command_next_run[command] = now
 

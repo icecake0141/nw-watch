@@ -15,7 +15,7 @@ class FiltersConfig(BaseModel):
 
 class CommandConfig(BaseModel):
     """Command configuration.
-    
+
     Each command can optionally specify an interval_seconds for execution frequency.
     If not specified, the command uses the global interval_seconds setting.
     """
@@ -38,13 +38,13 @@ class CommandConfig(BaseModel):
     @classmethod
     def validate_interval_seconds(cls, v: Optional[int]) -> Optional[int]:
         """Validate interval_seconds is within allowed range (5-60 seconds).
-        
+
         Args:
             v: The interval value in seconds
-            
+
         Returns:
             The validated interval value
-            
+
         Raises:
             ValueError: If interval is not between 5 and 60 seconds
         """

@@ -121,7 +121,7 @@ devices:
     # Check that error message is clear and informative
     with pytest.raises(ValueError) as exc_info:
         Config(str(cfg_path))
-    
+
     error_msg = str(exc_info.value)
     # Should mention the configuration is invalid
     assert "Invalid configuration" in error_msg

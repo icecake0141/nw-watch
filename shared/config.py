@@ -225,13 +225,13 @@ class Config:
 
     def get_command_interval(self, command: str) -> Optional[int]:
         """Get execution interval for a specific command, if configured.
-        
+
         Returns the command-specific interval in seconds (5-60 range), or None if
         the command should use the global interval_seconds setting.
-        
+
         Args:
             command: The command text to look up
-            
+
         Returns:
             Command-specific interval in seconds, or None to use global interval
         """
