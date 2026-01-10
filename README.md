@@ -13,9 +13,10 @@ A Python-based network monitoring system that collects command outputs and ping 
   - Automatic reconnection with exponential backoff on connection failures
   - Thread-safe command execution with per-device locking
   - Graceful connection cleanup on shutdown
-- **Flexible Command Scheduling**: Per-command cron scheduling for optimized resource usage
-  - Run different commands at different intervals (e.g., version check every 6 hours, interface status every 5 minutes)
-  - Backward compatible - commands without schedule use global interval
+- **Flexible Command Scheduling**: Per-command interval scheduling for optimized resource usage
+  - Run different commands at different intervals (5-60 seconds range)
+  - Fine-grained control over execution frequency for each command
+  - Backward compatible - commands without custom interval use global interval
 - **Parallel Execution**: Commands executed in parallel across devices using ThreadPoolExecutor
 - **Continuous Ping Monitoring**: Track device reachability with configurable ping intervals (default: 1 second)
 - **Command History**: Configurable retention of command execution history (default: 10 runs per device/command)
@@ -340,11 +341,12 @@ ssh:
 
 ### Commands
 
-Commands are defined once and run against each device. Each command supports optional filters, a `sort_order` for tab ordering, and an optional `schedule` for flexible execution timing.
+Commands are defined once and run against each device. Each command supports optional filters, a `sort_order` for tab ordering, and an optional `interval_seconds` for flexible execution timing.
 
 - `command_text`: CLI command
-- `schedule`: Optional cron expression (e.g., `"0 */6 * * *"` for every 6 hours, `"*/5 * * * *"` for every 5 minutes)
-  - If provided, the command runs according to the cron schedule
+- `interval_seconds`: Optional execution interval in seconds (5-60 range)
+  - If provided, the command runs at the specified interval
+  - Must be between 5 and 60 seconds (validated at configuration load)
   - If omitted, the command uses the global `interval_seconds`
   - Allows different commands to run at different frequencies for optimized resource usage
 - `filters.line_exclude_substrings`: Override global line filters
@@ -352,44 +354,38 @@ Commands are defined once and run against each device. Each command supports opt
 
 ### Command Scheduling
 
-The system supports per-command scheduling using cron expressions, allowing different commands to run at different intervals:
+The system supports per-command interval scheduling, allowing different commands to run at different intervals within the 5-60 second range:
 
 ```yaml
 commands:
   - name: "show_version"
     command_text: "show version"
-    schedule: "0 */6 * * *"  # Every 6 hours
+    interval_seconds: 30  # Run every 30 seconds
   - name: "interfaces_status"
     command_text: "show interfaces status"
-    schedule: "*/5 * * * *"  # Every 5 minutes
+    interval_seconds: 15  # Run every 15 seconds
   - name: "ip_int_brief"
     command_text: "show ip interface brief"
-    # No schedule - uses interval_seconds
+    # No interval_seconds - uses global interval_seconds
 ```
 
 **Benefits:**
 - Optimized resource usage - run expensive commands less frequently
 - Reduced device load - distribute command execution over time
 - Flexible monitoring strategies - different update frequencies per command
-- Cost optimization for paid API calls or rate-limited devices
+- Fine-grained control with 5-60 second interval range
 
-**Cron Expression Format:**
-```
-* * * * *
-│ │ │ │ │
-│ │ │ │ └─── Day of week (0-6, Sunday=0)
-│ │ │ └───── Month (1-12)
-│ │ └─────── Day of month (1-31)
-│ └───────── Hour (0-23)
-└─────────── Minute (0-59)
-```
+**Interval Validation:**
+- Intervals must be between 5 and 60 seconds (inclusive)
+- Invalid intervals will be rejected with clear error messages during configuration loading
+- This ensures reasonable execution frequencies and prevents system overload
 
 **Examples:**
-- `"*/5 * * * *"` - Every 5 minutes
-- `"0 * * * *"` - Every hour at minute 0
-- `"0 */6 * * *"` - Every 6 hours
-- `"0 0 * * *"` - Once per day at midnight
-- `"0 9-17 * * 1-5"` - At the start of every hour from 9 AM to 5 PM, Monday through Friday
+- `interval_seconds: 5` - Run every 5 seconds (minimum allowed)
+- `interval_seconds: 10` - Run every 10 seconds
+- `interval_seconds: 30` - Run every 30 seconds
+- `interval_seconds: 60` - Run every 60 seconds (maximum allowed)
+- No `interval_seconds` - Uses the global `interval_seconds` setting
 
 ### Filters
 
@@ -576,7 +572,7 @@ graph TB
         C[Collector<br/>Python/Netmiko]
         SSH[SSH Connections<br/>Persistent/On-demand]
         FILTER[Output Processing<br/>Filters & Truncation]
-        SCHED[Scheduler<br/>Cron/Interval]
+        SCHED[Scheduler<br/>Interval-based]
         PING[Ping Monitor<br/>Continuous]
     end
     
@@ -653,7 +649,7 @@ graph TB
 
 **Data Collection:**
 - Collector reads configuration and credentials
-- Scheduler determines when to execute commands (cron or interval-based)
+- Scheduler determines when to execute commands (interval-based, 5-60 seconds)
 - SSH connections execute commands on devices (persistent or per-command)
 - Ping monitor continuously checks device reachability
 - Output processor applies filters and truncation
