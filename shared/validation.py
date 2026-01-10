@@ -1,4 +1,5 @@
 """Configuration validation using Pydantic models."""
+
 import re
 from typing import Any, Dict, List, Optional
 
@@ -8,12 +9,14 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 class FiltersConfig(BaseModel):
     """Filter configuration."""
+
     line_exclude_substrings: Optional[List[str]] = None
     output_exclude_substrings: Optional[List[str]] = None
 
 
 class CommandConfig(BaseModel):
     """Command configuration."""
+
     name: Optional[str] = None
     command_text: str
     schedule: Optional[str] = None
@@ -42,6 +45,7 @@ class CommandConfig(BaseModel):
 
 class DeviceConfig(BaseModel):
     """Device configuration."""
+
     name: str
     host: str
     port: int = 22
@@ -91,10 +95,18 @@ class DeviceConfig(BaseModel):
             raise ValueError("Device type must not be empty")
         # Common Netmiko device types - could be extended
         known_types = {
-            "cisco_ios", "cisco_nxos", "cisco_xe", "cisco_xr", "cisco_asa",
-            "arista_eos", "juniper", "juniper_junos",
-            "hp_procurve", "hp_comware",
-            "linux", "generic_termserver",
+            "cisco_ios",
+            "cisco_nxos",
+            "cisco_xe",
+            "cisco_xr",
+            "cisco_asa",
+            "arista_eos",
+            "juniper",
+            "juniper_junos",
+            "hp_procurve",
+            "hp_comware",
+            "linux",
+            "generic_termserver",
         }
         if v not in known_types:
             # Warning, not error - allow custom types
@@ -108,7 +120,7 @@ class DeviceConfig(BaseModel):
         if v is not None:
             # Allow IPv4, IPv6, and hostnames
             # This regex is permissive but prevents command injection
-            pattern = r'^[a-zA-Z0-9\.\:\-\_]+$'
+            pattern = r"^[a-zA-Z0-9\.\:\-\_]+$"
             if not re.match(pattern, v):
                 raise ValueError(
                     f"Invalid ping_host format '{v}'. Must contain only "
@@ -116,8 +128,8 @@ class DeviceConfig(BaseModel):
                 )
         return v
 
-    @model_validator(mode='after')
-    def validate_password_config(self) -> 'DeviceConfig':
+    @model_validator(mode="after")
+    def validate_password_config(self) -> "DeviceConfig":
         """Ensure either password_env_key or password is provided."""
         if not self.password_env_key and not self.password:
             raise ValueError(
@@ -128,12 +140,14 @@ class DeviceConfig(BaseModel):
 
 class GlobalFiltersConfig(BaseModel):
     """Global filters configuration."""
+
     line_exclude_substrings: Optional[List[str]] = Field(default_factory=list)
     output_exclude_substrings: Optional[List[str]] = Field(default_factory=list)
 
 
 class WebSocketConfig(BaseModel):
     """WebSocket configuration."""
+
     enabled: bool = False
     ping_interval: int = Field(default=20, gt=0)
 
@@ -148,6 +162,7 @@ class WebSocketConfig(BaseModel):
 
 class SSHConfig(BaseModel):
     """SSH connection configuration."""
+
     persistent_connections: bool = True
     connection_timeout: int = Field(default=100, gt=0)
     max_reconnect_attempts: int = Field(default=3, ge=0)
@@ -166,7 +181,9 @@ class SSHConfig(BaseModel):
     def validate_max_reconnect_attempts(cls, v: int) -> int:
         """Validate max reconnect attempts is non-negative."""
         if v < 0:
-            raise ValueError(f"SSH max_reconnect_attempts must be non-negative, got {v}")
+            raise ValueError(
+                f"SSH max_reconnect_attempts must be non-negative, got {v}"
+            )
         return v
 
     @field_validator("reconnect_backoff_base")
@@ -180,19 +197,22 @@ class SSHConfig(BaseModel):
 
 class ConfigSchema(BaseModel):
     """Root configuration schema."""
+
     interval_seconds: int = Field(default=5, gt=0)
     ping_interval_seconds: int = Field(default=1, gt=0)
     ping_window_seconds: int = Field(default=60, gt=0)
     history_size: int = Field(default=10, gt=0)
     max_output_lines: int = Field(default=500, gt=0)
-    
-    global_filters: Optional[GlobalFiltersConfig] = Field(default_factory=GlobalFiltersConfig)
+
+    global_filters: Optional[GlobalFiltersConfig] = Field(
+        default_factory=GlobalFiltersConfig
+    )
     websocket: Optional[WebSocketConfig] = Field(default_factory=WebSocketConfig)
     ssh: Optional[SSHConfig] = Field(default_factory=SSHConfig)
-    
+
     commands: List[CommandConfig] = Field(default_factory=list)
     devices: List[DeviceConfig] = Field(default_factory=list)
-    
+
     # Legacy fields for backward compatibility
     collector: Optional[Dict[str, Any]] = None
     webapp: Optional[Dict[str, Any]] = None
@@ -254,8 +274,8 @@ class ConfigSchema(BaseModel):
             raise ValueError("At least one command must be configured")
         return v
 
-    @model_validator(mode='after')
-    def validate_unique_device_names(self) -> 'ConfigSchema':
+    @model_validator(mode="after")
+    def validate_unique_device_names(self) -> "ConfigSchema":
         """Ensure device names are unique."""
         names = [d.name for d in self.devices]
         if len(names) != len(set(names)):
@@ -263,8 +283,8 @@ class ConfigSchema(BaseModel):
             raise ValueError(f"Duplicate device names found: {set(duplicates)}")
         return self
 
-    @model_validator(mode='after')
-    def validate_unique_command_texts(self) -> 'ConfigSchema':
+    @model_validator(mode="after")
+    def validate_unique_command_texts(self) -> "ConfigSchema":
         """Ensure command texts are unique."""
         texts = [c.command_text for c in self.commands]
         if len(texts) != len(set(texts)):

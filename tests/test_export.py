@@ -1,4 +1,5 @@
 """Tests for export utilities."""
+
 import json
 from shared.export import (
     export_run_as_text,
@@ -32,9 +33,9 @@ def test_export_run_as_text():
         "is_truncated": False,
         "original_line_count": 10,
     }
-    
+
     result = export_run_as_text(run, "DeviceA", "show version")
-    
+
     assert "DeviceA" in result
     assert "show version" in result
     assert "Sample output" in result
@@ -52,9 +53,9 @@ def test_export_run_as_text_with_error():
         "is_filtered": False,
         "is_truncated": False,
     }
-    
+
     result = export_run_as_text(run, "DeviceB", "show interfaces")
-    
+
     assert "DeviceB" in result
     assert "show interfaces" in result
     assert "Error" in result
@@ -72,10 +73,10 @@ def test_export_run_as_json():
         "is_truncated": True,
         "original_line_count": 500,
     }
-    
+
     result = export_run_as_json(run, "DeviceA", "show version")
     data = json.loads(result)
-    
+
     assert data["device"] == "DeviceA"
     assert data["command"] == "show version"
     assert data["status"] == "success"
@@ -110,10 +111,10 @@ def test_export_bulk_runs_as_json():
             }
         ],
     }
-    
+
     result = export_bulk_runs_as_json(runs_by_device, "show version")
     data = json.loads(result)
-    
+
     assert data["command"] == "show version"
     assert "DeviceA" in data["devices"]
     assert "DeviceB" in data["devices"]
@@ -138,10 +139,10 @@ def test_export_ping_data_as_csv():
             "error_message": "Timeout",
         },
     ]
-    
+
     result = export_ping_data_as_csv(ping_samples, "DeviceA")
-    
-    lines = result.strip().split('\n')
+
+    lines = result.strip().split("\n")
     assert len(lines) == 3  # Header + 2 data rows
     assert "Device" in lines[0]
     assert "Timestamp" in lines[0]
@@ -169,10 +170,10 @@ def test_export_ping_data_as_json():
             "error_message": "Timeout",
         },
     ]
-    
+
     result = export_ping_data_as_json(ping_samples, "DeviceA")
     data = json.loads(result)
-    
+
     assert data["device"] == "DeviceA"
     assert len(data["samples"]) == 2
     assert data["samples"][0]["status"] == "success"
@@ -184,7 +185,7 @@ def test_export_ping_data_as_json():
 def test_export_diff_as_text():
     """Test exporting diff as text."""
     result = export_diff_as_text("<html>diff</html>", "Previous", "Latest")
-    
+
     assert "Previous" in result
     assert "Latest" in result
     assert "Diff Export" in result
@@ -192,9 +193,9 @@ def test_export_diff_as_text():
 
 def test_export_diff_as_html():
     """Test exporting diff as HTML."""
-    diff_html = '<table><tr><td>test</td></tr></table>'
+    diff_html = "<table><tr><td>test</td></tr></table>"
     result = export_diff_as_html(diff_html, "DeviceA", "DeviceB")
-    
+
     assert "<!DOCTYPE html>" in result
     assert "DeviceA" in result
     assert "DeviceB" in result

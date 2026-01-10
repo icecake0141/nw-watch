@@ -1,4 +1,5 @@
 """Tests for configuration validation."""
+
 import pytest
 from pathlib import Path
 
@@ -36,7 +37,7 @@ devices:
     ping_host: "192.168.1.1"
 """
     )
-    
+
     config = Config(str(cfg_path))
     assert config.get_interval_seconds() == 5
     assert config.get_history_size() == 10
@@ -58,7 +59,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -79,7 +80,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -100,7 +101,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -121,7 +122,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -142,7 +143,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     config = Config(str(cfg_path))
     assert config.get_command_schedule("show version") == "0 */6 * * *"
 
@@ -162,7 +163,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -183,7 +184,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -204,7 +205,7 @@ devices:
     ping_host: "192.168.1.1; rm -rf /"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -237,7 +238,7 @@ devices:
     ping_host: "2001:db8::1"
 """
     )
-    
+
     config = Config(str(cfg_path))
     devices = config.get_devices()
     assert devices[0]["ping_host"] == "192.168.1.1"
@@ -255,7 +256,7 @@ commands:
 devices: []
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -274,7 +275,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -299,7 +300,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -320,7 +321,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -339,7 +340,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -362,7 +363,7 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
 
@@ -384,6 +385,6 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))

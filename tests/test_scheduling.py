@@ -1,4 +1,5 @@
 """Tests for command scheduling functionality."""
+
 import pytest
 import time
 from pathlib import Path
@@ -33,10 +34,10 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))
-    
+
     # Test schedule retrieval
     assert config.get_command_schedule("show version") == "0 * * * *"
     assert config.get_command_schedule("show interfaces") == "*/5 * * * *"
@@ -62,9 +63,9 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     monkeypatch.setenv("PW", "secret")
-    
+
     # Invalid schedule should raise ValueError during config loading
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
@@ -76,15 +77,15 @@ def test_croniter_next_execution():
     base_time = time.time()
     cron = croniter("*/5 * * * *", base_time)
     next_run = cron.get_next()
-    
+
     # Next run should be within 5 minutes
     assert next_run > base_time
     assert next_run <= base_time + 300  # 5 minutes = 300 seconds
-    
+
     # Test hourly
     cron = croniter("0 * * * *", base_time)
     next_run = cron.get_next()
-    
+
     # Next run should be within 1 hour
     assert next_run > base_time
     assert next_run <= base_time + 3600  # 1 hour = 3600 seconds
@@ -109,10 +110,10 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))
-    
+
     # Command without schedule should return None
     assert config.get_command_schedule("show version") is None
     # Should still have interval_seconds configured
@@ -144,10 +145,10 @@ devices:
     device_type: "cisco_ios"
 """
     )
-    
+
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))
-    
+
     # Verify each command has correct schedule
     assert config.get_command_schedule("show version") == "0 */6 * * *"
     assert config.get_command_schedule("show interfaces") is None

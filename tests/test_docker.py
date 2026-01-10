@@ -1,4 +1,5 @@
 """Tests for Docker functionality."""
+
 import os
 import subprocess
 import time
@@ -64,7 +65,9 @@ class TestDockerConfiguration:
         """Test that docker-compose.yml defines required services."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert "collector:" in content, "docker-compose.yml should have collector service"
+        assert (
+            "collector:" in content
+        ), "docker-compose.yml should have collector service"
         assert "webapp:" in content, "docker-compose.yml should have webapp service"
 
     def test_docker_compose_has_volumes(self):
@@ -72,7 +75,9 @@ class TestDockerConfiguration:
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
         assert "volumes:" in content, "docker-compose.yml should define volumes"
-        assert "./data:/app/data" in content, "docker-compose.yml should mount data directory"
+        assert (
+            "./data:/app/data" in content
+        ), "docker-compose.yml should mount data directory"
 
     def test_docker_compose_has_port_mapping(self):
         """Test that docker-compose.yml maps ports."""
@@ -96,13 +101,17 @@ class TestDockerConfiguration:
         """Test that .env.example includes password variables."""
         env_example = Path(__file__).parent.parent / ".env.example"
         content = env_example.read_text()
-        assert "DEVICEA_PASSWORD" in content, ".env.example should include DEVICEA_PASSWORD"
-        assert "DEVICEB_PASSWORD" in content, ".env.example should include DEVICEB_PASSWORD"
+        assert (
+            "DEVICEA_PASSWORD" in content
+        ), ".env.example should include DEVICEA_PASSWORD"
+        assert (
+            "DEVICEB_PASSWORD" in content
+        ), ".env.example should include DEVICEB_PASSWORD"
 
 
 @pytest.mark.skipif(
     os.environ.get("SKIP_DOCKER_BUILD_TESTS") == "1",
-    reason="Docker build tests skipped (set by SKIP_DOCKER_BUILD_TESTS=1)"
+    reason="Docker build tests skipped (set by SKIP_DOCKER_BUILD_TESTS=1)",
 )
 class TestDockerBuildProcess:
     """Test actual Docker build process (can be slow, skip in CI if needed)."""
@@ -110,18 +119,19 @@ class TestDockerBuildProcess:
     def test_docker_build_succeeds(self):
         """Test that Docker build completes successfully."""
         project_root = Path(__file__).parent.parent
-        
+
         # Check if docker is available
         try:
             subprocess.run(
-                ["docker", "--version"],
-                check=True,
-                capture_output=True,
-                timeout=5
+                ["docker", "--version"], check=True, capture_output=True, timeout=5
             )
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            subprocess.TimeoutExpired,
+        ):
             pytest.skip("Docker is not available")
-        
+
         # Try to build the image
         try:
             result = subprocess.run(
@@ -129,13 +139,17 @@ class TestDockerBuildProcess:
                 cwd=project_root,
                 check=True,
                 capture_output=True,
-                timeout=180
+                timeout=180,
             )
             assert result.returncode == 0, "Docker build should succeed"
         except subprocess.TimeoutExpired:
             pytest.fail("Docker build timed out after 180 seconds")
         except subprocess.CalledProcessError as e:
-            stderr = e.stderr.decode() if e.stderr and isinstance(e.stderr, bytes) else str(e.stderr) if e.stderr else "No error output"
+            stderr = (
+                e.stderr.decode()
+                if e.stderr and isinstance(e.stderr, bytes)
+                else str(e.stderr) if e.stderr else "No error output"
+            )
             pytest.fail(f"Docker build failed: {stderr}")
 
     def test_docker_image_has_correct_structure(self):
@@ -143,34 +157,35 @@ class TestDockerBuildProcess:
         # Skip if docker not available
         try:
             subprocess.run(
-                ["docker", "--version"],
-                check=True,
-                capture_output=True,
-                timeout=5
+                ["docker", "--version"], check=True, capture_output=True, timeout=5
             )
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            subprocess.TimeoutExpired,
+        ):
             pytest.skip("Docker is not available")
-        
+
         # Check if image exists (from previous build)
         try:
             result = subprocess.run(
                 ["docker", "images", "-q", "nw-watch:test"],
                 check=True,
                 capture_output=True,
-                timeout=10
+                timeout=10,
             )
             if not result.stdout.strip():
                 pytest.skip("Docker image not built yet")
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             pytest.skip("Could not check Docker images")
-        
+
         # Check that the image has expected directories
         try:
             result = subprocess.run(
                 ["docker", "run", "--rm", "nw-watch:test", "ls", "-la", "/app"],
                 check=True,
                 capture_output=True,
-                timeout=30
+                timeout=30,
             )
             output = result.stdout.decode()
             assert "collector" in output, "Image should contain collector directory"
@@ -180,7 +195,11 @@ class TestDockerBuildProcess:
         except subprocess.TimeoutExpired:
             pytest.fail("Docker run command timed out")
         except subprocess.CalledProcessError as e:
-            stderr = e.stderr.decode() if e.stderr and isinstance(e.stderr, bytes) else str(e.stderr) if e.stderr else "No error output"
+            stderr = (
+                e.stderr.decode()
+                if e.stderr and isinstance(e.stderr, bytes)
+                else str(e.stderr) if e.stderr else "No error output"
+            )
             pytest.fail(f"Docker run failed: {stderr}")
 
 
@@ -191,7 +210,9 @@ class TestDockerComposeConfiguration:
         """Test that collector service has correct command."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert "python -m collector.main" in content, "Collector should run collector.main"
+        assert (
+            "python -m collector.main" in content
+        ), "Collector should run collector.main"
         assert "--config" in content, "Collector should use config file"
 
     def test_docker_compose_webapp_command(self):

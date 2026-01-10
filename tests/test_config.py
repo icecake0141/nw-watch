@@ -1,4 +1,5 @@
 """Tests for configuration loader."""
+
 from pathlib import Path
 
 from shared.config import Config

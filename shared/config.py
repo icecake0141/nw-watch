@@ -1,4 +1,5 @@
 """Configuration loading and validation."""
+
 import logging
 import os
 from pathlib import Path
@@ -22,7 +23,7 @@ class Config:
         with open(self.config_path, "r") as f:
             # Ensure we always have a dictionary to read from
             raw_data = yaml.safe_load(f) or {}
-        
+
         # Validate configuration with Pydantic
         try:
             self.schema = ConfigSchema(**raw_data)
@@ -32,15 +33,17 @@ class Config:
                 location = " -> ".join(str(loc) for loc in error["loc"])
                 logger.error("  %s: %s", location, error["msg"])
             raise ValueError(f"Invalid configuration in {config_path}") from e
-        
+
         # Store raw data for backward compatibility
         self.data: Dict[str, Any] = raw_data
-        
+
         # Cache for command schedules to avoid repeated lookups
         self._schedule_cache: Dict[str, Optional[str]] = {}
         self._initialize_schedule_cache()
-    
-    def _validate_and_cache_schedule(self, command: str, schedule: str) -> Optional[str]:
+
+    def _validate_and_cache_schedule(
+        self, command: str, schedule: str
+    ) -> Optional[str]:
         """Validate a cron schedule and return it if valid, None otherwise."""
         try:
             croniter(schedule)
@@ -53,7 +56,7 @@ class Config:
                 e,
             )
             return None
-    
+
     def _initialize_schedule_cache(self):
         """Pre-compute and cache all command schedules."""
         for cmd in self.get_commands():
@@ -61,7 +64,9 @@ class Config:
             if command_text:
                 schedule = cmd.get("schedule")
                 if schedule:
-                    validated_schedule = self._validate_and_cache_schedule(command_text, schedule)
+                    validated_schedule = self._validate_and_cache_schedule(
+                        command_text, schedule
+                    )
                     self._schedule_cache[command_text] = validated_schedule
                 else:
                     self._schedule_cache[command_text] = None
@@ -246,24 +251,26 @@ class Config:
         # Use cache if available
         if command in self._schedule_cache:
             return self._schedule_cache[command]
-        
+
         # Fallback for commands not in cache (shouldn't happen normally)
         logger.warning(
             "Command '%s' not found in schedule cache, performing fallback lookup. "
             "This may indicate a configuration initialization issue.",
-            command
+            command,
         )
         for cmd in self.get_commands():
             if cmd.get("command_text") == command or cmd.get("name") == command:
                 schedule = cmd.get("schedule")
                 if schedule:
-                    validated_schedule = self._validate_and_cache_schedule(command, schedule)
+                    validated_schedule = self._validate_and_cache_schedule(
+                        command, schedule
+                    )
                     self._schedule_cache[command] = validated_schedule
                     return validated_schedule
                 # Command found but no schedule
                 self._schedule_cache[command] = None
                 return None
-        
+
         # Command not found
         self._schedule_cache[command] = None
         return None

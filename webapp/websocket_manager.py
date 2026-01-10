@@ -1,4 +1,5 @@
 """WebSocket connection manager for real-time updates."""
+
 import asyncio
 import json
 import logging
@@ -22,13 +23,19 @@ class ConnectionManager:
         await websocket.accept()
         async with self._lock:
             self.active_connections.add(websocket)
-        logger.info("WebSocket client connected. Total connections: %d", len(self.active_connections))
+        logger.info(
+            "WebSocket client connected. Total connections: %d",
+            len(self.active_connections),
+        )
 
     async def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection."""
         async with self._lock:
             self.active_connections.discard(websocket)
-        logger.info("WebSocket client disconnected. Total connections: %d", len(self.active_connections))
+        logger.info(
+            "WebSocket client disconnected. Total connections: %d",
+            len(self.active_connections),
+        )
 
     async def broadcast(self, message: dict):
         """Broadcast a message to all connected clients."""
