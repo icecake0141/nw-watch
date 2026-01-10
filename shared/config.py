@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from croniter import croniter
 from pydantic import ValidationError
 
 from shared.validation import ConfigSchema
@@ -37,39 +36,17 @@ class Config:
         # Store raw data for backward compatibility
         self.data: Dict[str, Any] = raw_data
 
-        # Cache for command schedules to avoid repeated lookups
-        self._schedule_cache: Dict[str, Optional[str]] = {}
-        self._initialize_schedule_cache()
+        # Cache for command intervals to avoid repeated lookups
+        self._interval_cache: Dict[str, Optional[int]] = {}
+        self._initialize_interval_cache()
 
-    def _validate_and_cache_schedule(
-        self, command: str, schedule: str
-    ) -> Optional[str]:
-        """Validate a cron schedule and return it if valid, None otherwise."""
-        try:
-            croniter(schedule)
-            return schedule
-        except ValueError as e:
-            logger.error(
-                "Invalid cron schedule '%s' for command '%s': %s",
-                schedule,
-                command,
-                e,
-            )
-            return None
-
-    def _initialize_schedule_cache(self):
-        """Pre-compute and cache all command schedules."""
+    def _initialize_interval_cache(self):
+        """Pre-compute and cache all command intervals."""
         for cmd in self.get_commands():
             command_text = cmd.get("command_text")
             if command_text:
-                schedule = cmd.get("schedule")
-                if schedule:
-                    validated_schedule = self._validate_and_cache_schedule(
-                        command_text, schedule
-                    )
-                    self._schedule_cache[command_text] = validated_schedule
-                else:
-                    self._schedule_cache[command_text] = None
+                interval = cmd.get("interval_seconds")
+                self._interval_cache[command_text] = interval
 
     # ------------------------------------------------------------------ #
     # Basic settings
@@ -246,31 +223,34 @@ class Config:
             return filters["output_exclude_substrings"]
         return self.get_global_output_exclusions()
 
-    def get_command_schedule(self, command: str) -> Optional[str]:
-        """Get cron schedule for a specific command, if configured."""
+    def get_command_interval(self, command: str) -> Optional[int]:
+        """Get execution interval for a specific command, if configured.
+        
+        Returns the command-specific interval in seconds (5-60 range), or None if
+        the command should use the global interval_seconds setting.
+        
+        Args:
+            command: The command text to look up
+            
+        Returns:
+            Command-specific interval in seconds, or None to use global interval
+        """
         # Use cache if available
-        if command in self._schedule_cache:
-            return self._schedule_cache[command]
+        if command in self._interval_cache:
+            return self._interval_cache[command]
 
         # Fallback for commands not in cache (shouldn't happen normally)
         logger.warning(
-            "Command '%s' not found in schedule cache, performing fallback lookup. "
+            "Command '%s' not found in interval cache, performing fallback lookup. "
             "This may indicate a configuration initialization issue.",
             command,
         )
         for cmd in self.get_commands():
             if cmd.get("command_text") == command or cmd.get("name") == command:
-                schedule = cmd.get("schedule")
-                if schedule:
-                    validated_schedule = self._validate_and_cache_schedule(
-                        command, schedule
-                    )
-                    self._schedule_cache[command] = validated_schedule
-                    return validated_schedule
-                # Command found but no schedule
-                self._schedule_cache[command] = None
-                return None
+                interval = cmd.get("interval_seconds")
+                self._interval_cache[command] = interval
+                return interval
 
         # Command not found
-        self._schedule_cache[command] = None
+        self._interval_cache[command] = None
         return None

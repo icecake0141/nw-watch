@@ -3,7 +3,6 @@
 import re
 from typing import Any, Dict, List, Optional
 
-from croniter import croniter
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -15,11 +14,15 @@ class FiltersConfig(BaseModel):
 
 
 class CommandConfig(BaseModel):
-    """Command configuration."""
+    """Command configuration.
+    
+    Each command can optionally specify an interval_seconds for execution frequency.
+    If not specified, the command uses the global interval_seconds setting.
+    """
 
     name: Optional[str] = None
     command_text: str
-    schedule: Optional[str] = None
+    interval_seconds: Optional[int] = None
     sort_order: Optional[int] = None
     filters: Optional[FiltersConfig] = None
 
@@ -31,15 +34,30 @@ class CommandConfig(BaseModel):
             raise ValueError("command_text must not be empty")
         return v
 
-    @field_validator("schedule")
+    @field_validator("interval_seconds")
     @classmethod
-    def validate_schedule(cls, v: Optional[str]) -> Optional[str]:
-        """Validate cron schedule format."""
+    def validate_interval_seconds(cls, v: Optional[int]) -> Optional[int]:
+        """Validate interval_seconds is within allowed range (5-60 seconds).
+        
+        Args:
+            v: The interval value in seconds
+            
+        Returns:
+            The validated interval value
+            
+        Raises:
+            ValueError: If interval is not between 5 and 60 seconds
+        """
         if v is not None:
-            try:
-                croniter(v)
-            except ValueError as e:
-                raise ValueError(f"Invalid cron schedule '{v}': {e}")
+            if not isinstance(v, int):
+                raise ValueError(
+                    f"interval_seconds must be an integer, got {type(v).__name__}"
+                )
+            if v < 5 or v > 60:
+                raise ValueError(
+                    f"interval_seconds must be between 5 and 60 seconds, got {v}. "
+                    f"Please specify a value within the allowed range."
+                )
         return v
 
 

@@ -14,7 +14,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from croniter import croniter
 from netmiko import ConnectHandler
 from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
@@ -344,33 +343,35 @@ class Collector:
             self.device_collectors[device_config["name"]] = collector
             logger.info(f"Created DeviceCollector for {device_config['name']}")
 
-        # Track next execution time and schedule for each command
+        # Track next execution time and interval for each command
         self.command_next_run: Dict[str, float] = {}
-        self.command_schedules: Dict[str, Optional[str]] = {}  # Cache schedules
-        self._initialize_command_schedules()
+        self.command_intervals: Dict[str, int] = {}  # Cache intervals
+        self._initialize_command_intervals()
 
-    def _initialize_command_schedules(self):
-        """Initialize next run times for all commands and cache schedules."""
+    def _initialize_command_intervals(self):
+        """Initialize next run times for all commands and cache intervals."""
         now = time.time()
+        global_interval = self.config.get_interval_seconds()
+        
         for command in self.commands:
-            schedule = self.config.get_command_schedule(command)
-            self.command_schedules[command] = schedule  # Cache the schedule
-
-            if schedule:
-                # Command has a cron schedule
-                cron = croniter(schedule, now)
-                self.command_next_run[command] = cron.get_next()
+            # Get command-specific interval or use global interval
+            cmd_interval = self.config.get_command_interval(command)
+            
+            if cmd_interval is not None:
+                # Command has a specific interval (5-60 seconds)
+                self.command_intervals[command] = cmd_interval
                 logger.info(
-                    f"Command '{command}' scheduled with cron '{schedule}', "
-                    f"next run at {datetime.fromtimestamp(self.command_next_run[command])}"
+                    f"Command '{command}' configured with interval {cmd_interval}s"
                 )
             else:
-                # Command uses interval_seconds, run immediately
-                self.command_next_run[command] = now
+                # Command uses global interval_seconds
+                self.command_intervals[command] = global_interval
                 logger.info(
-                    f"Command '{command}' uses interval scheduling, "
-                    f"interval={self.config.get_interval_seconds()}s"
+                    f"Command '{command}' uses global interval {global_interval}s"
                 )
+            
+            # All commands run immediately on first iteration
+            self.command_next_run[command] = now
 
     def _resolve_commands(self) -> List[str]:
         """Build command list honoring global commands or per-device fallbacks."""
@@ -396,7 +397,6 @@ class Collector:
         loop = asyncio.get_event_loop()
         futures = []
         now = time.time()
-        interval_seconds = self.config.get_interval_seconds()
 
         for device_name, collector in self.device_collectors.items():
             for command in self.commands:
@@ -409,15 +409,9 @@ class Collector:
                     )
                     futures.append(future)
 
-                    # Update next run time using cached schedule
-                    schedule = self.command_schedules.get(command)
-                    if schedule:
-                        # Use cron schedule
-                        cron = croniter(schedule, now)
-                        self.command_next_run[command] = cron.get_next()
-                    else:
-                        # Use interval_seconds
-                        self.command_next_run[command] = now + interval_seconds
+                    # Update next run time using cached interval
+                    interval = self.command_intervals.get(command, self.config.get_interval_seconds())
+                    self.command_next_run[command] = now + interval
 
         # Wait for all commands to complete
         if futures:
