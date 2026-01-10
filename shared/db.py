@@ -1,4 +1,5 @@
 """Database operations for network device monitoring."""
+
 import logging
 import sqlite3
 import time
@@ -122,7 +123,9 @@ class Database:
     def get_or_create_command(self, command_text: str) -> int:
         """Get or create command, return command ID."""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT id FROM commands WHERE command_text = ?", (command_text,))
+        cursor.execute(
+            "SELECT id FROM commands WHERE command_text = ?", (command_text,)
+        )
         row = cursor.fetchone()
         if row:
             return row[0]

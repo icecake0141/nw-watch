@@ -1,4 +1,5 @@
 """Tests for persistent SSH connection functionality."""
+
 import os
 import tempfile
 import threading
@@ -31,13 +32,13 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         assert collector.persistent_connections_enabled is True
         assert collector._connection is None
         assert collector._connection_lock is not None
@@ -63,13 +64,13 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         assert collector.persistent_connections_enabled is False
 
 
@@ -91,9 +92,9 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         config = Config(str(cfg_path))
-        
+
         assert config.get_persistent_connections_enabled() is True
         assert config.get_connection_timeout() == 100
         assert config.get_max_reconnect_attempts() == 3
@@ -123,9 +124,9 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         config = Config(str(cfg_path))
-        
+
         assert config.get_persistent_connections_enabled() is False
         assert config.get_connection_timeout() == 60
         assert config.get_max_reconnect_attempts() == 5
@@ -153,21 +154,21 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "mypassword"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         params = collector._get_connection_params()
-        
-        assert params['device_type'] == 'cisco_ios'
-        assert params['host'] == '192.168.1.1'
-        assert params['port'] == 2222
-        assert params['username'] == 'admin'
-        assert params['password'] == 'mypassword'
-        assert params['timeout'] == 60
+
+        assert params["device_type"] == "cisco_ios"
+        assert params["host"] == "192.168.1.1"
+        assert params["port"] == 2222
+        assert params["username"] == "admin"
+        assert params["password"] == "mypassword"
+        assert params["timeout"] == 60
 
 
 def test_connection_lock_is_thread_safe():
@@ -188,17 +189,17 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Test that the lock exists and has lock methods
-        assert hasattr(collector._connection_lock, 'acquire')
-        assert hasattr(collector._connection_lock, 'release')
-        
+        assert hasattr(collector._connection_lock, "acquire")
+        assert hasattr(collector._connection_lock, "release")
+
         # Test that we can acquire and release the lock
         assert collector._connection_lock.acquire(blocking=False)
         collector._connection_lock.release()
@@ -222,23 +223,23 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Mock a connection
         mock_connection = MagicMock()
         collector._connection = mock_connection
-        
+
         # Call close
         collector.close()
-        
+
         # Verify disconnect was called
         mock_connection.disconnect.assert_called_once()
-        
+
         # Verify connection is None
         assert collector._connection is None
 
@@ -261,21 +262,21 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Mock a connection that raises an error on disconnect
         mock_connection = MagicMock()
         mock_connection.disconnect.side_effect = Exception("Disconnect error")
         collector._connection = mock_connection
-        
+
         # Call close - should not raise exception
         collector.close()
-        
+
         # Verify connection is None even after error
         assert collector._connection is None
 
@@ -298,13 +299,13 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         assert collector._is_connection_alive() is False
 
 
@@ -326,18 +327,18 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Mock a working connection
         mock_connection = MagicMock()
         mock_connection.find_prompt.return_value = "Router#"
         collector._connection = mock_connection
-        
+
         assert collector._is_connection_alive() is True
 
 
@@ -359,18 +360,18 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Mock a dead connection
         mock_connection = MagicMock()
         mock_connection.find_prompt.side_effect = Exception("Connection lost")
         collector._connection = mock_connection
-        
+
         assert collector._is_connection_alive() is False
 
 
@@ -392,34 +393,34 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         # Create database
         db_path = Path(tmp_dir) / "test.db"
         db = Database(str(db_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Mock the connection
-        with patch('collector.main.ConnectHandler') as mock_handler:
+        with patch("collector.main.ConnectHandler") as mock_handler:
             mock_connection = MagicMock()
             mock_connection.send_command.return_value = "Version output"
             mock_connection.find_prompt.return_value = "Router#"
             mock_handler.return_value = mock_connection
-            
+
             # Execute command twice
             collector.execute_command("show version", db)
             collector.execute_command("show version", db)
-            
+
             # Verify connection was created only once
             assert mock_handler.call_count == 1
-            
+
             # Verify commands were executed
             assert mock_connection.send_command.call_count == 2
-        
+
         db.close()
 
 
@@ -443,31 +444,31 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
-        
+
         # Create database
         db_path = Path(tmp_dir) / "test.db"
         db = Database(str(db_path))
-        
+
         device_config = config.get_devices()[0]
         collector = DeviceCollector(device_config, config)
-        
+
         # Mock the connection
-        with patch('collector.main.ConnectHandler') as mock_handler:
+        with patch("collector.main.ConnectHandler") as mock_handler:
             mock_connection = MagicMock()
             mock_connection.send_command.return_value = "Version output"
             mock_handler.return_value = mock_connection
-            
+
             # Execute command twice
             collector.execute_command("show version", db)
             collector.execute_command("show version", db)
-            
+
             # Verify connection was created twice (not persistent)
             assert mock_handler.call_count == 2
-            
+
             # Verify disconnect was called twice
             assert mock_connection.disconnect.call_count == 2
-        
+
         db.close()

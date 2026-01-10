@@ -86,6 +86,11 @@ class NetworkWatch {
     }
     
     setupEventListeners() {
+        // Theme toggle
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            this.toggleTheme();
+        });
+        
         document.getElementById('toggleAutoRefresh').addEventListener('click', () => {
             this.toggleAutoRefresh();
         });
@@ -93,6 +98,35 @@ class NetworkWatch {
         document.getElementById('manualRefresh').addEventListener('click', () => {
             this.manualRefresh();
         });
+        
+        // Load saved theme preference
+        this.loadThemePreference();
+    }
+    
+    toggleTheme() {
+        const body = document.body;
+        const isDark = body.classList.toggle('dark-theme');
+        
+        // Save preference to localStorage
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+    
+    loadThemePreference() {
+        const savedTheme = localStorage.getItem('theme');
+        
+        // Check system preference with fallback for older browsers
+        let prefersDark = false;
+        try {
+            prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch (e) {
+            // Older browsers may not support matchMedia
+            console.log('matchMedia not supported, using light theme');
+        }
+        
+        // Apply saved theme, or use system preference if no saved theme
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.body.classList.add('dark-theme');
+        }
     }
     
     toggleAutoRefresh() {

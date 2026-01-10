@@ -1,10 +1,7 @@
 """Tests for filtering functionality."""
+
 import pytest
-from shared.filters import (
-    apply_line_filters,
-    check_output_filtered,
-    process_output
-)
+from shared.filters import apply_line_filters, check_output_filtered, process_output
 
 
 def test_apply_line_filters_empty_exclusions():
@@ -107,11 +104,11 @@ def test_process_output_truncated():
     """Test process output with truncation."""
     lines = [f"line{i}" for i in range(600)]
     text = "\n".join(lines)
-    
+
     result, is_filtered, is_truncated, line_count = process_output(
         text, line_exclusions=None, output_exclusions=None, max_lines=500
     )
-    
+
     assert is_truncated is True
     assert line_count == 600
     assert "truncated" in result.lower()
@@ -123,10 +120,10 @@ def test_process_output_combined():
     lines = [f"line{i}" for i in range(600)]
     lines[10] = "Temperature: 50C"
     text = "\n".join(lines)
-    
+
     result, is_filtered, is_truncated, line_count = process_output(
         text, line_exclusions=["Temperature"], output_exclusions=None, max_lines=500
     )
-    
+
     assert "Temperature" not in result
     assert is_truncated is True

@@ -1,5 +1,66 @@
 /* Network Watch Styles */
 
+:root {
+    /* Light theme (default) */
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #ffffff;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --border-color: rgba(0, 0, 0, 0.1);
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --gradient-start: #667eea;
+    --gradient-end: #764ba2;
+    
+    /* Status colors - consistent across themes */
+    --status-success: #28a745;
+    --status-success-bg: #d4edda;
+    --status-error: #dc3545;
+    --status-error-bg: #f8d7da;
+    --status-warning: #ffc107;
+    --status-warning-bg: #fff3cd;
+    --status-unknown: #6c757d;
+    --status-unknown-bg: #e2e3e5;
+    
+    /* Button colors */
+    --btn-bg: rgba(255, 255, 255, 0.2);
+    --btn-border: rgba(255, 255, 255, 0.3);
+    --btn-hover: rgba(255, 255, 255, 0.3);
+    
+    /* Tab colors */
+    --tab-bg: #e9ecef;
+    --tab-active-bg: #667eea;
+    --tab-hover-bg: #dee2e6;
+    
+    /* Code/pre colors */
+    --code-bg: #f8f9fa;
+    --code-border: #dee2e6;
+}
+
+/* Dark theme */
+body.dark-theme {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    
+    /* Status colors adjusted for dark theme */
+    --status-success-bg: #1e4620;
+    --status-error-bg: #5a1a1a;
+    --status-warning-bg: #4a4000;
+    --status-unknown-bg: #3a3a3a;
+    
+    /* Tab colors for dark theme */
+    --tab-bg: #3a3a3a;
+    --tab-active-bg: #667eea;
+    --tab-hover-bg: #4a4a4a;
+    
+    /* Code/pre colors for dark theme */
+    --code-bg: #2a2a2a;
+    --code-border: #4a4a4a;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -8,9 +69,10 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     line-height: 1.6;
+    transition: background-color 0.3s, color 0.3s;
 }
 
 .container {
@@ -20,7 +82,7 @@ body {
 }
 
 header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
     color: white;
     padding: 20px;
     border-radius: 8px;
@@ -40,9 +102,9 @@ header h1 {
 }
 
 .btn {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: var(--btn-bg);
     color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--btn-border);
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
@@ -51,7 +113,7 @@ header h1 {
 }
 
 .btn:hover {
-    background-color: rgba(255, 255, 255, 0.3);
+    background-color: var(--btn-hover);
 }
 
 .btn:active {
@@ -60,11 +122,12 @@ header h1 {
 
 /* Ping Status */
 .ping-status {
-    background: white;
+    background: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: background-color 0.3s;
 }
 
 .ping-status h2 {
@@ -86,28 +149,30 @@ header h1 {
 }
 
 .ping-tile.up {
-    background-color: #d4edda;
-    border-color: #28a745;
+    background-color: var(--status-success-bg);
+    border-color: var(--status-success);
 }
 
 .ping-tile.down {
-    background-color: #f8d7da;
-    border-color: #dc3545;
+    background-color: var(--status-error-bg);
+    border-color: var(--status-error);
 }
 
 .ping-tile.unknown {
-    background-color: #e2e3e5;
-    border-color: #6c757d;
+    background-color: var(--status-unknown-bg);
+    border-color: var(--status-unknown);
+}
 }
 
 .ping-tile h3 {
     font-size: 16px;
     margin-bottom: 8px;
+    color: var(--text-primary);
 }
 
 .ping-tile .stats {
     font-size: 13px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .ping-tile .stats div {
@@ -124,27 +189,28 @@ header h1 {
 .ping-cell {
     height: 10px;
     border-radius: 2px;
-    background-color: #e2e3e5;
+    background-color: var(--status-unknown-bg);
 }
 
 .ping-cell.ok {
-    background-color: #28a745;
+    background-color: var(--status-success);
 }
 
 .ping-cell.fail {
-    background-color: #dc3545;
+    background-color: var(--status-error);
 }
 
 .ping-cell.unknown {
-    background-color: #adb5bd;
+    background-color: var(--status-unknown);
 }
 
 /* Command Tabs */
 .command-tabs {
-    background: white;
+    background: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: background-color 0.3s;
 }
 
 .command-tabs h2 {
@@ -157,26 +223,27 @@ header h1 {
     flex-wrap: wrap;
     gap: 5px;
     margin-bottom: 20px;
-    border-bottom: 2px solid #e0e0e0;
+    border-bottom: 2px solid var(--border-color);
     padding-bottom: 10px;
 }
 
 .tab {
     padding: 10px 20px;
-    background-color: #f0f0f0;
+    background-color: var(--tab-bg);
     border: none;
     border-radius: 4px 4px 0 0;
     cursor: pointer;
     font-size: 14px;
+    color: var(--text-primary);
     transition: all 0.3s;
 }
 
 .tab:hover {
-    background-color: #e0e0e0;
+    background-color: var(--tab-hover-bg);
 }
 
 .tab.active {
-    background-color: #667eea;
+    background-color: var(--tab-active-bg);
     color: white;
 }
 
@@ -192,8 +259,10 @@ header h1 {
     font-size: 16px;
     margin-bottom: 10px;
     padding: 10px;
-    background-color: #f8f9fa;
-    border-left: 3px solid #667eea;
+    background-color: var(--code-bg);
+    border-left: 3px solid var(--gradient-start);
+    color: var(--text-primary);
+    transition: background-color 0.3s;
 }
 
 .run-history {
@@ -201,31 +270,33 @@ header h1 {
 }
 
 .run-entry {
-    background-color: #fafafa;
-    border: 1px solid #e0e0e0;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     margin-bottom: 10px;
     overflow: hidden;
+    transition: background-color 0.3s, border-color 0.3s;
 }
 
 .run-header {
     padding: 10px 15px;
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #e0e0e0;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
     user-select: none;
+    transition: background-color 0.3s, border-color 0.3s;
 }
 
 .run-header:hover {
-    background-color: #ececec;
+    background-color: var(--tab-bg);
 }
 
 .run-meta {
     font-size: 13px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .run-badges {
@@ -241,18 +312,18 @@ header h1 {
 }
 
 .badge.success {
-    background-color: #d4edda;
-    color: #155724;
+    background-color: var(--status-success-bg);
+    color: var(--status-success);
 }
 
 .badge.error {
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: var(--status-error-bg);
+    color: var(--status-error);
 }
 
 .badge.filtered {
-    background-color: #fff3cd;
-    color: #856404;
+    background-color: var(--status-warning-bg);
+    color: var(--status-warning);
 }
 
 .badge.truncated {
@@ -270,10 +341,11 @@ header h1 {
 }
 
 .output-text {
-    background-color: #282c34;
-    color: #abb2bf;
+    background-color: var(--code-bg);
+    color: var(--text-primary);
     padding: 15px;
     border-radius: 4px;
+    border: 1px solid var(--code-border);
     font-family: 'Courier New', monospace;
     font-size: 13px;
     overflow-x: auto;
@@ -281,26 +353,29 @@ header h1 {
     word-wrap: break-word;
     max-height: 600px;
     overflow-y: auto;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
 }
 
 .error-message {
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: var(--status-error-bg);
+    color: var(--status-error);
     padding: 10px;
     border-radius: 4px;
-    border-left: 3px solid #dc3545;
+    border-left: 3px solid var(--status-error);
+    transition: background-color 0.3s, color 0.3s;
 }
 
 /* Diff Section */
 .diff-section {
     margin-top: 30px;
     padding-top: 20px;
-    border-top: 2px solid #e0e0e0;
+    border-top: 2px solid var(--border-color);
 }
 
 .diff-section h3 {
     font-size: 16px;
     margin-bottom: 10px;
+    color: var(--text-primary);
 }
 
 .diff-controls {
@@ -311,7 +386,7 @@ header h1 {
 
 .diff-controls button {
     padding: 8px 16px;
-    background-color: #667eea;
+    background-color: var(--gradient-start);
     color: white;
     border: none;
     border-radius: 4px;
@@ -325,16 +400,20 @@ header h1 {
 
 .diff-controls select {
     padding: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 13px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
 }
 
 .diff-output {
-    background-color: #282c34;
-    color: #abb2bf;
+    background-color: var(--code-bg);
+    color: var(--text-primary);
     padding: 15px;
     border-radius: 4px;
+    border: 1px solid var(--code-border);
     font-family: 'Courier New', monospace;
     font-size: 13px;
     overflow-x: auto;
@@ -342,6 +421,7 @@ header h1 {
     word-wrap: break-word;
     max-height: 600px;
     overflow-y: auto;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
 }
 
 .diff-output-html {
@@ -350,27 +430,27 @@ header h1 {
 
 .diff-output .diff-add {
     background-color: rgba(40, 167, 69, 0.2);
-    color: #4caf50;
+    color: var(--status-success);
 }
 
 .diff-output .diff-remove {
     background-color: rgba(220, 53, 69, 0.2);
-    color: #f44336;
+    color: var(--status-error);
 }
 
 .diff-output .diff-hunk {
-    color: #ffd166;
+    color: var(--status-warning);
 }
 
 .diff-output table.diff {
     border-collapse: collapse;
     width: 100%;
-    background-color: #1f232b;
+    background-color: var(--code-bg);
 }
 
 .diff-output table.diff th,
 .diff-output table.diff td {
-    border: 1px solid #3a3f4b;
+    border: 1px solid var(--code-border);
     padding: 6px 8px;
     text-align: left;
     white-space: pre-wrap;
