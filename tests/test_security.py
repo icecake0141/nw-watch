@@ -22,7 +22,7 @@ class TestInputValidation:
     def test_command_injection_prevention_in_ping_host(self, tmp_path):
         """Test prevention of command injection in ping_host."""
         config_path = tmp_path / "config.yaml"
-        
+
         # Test various command injection attempts
         malicious_hosts = [
             "192.168.1.1; rm -rf /",
@@ -32,7 +32,7 @@ class TestInputValidation:
             "192.168.1.1$(id)",
             "192.168.1.1\nwhoami",
         ]
-        
+
         for malicious_host in malicious_hosts:
             config_path.write_text(
                 f"""
@@ -56,12 +56,14 @@ devices:
     ping_host: "{malicious_host}"
 """
             )
-            
+
             # Should raise ValueError due to invalid ping_host format
             try:
                 Config(str(config_path))
                 # Should not reach here
-                assert False, f"Expected ValueError for malicious host: {malicious_host}"
+                assert (
+                    False
+                ), f"Expected ValueError for malicious host: {malicious_host}"
             except ValueError as e:
                 # Error might be wrapped, check the underlying message
                 error_msg = str(e).lower()
@@ -70,7 +72,7 @@ devices:
     def test_valid_ping_host_formats(self, tmp_path):
         """Test that valid ping_host formats are accepted."""
         config_path = tmp_path / "config.yaml"
-        
+
         valid_hosts = [
             "192.168.1.1",
             "10.0.0.1",
@@ -81,7 +83,7 @@ devices:
             "device_1",
             "device.example.com",
         ]
-        
+
         for valid_host in valid_hosts:
             config_path.write_text(
                 f"""
@@ -105,7 +107,7 @@ devices:
     ping_host: "{valid_host}"
 """
             )
-            
+
             # Should not raise an exception
             config = Config(str(config_path))
             assert config.get_devices()[0]["ping_host"] == valid_host
@@ -114,51 +116,53 @@ devices:
         """Test SQL injection prevention in device names."""
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Test SQL injection attempts
         malicious_names = [
             "Device'; DROP TABLE devices; --",
             "Device' OR '1'='1",
             "Device'; DELETE FROM runs; --",
-            "Device\"; DROP TABLE devices; --",
+            'Device"; DROP TABLE devices; --',
         ]
-        
+
         for name in malicious_names:
             # Should handle without SQL injection
             device_id = db.get_or_create_device(name)
             assert device_id > 0
-            
+
             # Verify the device was created with the exact name (not executed as SQL)
             conn = db.conn
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM devices WHERE id = ?", (device_id,))
             result = cursor.fetchone()
             assert result[0] == name
-        
+
         db.close()
 
     def test_sql_injection_prevention_in_command_text(self, tmp_path):
         """Test SQL injection prevention in command text."""
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         malicious_commands = [
             "show version'; DROP TABLE commands; --",
             "show version' OR '1'='1",
         ]
-        
+
         for cmd in malicious_commands:
             # Should handle without SQL injection
             command_id = db.get_or_create_command(cmd)
             assert command_id > 0
-            
+
             # Verify the command was created with exact text
             conn = db.conn
             cursor = conn.cursor()
-            cursor.execute("SELECT command_text FROM commands WHERE id = ?", (command_id,))
+            cursor.execute(
+                "SELECT command_text FROM commands WHERE id = ?", (command_id,)
+            )
             result = cursor.fetchone()
             assert result[0] == cmd
-        
+
         db.close()
 
 
@@ -174,14 +178,14 @@ class TestPathTraversalPrevention:
             "C:\\Windows\\System32\\config\\sam",
             "device/../../../evil",
         ]
-        
+
         for name in malicious_names:
             sanitized = sanitize_filename(name)
             # Should not contain path separators
             assert "/" not in sanitized
             assert "\\" not in sanitized
             # Should only contain safe characters
-            assert re.match(r'^[a-zA-Z0-9_.-]+$', sanitized)
+            assert re.match(r"^[a-zA-Z0-9_.-]+$", sanitized)
 
     def test_sanitize_filename_preserves_safe_characters(self):
         """Test that sanitize_filename preserves safe characters."""
@@ -192,7 +196,7 @@ class TestPathTraversalPrevention:
             "Device123",
             "my_device-v1.0",
         ]
-        
+
         for name in safe_names:
             sanitized = sanitize_filename(name)
             assert sanitized == name
@@ -232,10 +236,10 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         # Set environment variable
         os.environ["TEST_DEVICE_PASSWORD"] = "secret_password_123"
-        
+
         try:
             config = Config(str(config_path))
             password = config.get_device_password(config.get_devices()[0])
@@ -268,12 +272,12 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         config = Config(str(config_path))
-        
+
         # Convert config to string representation
         config_str = str(config)
-        
+
         # Password should not appear in string representation
         # (This depends on implementation, but it's a good practice)
         # At minimum, the password should not be in plain sight
@@ -302,7 +306,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         # Should raise validation error
         try:
             Config(str(config_path))
@@ -319,39 +323,48 @@ class TestXSSPrevention:
     def test_html_escaping_in_device_output(self, tmp_path):
         """Test that HTML in device output is properly escaped."""
         import time
-        
+
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Insert output with HTML/JavaScript
-        malicious_output = '<script>alert("XSS")</script>\n<img src=x onerror="alert(1)">'
-        db.insert_run("TestDevice", "show test", int(time.time()), malicious_output, True, duration_ms=100)
-        
+        malicious_output = (
+            '<script>alert("XSS")</script>\n<img src=x onerror="alert(1)">'
+        )
+        db.insert_run(
+            "TestDevice",
+            "show test",
+            int(time.time()),
+            malicious_output,
+            True,
+            duration_ms=100,
+        )
+
         # Retrieve the output
         runs = db.get_latest_runs("TestDevice", "show test", limit=1)
         assert len(runs) >= 1
-        
+
         # The output should be stored as-is (escaping happens in presentation layer)
-        assert '<script>' in runs[0]["output_text"]
-        
+        assert "<script>" in runs[0]["output_text"]
+
         db.close()
 
     def test_html_escaping_in_device_names(self, tmp_path):
         """Test HTML escaping in device names."""
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Create device with HTML in name
         malicious_name = '<script>alert("XSS")</script>'
         device_id = db.get_or_create_device(malicious_name)
-        
+
         # Verify device was created with exact name
         conn = db.conn
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM devices WHERE id = ?", (device_id,))
         result = cursor.fetchone()
         assert result[0] == malicious_name
-        
+
         db.close()
 
 
@@ -363,12 +376,12 @@ class TestAuthorizationAndAccessControl:
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
         db.close()
-        
+
         # Check file exists
         assert db_path.exists()
-        
+
         # On Unix-like systems, check file permissions
-        if os.name != 'nt':  # Not Windows
+        if os.name != "nt":  # Not Windows
             stat_info = db_path.stat()
             # File should not be world-readable (ideally)
             # This is a recommendation, not enforced by the app
@@ -402,7 +415,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         # Should accept minimum valid value
         config = Config(str(config_path))
         assert config.get_interval_seconds() == 1
@@ -431,7 +444,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         with pytest.raises(ValueError):
             Config(str(config_path))
 
@@ -459,7 +472,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         with pytest.raises(ValueError):
             Config(str(config_path))
 
@@ -487,7 +500,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         # Should accept large but reasonable values
         config = Config(str(config_path))
         assert config.get_interval_seconds() == 86400
@@ -521,7 +534,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         config = Config(str(config_path))
         # Default should be True (persistent connections enabled)
         assert config.get_persistent_connections_enabled() is True
@@ -550,7 +563,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         config = Config(str(config_path))
         # WebSocket should be disabled by default
         assert config.get_websocket_enabled() is False
@@ -565,7 +578,7 @@ class TestErrorMessageSecurity:
         # but should not expose sensitive data
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Trigger an error
         try:
             db.conn.execute("SELECT * FROM nonexistent_table")
@@ -574,7 +587,7 @@ class TestErrorMessageSecurity:
             # Error should be informative but not leak sensitive data
             # (Database errors may contain table names, which is OK)
             assert "nonexistent_table" in error_msg.lower()
-        
+
         db.close()
 
     def test_config_validation_error_messages(self, tmp_path, caplog):
@@ -601,7 +614,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         try:
             Config(str(config_path))
         except ValueError as e:

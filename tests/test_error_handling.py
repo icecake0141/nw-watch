@@ -47,7 +47,7 @@ devices:
 """
         )
         config = Config(str(config_path))
-        
+
         # Verify config is valid despite future connection issues
         assert config is not None
         assert len(config.get_devices()) == 1
@@ -78,7 +78,7 @@ devices:
 """
         )
         config = Config(str(config_path))
-        
+
         # Config should load successfully even with wrong credentials
         assert config is not None
         assert config.get_device_password(config.get_devices()[0]) == "wrong_pass"
@@ -109,7 +109,7 @@ devices:
 """
         )
         config = Config(str(config_path))
-        
+
         # Config should be valid
         assert config is not None
         assert config.get_devices()[0]["host"] == "203.0.113.1"
@@ -122,7 +122,7 @@ class TestDatabaseErrorHandling:
         """Test handling of database file permission errors."""
         db_path = tmp_path / "test.db"
         db_path.touch()
-        
+
         # Create database instance
         db = Database(str(db_path), history_size=10)
         assert db is not None
@@ -131,13 +131,13 @@ class TestDatabaseErrorHandling:
     def test_database_disk_full_simulation(self, tmp_path):
         """Test behavior when disk space is limited."""
         import time
-        
+
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Try to insert a very large output
         large_output = "A" * 10_000_000  # 10MB string
-        
+
         # Should not crash, may truncate or handle gracefully
         try:
             db.insert_run(
@@ -151,17 +151,17 @@ class TestDatabaseErrorHandling:
         except Exception as e:
             # If it fails, it should fail gracefully
             assert isinstance(e, (sqlite3.Error, OSError, MemoryError))
-        
+
         db.close()
 
     def test_corrupted_database_handling(self, tmp_path):
         """Test handling of corrupted database files."""
         db_path = tmp_path / "corrupted.db"
-        
+
         # Create a corrupted database file
         with open(db_path, "wb") as f:
             f.write(b"This is not a valid SQLite database")
-        
+
         # Attempting to use it should fail gracefully
         with pytest.raises(sqlite3.DatabaseError):
             db = Database(str(db_path), history_size=10)
@@ -169,15 +169,19 @@ class TestDatabaseErrorHandling:
     def test_concurrent_write_handling(self, tmp_path):
         """Test concurrent database write operations."""
         import time
-        
+
         db_path = tmp_path / "test.db"
         db1 = Database(str(db_path), history_size=10)
         db2 = Database(str(db_path), history_size=10)
-        
+
         # Both should succeed without deadlock
-        db1.insert_run("Device1", "command1", int(time.time()), "output1", True, duration_ms=100)
-        db2.insert_run("Device2", "command2", int(time.time()), "output2", True, duration_ms=100)
-        
+        db1.insert_run(
+            "Device1", "command1", int(time.time()), "output1", True, duration_ms=100
+        )
+        db2.insert_run(
+            "Device2", "command2", int(time.time()), "output2", True, duration_ms=100
+        )
+
         db1.close()
         db2.close()
 
@@ -185,7 +189,7 @@ class TestDatabaseErrorHandling:
         """Test database handling of special characters in data."""
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Test various special characters
         special_chars = [
             "Device with spaces",
@@ -195,11 +199,11 @@ class TestDatabaseErrorHandling:
             "Device(with)parens",
             "Device[with]brackets",
         ]
-        
+
         for name in special_chars:
             device_id = db.get_or_create_device(name)
             assert device_id > 0
-        
+
         db.close()
 
 
@@ -215,7 +219,7 @@ class TestConfigurationErrorHandling:
         """Test handling of empty configuration file."""
         config_path = tmp_path / "config.yaml"
         config_path.write_text("")
-        
+
         # Empty config should raise an error
         try:
             Config(str(config_path))
@@ -237,7 +241,7 @@ devices:
     username: "admin
 """
         )
-        
+
         with pytest.raises(Exception):  # YAML parsing error
             Config(str(config_path))
 
@@ -253,7 +257,7 @@ commands:
 # Missing devices section - but might have defaults
 """
         )
-        
+
         # Should raise validation error or use defaults
         try:
             Config(str(config_path))
@@ -287,7 +291,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         with pytest.raises(ValueError):
             Config(str(config_path))
 
@@ -366,30 +370,44 @@ class TestEdgeCases:
     def test_very_large_history_size(self, tmp_path):
         """Test database with very large history size."""
         import time
-        
+
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=1000000)
-        
+
         # Should work without issues
-        db.insert_run("TestDevice", "test command", int(time.time()), "output", True, duration_ms=100)
-        
+        db.insert_run(
+            "TestDevice",
+            "test command",
+            int(time.time()),
+            "output",
+            True,
+            duration_ms=100,
+        )
+
         db.close()
 
     def test_negative_duration(self, tmp_path):
         """Test handling of negative duration values."""
         import time
-        
+
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
-        
+
         # Should handle negative duration gracefully
-        db.insert_run("TestDevice", "test command", int(time.time()), "output", True, duration_ms=-1)
-        
+        db.insert_run(
+            "TestDevice",
+            "test command",
+            int(time.time()),
+            "output",
+            True,
+            duration_ms=-1,
+        )
+
         # Verify run was inserted
         runs = db.get_latest_runs("TestDevice", "test command", limit=1)
         # Duration should be stored as-is or normalized
         assert len(runs) >= 1
-        
+
         db.close()
 
     def test_extremely_high_port_number(self, tmp_path):
@@ -416,7 +434,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         config = Config(str(config_path))
         assert config.get_devices()[0]["port"] == 65535
 
@@ -444,7 +462,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         with pytest.raises(ValueError):
             Config(str(config_path))
 
@@ -472,7 +490,7 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         with pytest.raises(ValueError):
             Config(str(config_path))
 
@@ -500,6 +518,6 @@ devices:
     device_type: "cisco_ios"
 """
         )
-        
+
         with pytest.raises(ValueError):
             Config(str(config_path))
