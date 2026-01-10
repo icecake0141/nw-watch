@@ -49,10 +49,6 @@ class CommandConfig(BaseModel):
             ValueError: If interval is not between 5 and 60 seconds
         """
         if v is not None:
-            if not isinstance(v, int):
-                raise ValueError(
-                    f"interval_seconds must be an integer, got {type(v).__name__}"
-                )
             if v < 5 or v > 60:
                 raise ValueError(
                     f"interval_seconds must be between 5 and 60 seconds, got {v}. "

@@ -335,6 +335,9 @@ class Collector:
         self.executor = ThreadPoolExecutor(max_workers=20)
         self.running = True
         self.commands: List[str] = self._resolve_commands()
+        
+        # Cache global interval to avoid repeated method calls
+        self.global_interval = self.config.get_interval_seconds()
 
         # Create persistent DeviceCollector instances
         self.device_collectors: Dict[str, DeviceCollector] = {}
@@ -351,7 +354,6 @@ class Collector:
     def _initialize_command_intervals(self):
         """Initialize next run times for all commands and cache intervals."""
         now = time.time()
-        global_interval = self.config.get_interval_seconds()
         
         for command in self.commands:
             # Get command-specific interval or use global interval
@@ -365,9 +367,9 @@ class Collector:
                 )
             else:
                 # Command uses global interval_seconds
-                self.command_intervals[command] = global_interval
+                self.command_intervals[command] = self.global_interval
                 logger.info(
-                    f"Command '{command}' uses global interval {global_interval}s"
+                    f"Command '{command}' uses global interval {self.global_interval}s"
                 )
             
             # All commands run immediately on first iteration
@@ -410,7 +412,7 @@ class Collector:
                     futures.append(future)
 
                     # Update next run time using cached interval
-                    interval = self.command_intervals.get(command, self.config.get_interval_seconds())
+                    interval = self.command_intervals.get(command, self.global_interval)
                     self.command_next_run[command] = now + interval
 
         # Wait for all commands to complete
@@ -477,8 +479,8 @@ class Collector:
 
                 # Handle empty commands or no scheduled commands
                 if min_wait == float("inf"):
-                    # No commands configured, use default interval
-                    sleep_time = self.config.get_interval_seconds()
+                    # No commands configured, use cached global interval
+                    sleep_time = self.global_interval
                 else:
                     # Sleep until next command, but check at most every 60 seconds
                     # and no less than 1 second to avoid busy waiting
