@@ -106,14 +106,14 @@ devices:
         Config(str(cfg_path))
 
 
-def test_invalid_cron_schedule(tmp_path):
-    """Test that invalid cron schedule is rejected."""
+def test_invalid_interval_seconds(tmp_path):
+    """Test that invalid interval_seconds is rejected."""
     cfg_path = Path(tmp_path) / "config.yaml"
     cfg_path.write_text(
         """
 commands:
   - command_text: "show version"
-    schedule: "invalid cron expression"
+    interval_seconds: 3  # Below minimum of 5
 devices:
   - name: "DeviceA"
     host: "192.168.1.1"
@@ -127,14 +127,14 @@ devices:
         Config(str(cfg_path))
 
 
-def test_valid_cron_schedule(tmp_path):
-    """Test that valid cron schedule is accepted."""
+def test_valid_interval_seconds(tmp_path):
+    """Test that valid interval_seconds is accepted."""
     cfg_path = Path(tmp_path) / "config.yaml"
     cfg_path.write_text(
         """
 commands:
   - command_text: "show version"
-    schedule: "0 */6 * * *"
+    interval_seconds: 30  # Valid interval
 devices:
   - name: "DeviceA"
     host: "192.168.1.1"
@@ -145,7 +145,7 @@ devices:
     )
 
     config = Config(str(cfg_path))
-    assert config.get_command_schedule("show version") == "0 */6 * * *"
+    assert config.get_command_interval("show version") == 30
 
 
 def test_empty_command_text(tmp_path):
