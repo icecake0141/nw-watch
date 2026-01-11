@@ -124,6 +124,41 @@ def test_get_runs(client):
     assert device_a_runs[0]["output_text"] == "Version 1.0"
 
 
+def test_get_runs_limit_for_device(client):
+    """Test limit parameter for runs per device."""
+    db = Database("data/current.sqlite3")
+    db.insert_run(
+        device_name="DeviceA",
+        command_text="show version",
+        ts_epoch=1000002,
+        output_text="Version 1.1",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=10,
+    )
+    db.insert_run(
+        device_name="DeviceA",
+        command_text="show version",
+        ts_epoch=1000003,
+        output_text="Version 1.2",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=10,
+    )
+    db.close()
+
+    response = client.get("/api/runs/show%20version?device=DeviceA&limit=2")
+    assert response.status_code == 200
+
+    data = response.json()
+    device_a_runs = data["runs"]["DeviceA"]
+    assert len(device_a_runs) == 2
+    assert [run["output_text"] for run in device_a_runs] == [
+        "Version 1.2",
+        "Version 1.1",
+    ]
+
+
 def test_get_runs_excludes_filtered(client):
     """Filtered runs should not appear in API responses."""
     db = Database("data/current.sqlite3")
