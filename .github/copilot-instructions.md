@@ -60,13 +60,16 @@ PR content and quality expectations
 PR checklist (include in PR description or use as template)
 - [ ] License header added to new files and top-level LICENSE present
 - [ ] LLM attribution added to modified/generated files
-- [ ] Linting completed — score: 10/10 (command: `<your-lint-command>`)
-- [ ] Tests passing locally (command: `<your-test-command>`)
-- [ ] Static analysis/type checks passing (command: `<your-check-command>`)
-- [ ] Formatting applied (command: `<your-format-command>`)
-- [ ] Pre-commit hooks passing (if applicable)
-- [ ] CI checks passing on the branch
+- [ ] Linting completed — score: 10/10 (command: _______)
+- [ ] Tests pass locally (command: _______)
+- [ ] Static analysis/type checks pass (command: _______)
+- [ ] Formatting applied (command: _______)
+- [ ] Pre-commit hooks pass
+- [ ] CI build passes
 - [ ] No merge conflicts with base branch
-- [ ] Documentation updated (README, docs/, API docs, examples)
-- [ ] Changelog/versioning updated (if user-facing changes)
-- [ ] Backward compatibility verified or migration notes added
+- [ ] Changelog/versioning updated (if applicable)
+- [ ] Documentation updated (README, docs/, API docs)
+- [ ] Examples/quick-start updated (if applicable)
+- [ ] Commit messages follow repository conventions
+- [ ] PR description includes: issue link, summary, rationale, tests, docs, migration notes
+- [ ] PR description explicitly lists LLM-modified files and human review notes
