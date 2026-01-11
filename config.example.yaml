@@ -7,6 +7,10 @@ ping_window_seconds: 60          # Window (seconds) for ping tiles
 history_size: 10                 # Max runs per device/command to keep
 max_output_lines: 500            # Truncate outputs after filtering
 
+# Collector settings (optional)
+collector:
+  max_workers: 20                # Max ThreadPoolExecutor workers (default: 20)
+
 # WebSocket settings (optional)
 websocket:
   enabled: false                 # Enable WebSocket for real-time updates (default: false)

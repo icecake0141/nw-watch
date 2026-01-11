@@ -209,6 +209,20 @@ class SSHConfig(BaseModel):
         return v
 
 
+class CollectorConfig(BaseModel):
+    """Collector configuration."""
+
+    max_workers: int = Field(default=20, gt=0)
+
+    @field_validator("max_workers")
+    @classmethod
+    def validate_max_workers(cls, v: int) -> int:
+        """Validate max workers is positive."""
+        if v <= 0:
+            raise ValueError(f"collector max_workers must be positive, got {v}")
+        return v
+
+
 class ConfigSchema(BaseModel):
     """Root configuration schema."""
 
@@ -223,12 +237,12 @@ class ConfigSchema(BaseModel):
     )
     websocket: Optional[WebSocketConfig] = Field(default_factory=WebSocketConfig)
     ssh: Optional[SSHConfig] = Field(default_factory=SSHConfig)
+    collector: Optional[CollectorConfig] = Field(default_factory=CollectorConfig)
 
     commands: List[CommandConfig] = Field(default_factory=list)
     devices: List[DeviceConfig] = Field(default_factory=list)
 
     # Legacy fields for backward compatibility
-    collector: Optional[Dict[str, Any]] = None
     webapp: Optional[Dict[str, Any]] = None
     filters: Optional[Dict[str, Any]] = None
 

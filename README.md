@@ -288,6 +288,15 @@ nw-watch/
 - `history_size`: Number of runs to keep per device/command
 - `max_output_lines`: Max lines retained after filtering (truncates above this)
 
+### Collector settings (optional)
+
+Configure the ThreadPoolExecutor used for running command collections in parallel:
+
+```yaml
+collector:
+  max_workers: 20  # Max ThreadPoolExecutor workers (default: 20)
+```
+
 ### WebSocket settings (optional)
 
 Enable WebSocket for real-time updates instead of polling:
@@ -669,7 +678,7 @@ graph TB
 ### Data Flow
 
 1. **Collector** connects to devices via SSH using Netmiko
-2. Commands are executed in parallel using ThreadPoolExecutor (configurable max workers: 20)
+2. Commands are executed in parallel using ThreadPoolExecutor (configurable via `collector.max_workers`, default: 20)
 3. Raw outputs are processed through filtering and truncation pipeline
 4. Results are stored in session-specific SQLite database (`session_{epoch}.sqlite3`)
 5. Session database is atomically copied to `current.sqlite3` after each collection cycle
