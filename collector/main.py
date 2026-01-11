@@ -332,7 +332,7 @@ class Collector:
         )
         logger.info(f"Created session database: {self.session_db_path}")
 
-        self.executor = ThreadPoolExecutor(max_workers=20)
+        self.executor = ThreadPoolExecutor(max_workers=self.config.get_max_workers())
         self.running = True
         self.commands: List[str] = self._resolve_commands()
 

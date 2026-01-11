@@ -99,6 +99,15 @@ class Config:
             )
         )
 
+    def get_max_workers(self) -> int:
+        """ThreadPoolExecutor max workers for command execution."""
+        return int(
+            self.data.get(
+                "collector",
+                {},
+            ).get("max_workers", 20)
+        )
+
     # ------------------------------------------------------------------ #
     # WebSocket settings
     # ------------------------------------------------------------------ #
