@@ -4,6 +4,47 @@ A Python-based network monitoring system that collects command outputs and ping 
 
 > 日本語版: [README.ja.md](README.ja.md) | Web UI Screenshots: [docs/webui-screenshots.md](docs/webui-screenshots.md)
 
+## Overview
+
+```mermaid
+graph LR
+    subgraph "Network Devices"
+        D1[🌐 Router A<br/>show version<br/>show interface]
+        D2[🌐 Switch B<br/>show version<br/>show interface]
+        D3[🌐 Router C<br/>show version<br/>show interface]
+    end
+    
+    subgraph "nw-watch System"
+        C[📡 Collector<br/>SSH + Ping<br/>every 5s]
+        DB[(💾 SQLite<br/>History)]
+        W[🌐 Web UI<br/>localhost:8000]
+    end
+    
+    subgraph "User"
+        B[👤 Browser<br/>Real-time Dashboard]
+    end
+    
+    D1 -->|SSH Commands<br/>ICMP Ping| C
+    D2 -->|SSH Commands<br/>ICMP Ping| C
+    D3 -->|SSH Commands<br/>ICMP Ping| C
+    C -->|Store Results| DB
+    DB -->|Read Data| W
+    W -->|View & Compare| B
+    
+    style D1 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style D2 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style D3 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style C fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style DB fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style W fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style B fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+```
+
+**What nw-watch does:**
+1. 🔄 **Collects** - Executes CLI commands on network devices via SSH and monitors connectivity via ping
+2. 💾 **Stores** - Saves command outputs and ping results in a local database with configurable history
+3. 📊 **Displays** - Shows real-time data in a web interface with diff views to compare outputs over time or across devices
+
 ## Features
 
 ### Data Collection

@@ -4,6 +4,47 @@ Python製のネットワーク監視システムです。複数のネットワ�
 
 > English: [README.md](README.md) | Web UI スクリーンショット: [docs/webui-screenshots.ja.md](docs/webui-screenshots.ja.md)
 
+## 概要
+
+```mermaid
+graph LR
+    subgraph "ネットワーク機器"
+        D1[🌐 ルータA<br/>show version<br/>show interface]
+        D2[🌐 スイッチB<br/>show version<br/>show interface]
+        D3[🌐 ルータC<br/>show version<br/>show interface]
+    end
+    
+    subgraph "nw-watch システム"
+        C[📡 コレクター<br/>SSH + Ping<br/>5秒ごと]
+        DB[(💾 SQLite<br/>履歴保存)]
+        W[🌐 Web UI<br/>localhost:8000]
+    end
+    
+    subgraph "ユーザー"
+        B[👤 ブラウザ<br/>リアルタイム<br/>ダッシュボード]
+    end
+    
+    D1 -->|SSHコマンド<br/>ICMP Ping| C
+    D2 -->|SSHコマンド<br/>ICMP Ping| C
+    D3 -->|SSHコマンド<br/>ICMP Ping| C
+    C -->|結果を保存| DB
+    DB -->|データ読込| W
+    W -->|表示・比較| B
+    
+    style D1 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style D2 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style D3 fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style C fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style DB fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style W fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style B fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+```
+
+**nw-watchの機能:**
+1. 🔄 **収集** - ネットワーク機器にSSH接続してCLIコマンドを実行し、Pingで接続性を監視
+2. 💾 **保存** - コマンド出力とPing結果をローカルデータベースに履歴として保存
+3. 📊 **表示** - Webインターフェースでリアルタイムデータを表示し、時系列やデバイス間の差分を比較
+
 ## 特徴
 
 ### データ収集
