@@ -216,14 +216,16 @@ async def get_devices():
 
 @app.get("/api/runs/{command}")
 async def get_runs(
-    command: str, device: Optional[str] = None, limit: int = DEFAULT_HISTORY_SIZE
+    command: str, device: Optional[str] = None, limit: Optional[int] = None
 ):
     """Get command runs for a specific command."""
-    try:
-        cfg = load_config()
-        limit = cfg.get_history_size()
-    except (FileNotFoundError, PermissionError, YAMLError) as exc:
-        logger.warning("Config fallback for /api/runs: %s", exc)
+    if limit is None:
+        try:
+            cfg = load_config()
+            limit = cfg.get_history_size()
+        except (FileNotFoundError, PermissionError, YAMLError) as exc:
+            logger.warning("Config fallback for /api/runs: %s", exc)
+            limit = DEFAULT_HISTORY_SIZE
 
     db = get_db(history_size=limit)
     if not db:
