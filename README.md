@@ -775,10 +775,6 @@ The server monitors the database file for changes and broadcasts updates to all 
 - Regularly update dependencies for security patches
 - Monitor logs for suspicious activity
 
-## License
-
-MIT License
-
 ## Troubleshooting
 
 For comprehensive troubleshooting information, see the [Troubleshooting Guide](docs/TROUBLESHOOTING.md).
@@ -837,3 +833,14 @@ docker-compose up -d
 ##### Timestamps are wrong
 - Frontend converts UTC to JST (UTC+9)
 - Collector stores all timestamps in UTC epoch seconds
+
+## License
+
+This repository is licensed under the Apache License, Version 2.0. See the
+[LICENSE](LICENSE) file for details.
+
+## Note about LLM-assisted code
+
+Some parts of this repository were created with assistance from a large language model (LLM).
+Any LLM-generated code is included under the same Apache-2.0 license. If you redistribute
+or modify this project, please follow the terms of the Apache License, Version 2.0.

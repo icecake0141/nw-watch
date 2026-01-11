@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "nw-watch"
 version = "0.1.0"
 description = "Dual-device network CLI monitor"
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
     "netmiko>=4.3.0",
@@ -24,6 +26,9 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "httpx>=0.26.0",
 ]
+
+[tool.setuptools]
+license-files = ["LICENSE", "NOTICE"]
 
 [tool.setuptools.packages.find]
 include = ["collector*", "webapp*", "shared*"]
