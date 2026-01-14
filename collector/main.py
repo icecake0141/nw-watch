@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Network device data collector."""
 
 import argparse
@@ -18,6 +29,7 @@ from netmiko import ConnectHandler
 from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
 from shared.config import Config
+from shared.control_state import DEFAULT_CONTROL_STATE, read_control_state
 from shared.db import Database
 from shared.filters import process_output
 
@@ -335,6 +347,8 @@ class Collector:
         self.executor = ThreadPoolExecutor(max_workers=self.config.get_max_workers())
         self.running = True
         self.commands: List[str] = self._resolve_commands()
+        self.commands_paused = False
+        self.control_poll_interval = 2
 
         # Cache global interval to avoid repeated method calls
         self.global_interval = self.config.get_interval_seconds()
@@ -374,6 +388,24 @@ class Collector:
 
             # All commands run immediately on first iteration
             self.command_next_run[command] = now
+
+    def _load_control_state(self) -> Dict[str, Any]:
+        """Load the collector control state from disk."""
+        try:
+            return read_control_state()
+        except Exception as exc:
+            logger.warning("Failed to load control state: %s", exc)
+            return DEFAULT_CONTROL_STATE.copy()
+
+    def _apply_control_state(self, state: Dict[str, Any]) -> None:
+        """Apply control state changes and log transitions."""
+        paused = bool(state.get("commands_paused", False))
+        if paused != self.commands_paused:
+            self.commands_paused = paused
+            if paused:
+                logger.info("Command execution paused via control state.")
+            else:
+                logger.info("Command execution resumed via control state.")
 
     def _resolve_commands(self) -> List[str]:
         """Build command list honoring global commands or per-device fallbacks."""
@@ -467,6 +499,17 @@ class Collector:
         # Schedule command collection with intelligent sleep intervals
         async def command_loop():
             while self.running:
+                control_state = self._load_control_state()
+                if control_state.get("shutdown_requested"):
+                    logger.info("Shutdown requested via control state.")
+                    self.running = False
+                    break
+
+                self._apply_control_state(control_state)
+                if self.commands_paused:
+                    await asyncio.sleep(self.control_poll_interval)
+                    continue
+
                 await self.collect_commands()
 
                 # Calculate minimum time until next command needs to run
@@ -491,11 +534,21 @@ class Collector:
         # Schedule ping collection
         async def ping_loop():
             while self.running:
+                control_state = self._load_control_state()
+                if control_state.get("shutdown_requested"):
+                    logger.info("Shutdown requested via control state.")
+                    self.running = False
+                    break
+
                 await self.collect_pings()
                 await asyncio.sleep(ping_interval_seconds)
 
         # Run both loops concurrently
-        await asyncio.gather(command_loop(), ping_loop())
+        try:
+            await asyncio.gather(command_loop(), ping_loop())
+        finally:
+            if not self.running:
+                self.stop()
 
     def stop(self):
         """Stop the collector."""

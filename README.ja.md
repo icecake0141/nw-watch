@@ -1,3 +1,16 @@
+<!--
+Copyright 2026 icecake0141
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This file was created or modified with the assistance of an AI (Large Language Model).
+Review required for correctness, security, and licensing.
+-->
 # nw-watch - ネットワークデバイス CLI モニター
 
 Python製のネットワーク監視システムです。複数のネットワーク機器へSSHで接続し、コマンド出力とpingデータを収集し、包括的な差分表示に対応したリアルタイムWebインターフェースで確認できます。
@@ -141,6 +154,7 @@ docker-compose up -d
 - コレクターサービスを起動
 - Webアプリケーションサービスを起動
 - サービス間の共有ネットワークを作成
+- Web UIのコレクター制御用に `./control` ディレクトリを作成
 
 5. **Webインターフェースにアクセス**
 
@@ -295,6 +309,7 @@ nw-watch/
 │   ├── test_db.py
 │   ├── test_docker.py
 │   └── test_webapp.py
+├── control/           # コレクター制御状態（実行時に生成）
 ├── data/              # DB保存先（実行時に生成）
 │   └── .gitkeep
 ├── Dockerfile         # Dockerイメージ定義
@@ -488,6 +503,12 @@ commands:
 - 一時停止中も手動更新ボタンで即時リロード可能
 - ポーリング間隔は `interval_seconds` と `ping_interval_seconds` から算出
 
+### コレクター制御
+- バックエンドのコマンド実行を一時停止／再開（pingは継続）
+- Web UIからコレクター停止を要求可能
+- 制御情報は共有ファイル `./control/collector_control.json` に保存
+- Dockerで `restart: unless-stopped` を使っている場合、停止要求後に自動再起動されるため、停止を維持したい場合は一時停止の利用やrestartポリシーの変更を検討してください。
+
 ### エクスポート機能
 - **個別出力エクスポート**: オフライン分析のために単一のコマンド出力をエクスポート
   - テキスト形式: メタデータ付きの人間が読める形式（タイムスタンプ、実行時間、ステータス）
@@ -552,6 +573,26 @@ pytest --cov=shared --cov=collector --cov=webapp
 - テンプレート: `webapp/templates/index.html`
 - スタイル: `webapp/static/style.css`
 - JavaScript: `webapp/static/app.js`
+
+### コレクター制御API
+
+コマンド実行の一時停止／再開や停止要求を行うREST APIです:
+
+```bash
+# 状態確認
+curl "http://localhost:8000/api/collector/status"
+
+# コマンド実行を一時停止
+curl -X POST "http://localhost:8000/api/collector/pause"
+
+# コマンド実行を再開
+curl -X POST "http://localhost:8000/api/collector/resume"
+
+# コレクター停止を要求
+curl -X POST "http://localhost:8000/api/collector/stop"
+```
+
+制御情報は `./control/collector_control.json` に保存されます。`NW_WATCH_CONTROL_DIR` で保存先を変更できます。
 
 ### エクスポートAPIの使用
 

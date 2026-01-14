@@ -1,3 +1,16 @@
+/*
+ * Copyright 2026 icecake0141
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * This file was created or modified with the assistance of an AI (Large Language Model).
+ * Review required for correctness, security, and licensing.
+ */
 /* Network Watch Styles */
 
 :root {
@@ -90,6 +103,8 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 header h1 {
@@ -99,6 +114,7 @@ header h1 {
 .controls {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .btn {
@@ -118,6 +134,65 @@ header h1 {
 
 .btn:active {
     transform: scale(0.98);
+}
+
+.btn-warning {
+    background-color: rgba(255, 193, 7, 0.8);
+    border-color: rgba(255, 193, 7, 0.9);
+    color: #2b2b2b;
+}
+
+.btn-warning:hover {
+    background-color: rgba(255, 193, 7, 1);
+}
+
+.btn-danger {
+    background-color: rgba(220, 53, 69, 0.85);
+    border-color: rgba(220, 53, 69, 0.9);
+}
+
+.btn-danger:hover {
+    background-color: rgba(220, 53, 69, 1);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.collector-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.collector-status {
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.collector-status.status-running {
+    color: #e8f5e9;
+    border-color: rgba(76, 175, 80, 0.8);
+}
+
+.collector-status.status-paused {
+    color: #fff8e1;
+    border-color: rgba(255, 193, 7, 0.9);
+}
+
+.collector-status.status-stopped {
+    color: #ffebee;
+    border-color: rgba(220, 53, 69, 0.9);
+}
+
+.collector-status.status-unknown {
+    color: #e0e0e0;
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Ping Status */
