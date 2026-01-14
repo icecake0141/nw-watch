@@ -884,23 +884,33 @@ class NetworkWatch {
             );
             const data = await response.json();
             
-            const diffOutput = document.getElementById(`diff-${deviceA}`);
-            this.renderDiff(
-                diffOutput,
-                data.diff,
-                data.has_diff ? 'No differences found' : 'Data not available for both devices',
-                data.diff_format === 'html'
-            );
+            const diffOutputs = [
+                document.getElementById(`diff-${deviceA}`),
+                document.getElementById(`diff-${deviceB}`)
+            ];
+            diffOutputs.forEach(output => {
+                if (!output) return;
+                this.renderDiff(
+                    output,
+                    data.diff,
+                    'No differences found',
+                    data.diff_format === 'html'
+                );
+            });
             
             // Show export controls and store diff context
-            const exportControls = document.getElementById(`diff-export-${deviceA}`);
-            if (exportControls) {
+            const exportControlTargets = [
+                document.getElementById(`diff-export-${deviceA}`),
+                document.getElementById(`diff-export-${deviceB}`)
+            ];
+            exportControlTargets.forEach(exportControls => {
+                if (!exportControls) return;
                 exportControls.style.display = 'block';
                 exportControls.dataset.diffType = 'device';
                 exportControls.dataset.command = command;
                 exportControls.dataset.deviceA = deviceA;
                 exportControls.dataset.deviceB = deviceB;
-            }
+            });
         } catch (error) {
             console.error('Error loading device diff:', error);
         }
