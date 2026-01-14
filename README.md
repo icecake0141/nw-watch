@@ -1,3 +1,16 @@
+<!--
+Copyright 2026 icecake0141
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This file was created or modified with the assistance of an AI (Large Language Model).
+Review required for correctness, security, and licensing.
+-->
 # nw-watch - Network Device CLI Monitor
 
 A Python-based network monitoring system that collects command outputs and ping data from multiple network devices via SSH and displays them in a real-time web interface with comprehensive diff capabilities.
@@ -154,6 +167,7 @@ This will:
 - Start the collector service
 - Start the web application service
 - Create a shared network for the services
+- Create the `./control` directory for Web UI collector controls
 
 5. **Access the Web Interface**
 
@@ -308,6 +322,7 @@ nw-watch/
 │   ├── test_db.py
 │   ├── test_docker.py
 │   └── test_webapp.py
+├── control/           # Collector control state (created at runtime)
 ├── data/              # Database storage (created at runtime)
 │   └── .gitkeep
 ├── Dockerfile         # Docker image definition
@@ -505,6 +520,12 @@ The system uses SQLite with the following schema designed for efficient querying
 - Manual refresh button for on-demand updates, even while paused
 - Polling intervals derived from `interval_seconds` and `ping_interval_seconds`
 
+### Collector Controls
+- Pause/Resume backend command execution without stopping pings
+- Stop the collector process from the Web UI when ending a session
+- Collector controls rely on a shared control state file (default: `./control/collector_control.json`)
+- If you run Docker with `restart: unless-stopped`, a stop request will cause the container to restart; use pause or change the restart policy if you want the collector to remain down.
+
 ### Export Functionality
 - **Individual Output Export**: Export single command outputs for offline analysis
   - Text format: Human-readable format with metadata (timestamp, duration, status)
@@ -569,6 +590,26 @@ To add custom filtering logic:
 - Templates: `webapp/templates/index.html`
 - Styles: `webapp/static/style.css`
 - JavaScript: `webapp/static/app.js`
+
+### Collector Control API
+
+The collector control endpoints allow pausing/resuming command execution and requesting a shutdown:
+
+```bash
+# Check collector status
+curl "http://localhost:8000/api/collector/status"
+
+# Pause command execution
+curl -X POST "http://localhost:8000/api/collector/pause"
+
+# Resume command execution
+curl -X POST "http://localhost:8000/api/collector/resume"
+
+# Request collector shutdown
+curl -X POST "http://localhost:8000/api/collector/stop"
+```
+
+The control state is stored in `./control/collector_control.json`. Set `NW_WATCH_CONTROL_DIR` to customize the location.
 
 ### Using Export API
 

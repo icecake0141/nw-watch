@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for web application API."""
 
 import pytest
@@ -56,8 +67,16 @@ def test_db():
     Path(path).unlink(missing_ok=True)
 
 
+@pytest.fixture(autouse=True)
+def control_dir(tmp_path, monkeypatch):
+    """Provide an isolated control directory for tests."""
+    control_path = tmp_path / "control"
+    monkeypatch.setenv("NW_WATCH_CONTROL_DIR", str(control_path))
+    return control_path
+
+
 @pytest.fixture
-def client(test_db, monkeypatch):
+def client(test_db):
     """Create test client with mocked database."""
     # Move test db to expected location
     data_dir = Path("data")
@@ -280,6 +299,47 @@ def test_get_config(client):
     assert "run_poll_interval_seconds" in data
     assert "ping_poll_interval_seconds" in data
     assert "ping_window_seconds" in data
+
+
+def test_collector_status_default(client):
+    """Test default collector status."""
+    response = client.get("/api/collector/status")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["commands_paused"] is False
+    assert data["shutdown_requested"] is False
+    assert data["status"] == "running"
+
+
+def test_collector_pause_resume(client):
+    """Test pausing and resuming collector commands."""
+    response = client.post("/api/collector/pause")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["commands_paused"] is True
+    assert data["shutdown_requested"] is False
+    assert data["status"] == "paused"
+
+    response = client.post("/api/collector/resume")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["commands_paused"] is False
+    assert data["shutdown_requested"] is False
+    assert data["status"] == "running"
+
+
+def test_collector_stop(client):
+    """Test stopping collector."""
+    response = client.post("/api/collector/stop")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["commands_paused"] is True
+    assert data["shutdown_requested"] is True
+    assert data["status"] == "stopped"
+
+    response = client.post("/api/collector/pause")
+    assert response.status_code == 409
 
 
 def test_api_without_database():

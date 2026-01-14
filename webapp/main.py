@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Web application for network device monitoring."""
 
 import asyncio
@@ -18,6 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from shared.config import Config
+from shared.control_state import read_control_state, update_control_state
 from shared.db import Database
 from shared.diff import generate_side_by_side_diff, generate_inline_char_diff
 from shared.export import (
@@ -166,6 +178,18 @@ def get_db(history_size: int) -> Optional[Database]:
     if not DATABASE_PATH.exists():
         return None
     return Database(str(DATABASE_PATH), history_size=history_size)
+
+
+def build_collector_status() -> Dict[str, object]:
+    """Build a collector control status payload."""
+    state = read_control_state()
+    status = "running"
+    if state.get("shutdown_requested"):
+        status = "stopped"
+    elif state.get("commands_paused"):
+        status = "paused"
+    state["status"] = status
+    return state
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -515,6 +539,57 @@ async def get_config():
                 "websocket_enabled": False,
             }
         )
+
+
+@app.get("/api/collector/status")
+async def get_collector_status():
+    """Get collector control status."""
+    return JSONResponse(build_collector_status())
+
+
+@app.post("/api/collector/pause")
+async def pause_collector_commands():
+    """Pause backend command execution."""
+    state = read_control_state()
+    if state.get("shutdown_requested"):
+        return JSONResponse(
+            {"error": "Collector shutdown already requested."}, status_code=409
+        )
+    try:
+        updated = update_control_state({"commands_paused": True})
+        updated["status"] = "paused"
+        return JSONResponse(updated)
+    except Exception as exc:
+        logger.error("Failed to pause collector: %s", exc)
+        return JSONResponse({"error": "Failed to pause collector."}, status_code=500)
+
+
+@app.post("/api/collector/resume")
+async def resume_collector_commands():
+    """Resume backend command execution."""
+    try:
+        updated = update_control_state(
+            {"commands_paused": False, "shutdown_requested": False}
+        )
+        updated["status"] = "running"
+        return JSONResponse(updated)
+    except Exception as exc:
+        logger.error("Failed to resume collector: %s", exc)
+        return JSONResponse({"error": "Failed to resume collector."}, status_code=500)
+
+
+@app.post("/api/collector/stop")
+async def stop_collector():
+    """Request collector shutdown."""
+    try:
+        updated = update_control_state(
+            {"commands_paused": True, "shutdown_requested": True}
+        )
+        updated["status"] = "stopped"
+        return JSONResponse(updated)
+    except Exception as exc:
+        logger.error("Failed to stop collector: %s", exc)
+        return JSONResponse({"error": "Failed to stop collector."}, status_code=500)
 
 
 @app.get("/api/export/run")

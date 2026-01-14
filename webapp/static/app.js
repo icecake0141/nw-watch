@@ -11,7 +11,6 @@
  * This file was created or modified with the assistance of an AI (Large Language Model).
  * Review required for correctness, security, and licensing.
  */
-
 // Network Watch Frontend Application
 
 class NetworkWatch {
@@ -33,6 +32,14 @@ class NetworkWatch {
         this.websocket = null;
         this.websocketReconnectTimer = null;
         this.websocketReconnectAttempts = 0;
+        this.collectorPollTimer = null;
+        this.collectorState = {
+            commands_paused: false,
+            shutdown_requested: false,
+            status: 'unknown',
+            updated_at: 0
+        };
+        this.collectorPollIntervalMs = 5000;
         
         // WebSocket reconnection settings
         this.maxWebSocketReconnectAttempts = 5;
@@ -50,6 +57,7 @@ class NetworkWatch {
         // Load initial data
         await this.loadDevices();
         await this.loadCommands();
+        await this.loadCollectorStatus();
         
         // Setup UI
         this.setupEventListeners();
@@ -61,6 +69,8 @@ class NetworkWatch {
         } else {
             this.startPolling();
         }
+
+        this.startCollectorStatusPolling();
         
         // Initial data load
         await this.updatePingStatus();
@@ -98,6 +108,18 @@ class NetworkWatch {
             console.error('Error loading commands:', error);
         }
     }
+
+    async loadCollectorStatus() {
+        try {
+            const response = await fetch('/api/collector/status');
+            const data = await response.json();
+            this.collectorState = data;
+            this.updateCollectorControls();
+        } catch (error) {
+            console.error('Error loading collector status:', error);
+            this.updateCollectorControls(true);
+        }
+    }
     
     setupEventListeners() {
         // Theme toggle
@@ -111,6 +133,14 @@ class NetworkWatch {
         
         document.getElementById('manualRefresh').addEventListener('click', () => {
             this.manualRefresh();
+        });
+
+        document.getElementById('toggleCollectorCommands').addEventListener('click', () => {
+            this.toggleCollectorCommands();
+        });
+
+        document.getElementById('stopCollector').addEventListener('click', () => {
+            this.stopCollector();
         });
         
         // Load saved theme preference
@@ -163,6 +193,90 @@ class NetworkWatch {
             this.stopPolling();
             this.showPauseBanner(true);
         }
+    }
+
+    startCollectorStatusPolling() {
+        if (this.collectorPollTimer) {
+            return;
+        }
+
+        this.collectorPollTimer = setInterval(() => {
+            this.loadCollectorStatus();
+        }, this.collectorPollIntervalMs);
+    }
+
+    async toggleCollectorCommands() {
+        try {
+            const endpoint = this.collectorState.commands_paused
+                ? '/api/collector/resume'
+                : '/api/collector/pause';
+            const response = await fetch(endpoint, { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to toggle collector commands');
+            }
+            this.collectorState = data;
+            this.updateCollectorControls();
+        } catch (error) {
+            console.error('Error toggling collector commands:', error);
+            alert('Failed to update collector state');
+        }
+    }
+
+    async stopCollector() {
+        const confirmed = window.confirm('Stop the collector process? Command execution will end.');
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/collector/stop', { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to stop collector');
+            }
+            this.collectorState = data;
+            this.updateCollectorControls();
+        } catch (error) {
+            console.error('Error stopping collector:', error);
+            alert('Failed to stop collector');
+        }
+    }
+
+    updateCollectorControls(hasError = false) {
+        const statusElement = document.getElementById('collectorStatus');
+        const toggleButton = document.getElementById('toggleCollectorCommands');
+        const stopButton = document.getElementById('stopCollector');
+        statusElement.classList.remove('status-unknown', 'status-paused', 'status-running', 'status-stopped');
+
+        if (hasError) {
+            statusElement.textContent = 'Collector: Unknown';
+            statusElement.classList.add('status-unknown');
+            return;
+        }
+        const status = this.collectorState.status || 'unknown';
+
+        if (status === 'stopped' || this.collectorState.shutdown_requested) {
+            statusElement.textContent = 'Collector: Stopped';
+            statusElement.classList.add('status-stopped');
+            toggleButton.disabled = true;
+            stopButton.disabled = true;
+            toggleButton.textContent = '⏹ Collector Stopped';
+            return;
+        }
+
+        if (this.collectorState.commands_paused || status === 'paused') {
+            statusElement.textContent = 'Collector: Paused';
+            statusElement.classList.add('status-paused');
+            toggleButton.textContent = '▶ Resume Commands';
+        } else {
+            statusElement.textContent = 'Collector: Running';
+            statusElement.classList.add('status-running');
+            toggleButton.textContent = '⏸ Pause Commands';
+        }
+
+        toggleButton.disabled = false;
+        stopButton.disabled = false;
     }
 
     connectWebSocket() {
