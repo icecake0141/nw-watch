@@ -787,6 +787,12 @@ docker-compose up -d
 - フロントエンドはUTCをJST（UTC+9）へ変換
 - コレクターはUTCエポック秒で記録
 
+## 改善提案
+
+利用シチュエーション、リスク分析、機能提案を含む包括的な改善提案については、以下を参照してください：
+- [IMPROVEMENT_PROPOSAL_2026.ja.md](IMPROVEMENT_PROPOSAL_2026.ja.md) - 詳細な2026年改善提案（7つの提案）
+- [IMPROVEMENT_SUGGESTIONS.ja.md](IMPROVEMENT_SUGGESTIONS.ja.md) - 一般的な改善提案の追跡
+
 ## ライセンス
 
 このリポジトリは Apache License, Version 2.0 の下でライセンスされています。詳細は [LICENSE](LICENSE) を参照してください。

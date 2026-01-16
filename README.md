@@ -916,6 +916,12 @@ docker-compose up -d
 - Frontend converts UTC to JST (UTC+9)
 - Collector stores all timestamps in UTC epoch seconds
 
+## Improvement Proposals
+
+For comprehensive improvement proposals including usage scenarios, risk analysis, and feature suggestions, see:
+- [IMPROVEMENT_PROPOSAL_2026.md](IMPROVEMENT_PROPOSAL_2026.md) - Detailed 2026 improvement proposals (7 proposals)
+- [IMPROVEMENT_SUGGESTIONS.md](IMPROVEMENT_SUGGESTIONS.md) - General improvement suggestions tracking
+
 ## License
 
 This repository is licensed under the Apache License, Version 2.0. See the
