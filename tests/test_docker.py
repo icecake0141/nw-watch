@@ -40,7 +40,7 @@ class TestDockerConfiguration:
         dockerfile = Path(__file__).parent.parent / "Dockerfile"
         content = dockerfile.read_text()
         assert "FROM python:" in content, "Dockerfile should use Python base image"
-        assert "3.11" in content, "Dockerfile should use Python 3.11"
+        assert "3.14" in content, "Dockerfile should use Python 3.14"
 
     def test_dockerfile_exposes_port(self):
         """Test that Dockerfile exposes port 8000."""
