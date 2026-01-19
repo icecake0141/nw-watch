@@ -21,8 +21,7 @@ from shared.filters import process_output
 def integration_config(tmp_path):
     """Create a test configuration for integration tests."""
     config_path = tmp_path / "config.yaml"
-    config_path.write_text(
-        """
+    config_path.write_text("""
 interval_seconds: 1
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -56,8 +55,7 @@ devices:
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
     ping_host: "192.168.1.2"
-"""
-    )
+""")
 
     # Set environment variable
     os.environ["TEST_PASSWORD"] = "testpass123"
@@ -348,8 +346,7 @@ class TestErrorHandling:
         """Test that config validation catches errors before database operations."""
         # Create invalid config
         config_path = tmp_path / "invalid_config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: -5
 commands:
   - command_text: "show version"
@@ -359,8 +356,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         # Should raise validation error
         with pytest.raises(ValueError, match="Invalid configuration"):

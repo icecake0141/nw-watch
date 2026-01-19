@@ -14,8 +14,7 @@ def test_collector_stop_method():
     """Test that the collector stop method properly cleans up resources."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 history_size: 10
@@ -31,8 +30,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         # Set the password environment variable
         os.environ["TEST_PASSWORD"] = "test"
@@ -66,8 +64,7 @@ def test_signal_handler_registration():
     """Test that signal handlers are properly registered."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 history_size: 10
@@ -83,8 +80,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
 
@@ -120,8 +116,7 @@ def test_signal_handler_calls_stop():
     """Test that the signal handler properly calls collector.stop()."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 history_size: 10
@@ -137,8 +132,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
 

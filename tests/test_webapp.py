@@ -207,7 +207,7 @@ def test_get_runs_excludes_filtered(client):
 def test_device_with_all_filtered_runs(client):
     """Test that a device with all filtered runs returns empty runs array."""
     db = Database("data/current.sqlite3")
-    
+
     # Add a new device with only filtered runs
     db.insert_run(
         device_name="DeviceC",
@@ -218,7 +218,7 @@ def test_device_with_all_filtered_runs(client):
         is_filtered=True,  # This run is filtered
         original_line_count=1,
     )
-    
+
     db.insert_run(
         device_name="DeviceC",
         command_text="show version",
@@ -232,10 +232,10 @@ def test_device_with_all_filtered_runs(client):
 
     response = client.get("/api/runs/show%20version")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "DeviceC" in data["runs"]
-    
+
     # DeviceC should appear in the response but with an empty runs array
     # since all its runs are filtered
     device_c_runs = data["runs"]["DeviceC"]
@@ -245,7 +245,7 @@ def test_device_with_all_filtered_runs(client):
 def test_device_name_with_whitespace(client):
     """Test that device names with whitespace are normalized."""
     db = Database("data/current.sqlite3")
-    
+
     # Insert run with device name containing trailing whitespace
     db.insert_run(
         device_name="DeviceD ",  # Note trailing whitespace
@@ -257,14 +257,14 @@ def test_device_name_with_whitespace(client):
         original_line_count=15,
     )
     db.close()
-    
+
     response = client.get("/api/runs/show%20version")
     assert response.status_code == 200
-    
+
     data = response.json()
     # Device name should be normalized (whitespace stripped)
     assert "DeviceD" in data["runs"]
-    
+
     # Should be able to retrieve runs with or without whitespace
     device_d_runs = data["runs"]["DeviceD"]
     assert len(device_d_runs) == 1

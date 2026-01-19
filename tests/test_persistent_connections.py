@@ -18,8 +18,7 @@ def test_device_collector_persistent_connections_enabled():
     """Test that persistent connections are enabled by default."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -30,8 +29,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -48,8 +46,7 @@ def test_device_collector_persistent_connections_disabled():
     """Test that persistent connections can be disabled."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ssh:
   persistent_connections: false
@@ -62,8 +59,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -78,8 +74,7 @@ def test_ssh_config_defaults():
     """Test that SSH configuration has correct defaults."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -90,8 +85,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(cfg_path))
 
@@ -105,8 +99,7 @@ def test_ssh_config_custom_values():
     """Test that SSH configuration can be customized."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ssh:
   persistent_connections: false
@@ -122,8 +115,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(cfg_path))
 
@@ -137,8 +129,7 @@ def test_connection_params_generation():
     """Test that connection parameters are correctly generated."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ssh:
   connection_timeout: 60
@@ -152,8 +143,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "mypassword"
         config = Config(str(cfg_path))
@@ -175,8 +165,7 @@ def test_connection_lock_is_thread_safe():
     """Test that connection lock ensures thread safety."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -187,8 +176,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -209,8 +197,7 @@ def test_close_method_closes_connection():
     """Test that close() properly closes the connection."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -221,8 +208,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -248,8 +234,7 @@ def test_close_method_handles_errors():
     """Test that close() handles errors gracefully."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -260,8 +245,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -285,8 +269,7 @@ def test_is_connection_alive_with_no_connection():
     """Test that _is_connection_alive returns False when no connection exists."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -297,8 +280,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -313,8 +295,7 @@ def test_is_connection_alive_with_working_connection():
     """Test that _is_connection_alive returns True for working connection."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -325,8 +306,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -346,8 +326,7 @@ def test_is_connection_alive_with_dead_connection():
     """Test that _is_connection_alive returns False for dead connection."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -358,8 +337,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -379,8 +357,7 @@ def test_execute_command_with_persistent_connection():
     """Test command execution with persistent connections."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
@@ -391,8 +368,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))
@@ -428,8 +404,7 @@ def test_execute_command_without_persistent_connection():
     """Test command execution without persistent connections (legacy mode)."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         cfg_path = Path(tmp_dir) / "config.yaml"
-        cfg_path.write_text(
-            """
+        cfg_path.write_text("""
 interval_seconds: 5
 ssh:
   persistent_connections: false
@@ -442,8 +417,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         os.environ["TEST_PASSWORD"] = "test"
         config = Config(str(cfg_path))

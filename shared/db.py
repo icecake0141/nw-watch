@@ -54,28 +54,23 @@ class Database:
         cursor = self.conn.cursor()
 
         # Devices table
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS devices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL
             )
-        """
-        )
+        """)
 
         # Commands table
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS commands (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 command_text TEXT UNIQUE NOT NULL
             )
-        """
-        )
+        """)
 
         # Runs table
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS runs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 device_id INTEGER NOT NULL,
@@ -91,12 +86,10 @@ class Database:
                 FOREIGN KEY (device_id) REFERENCES devices(id),
                 FOREIGN KEY (command_id) REFERENCES commands(id)
             )
-        """
-        )
+        """)
 
         # Ping samples table
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS ping_samples (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 device_id INTEGER NOT NULL,
@@ -106,8 +99,7 @@ class Database:
                 error_message TEXT,
                 FOREIGN KEY (device_id) REFERENCES devices(id)
             )
-        """
-        )
+        """)
 
         # Create indexes
         cursor.execute(
@@ -122,13 +114,13 @@ class Database:
 
     def get_or_create_device(self, name: str) -> int:
         """Get or create device, return device ID.
-        
+
         Note: Device names are normalized by stripping whitespace to avoid
         issues with config files containing trailing/leading spaces.
         """
         # Normalize device name by stripping whitespace
         normalized_name = name.strip()
-        
+
         cursor = self.conn.cursor()
         cursor.execute("SELECT id FROM devices WHERE name = ?", (normalized_name,))
         row = cursor.fetchone()
@@ -249,12 +241,12 @@ class Database:
         include_filtered: bool = False,
     ) -> List[Dict[str, Any]]:
         """Get latest runs for a device/command combination.
-        
+
         Note: Device names are normalized by stripping whitespace.
         """
         # Normalize device name by stripping whitespace
         normalized_name = device_name.strip()
-        
+
         cursor = self.conn.cursor()
         sql = """
             SELECT r.* FROM runs r
@@ -296,12 +288,12 @@ class Database:
 
     def get_ping_samples(self, device_name: str, since_ts: int) -> List[Dict[str, Any]]:
         """Get ping samples for a device since a given timestamp.
-        
+
         Note: Device names are normalized by stripping whitespace.
         """
         # Normalize device name by stripping whitespace
         normalized_name = device_name.strip()
-        
+
         cursor = self.conn.cursor()
         cursor.execute(
             """

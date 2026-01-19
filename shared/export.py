@@ -6,7 +6,6 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
 
-
 # JST timezone constant (UTC+9)
 JST_TIMEZONE = timezone(timedelta(hours=9))
 

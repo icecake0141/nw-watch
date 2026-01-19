@@ -10,8 +10,7 @@ from shared.config import Config
 def test_command_interval_parsing(tmp_path, monkeypatch):
     """Test parsing of interval_seconds from config."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "long_interval"
@@ -30,8 +29,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))
@@ -45,8 +43,7 @@ devices:
 def test_command_interval_validation_min(tmp_path, monkeypatch):
     """Test that intervals below 5 seconds are rejected."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "too_fast"
@@ -59,8 +56,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
 
@@ -72,8 +68,7 @@ devices:
 def test_command_interval_validation_max(tmp_path, monkeypatch):
     """Test that intervals above 60 seconds are rejected."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "too_slow"
@@ -86,8 +81,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
 
@@ -99,8 +93,7 @@ devices:
 def test_interval_validation_error_message(tmp_path, monkeypatch):
     """Test that interval validation provides clear error messages."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "invalid_interval"
@@ -113,8 +106,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
 
@@ -130,8 +122,7 @@ devices:
 def test_backward_compatibility(tmp_path, monkeypatch):
     """Test that commands without interval_seconds still work with global interval_seconds."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 10
 commands:
   - name: "legacy_command"
@@ -144,8 +135,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))
@@ -159,8 +149,7 @@ devices:
 def test_mixed_intervals(tmp_path, monkeypatch):
     """Test configuration with mixed interval and global-based commands."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "custom_interval_cmd"
@@ -179,8 +168,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))
@@ -194,8 +182,7 @@ devices:
 def test_interval_boundary_values(tmp_path, monkeypatch):
     """Test that boundary values (5 and 60) are accepted."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "min_interval"
@@ -211,8 +198,7 @@ devices:
     username: "admin"
     password_env_key: "PW"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW", "secret")
     config = Config(str(cfg_path))

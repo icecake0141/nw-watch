@@ -75,11 +75,14 @@ class TestDatabaseLogging:
         db_path = tmp_path / "test.db"
         db = Database(str(db_path), history_size=10)
 
-        device_id = db.get_or_create_device("TestDevice")
-        command_id = db.get_or_create_command("test command")
-
         caplog.clear()
-        db.insert_run(device_id, command_id, "output", True, 100)
+        db.insert_run(
+            device_name="TestDevice",
+            command_text="test command",
+            ts_epoch=100,
+            output_text="output",
+            ok=True,
+        )
 
         # Inserts might be logged at DEBUG level
         # (This depends on implementation)
@@ -113,8 +116,7 @@ class TestConfigLogging:
         caplog.set_level(logging.INFO)
 
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -132,8 +134,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(config_path))
 
@@ -146,8 +147,7 @@ devices:
         caplog.set_level(logging.ERROR)
 
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: -5  # Invalid
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -165,8 +165,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         try:
             Config(str(config_path))
@@ -274,8 +273,7 @@ class TestLogSecurity:
         caplog.set_level(logging.DEBUG)
 
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -293,8 +291,7 @@ devices:
     username: "admin"
     password: "my_secret_password_123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(config_path))
 

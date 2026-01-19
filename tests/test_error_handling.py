@@ -24,8 +24,7 @@ class TestNetworkErrorHandling:
     def test_ssh_timeout_handling(self, tmp_path):
         """Test graceful handling of SSH connection timeout."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -44,8 +43,7 @@ devices:
     password: "test123"
     device_type: "cisco_ios"
     ping_host: "192.168.1.1"
-"""
-        )
+""")
         config = Config(str(config_path))
 
         # Verify config is valid despite future connection issues
@@ -55,8 +53,7 @@ devices:
     def test_authentication_failure_handling(self, tmp_path):
         """Test handling of SSH authentication failures."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -75,8 +72,7 @@ devices:
     password: "wrong_pass"
     device_type: "cisco_ios"
     ping_host: "192.168.1.1"
-"""
-        )
+""")
         config = Config(str(config_path))
 
         # Config should load successfully even with wrong credentials
@@ -86,8 +82,7 @@ devices:
     def test_unreachable_host_handling(self, tmp_path):
         """Test handling of unreachable network hosts."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -106,8 +101,7 @@ devices:
     password: "test123"
     device_type: "cisco_ios"
     ping_host: "203.0.113.1"
-"""
-        )
+""")
         config = Config(str(config_path))
 
         # Config should be valid
@@ -232,15 +226,13 @@ class TestConfigurationErrorHandling:
     def test_malformed_yaml_config(self, tmp_path):
         """Test handling of malformed YAML configuration."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 devices:
   - name: "Device1"
     host: 192.168.1.1
     # Missing closing quote
     username: "admin
-"""
-        )
+""")
 
         with pytest.raises(Exception):  # YAML parsing error
             Config(str(config_path))
@@ -248,15 +240,13 @@ devices:
     def test_config_with_missing_required_fields(self, tmp_path):
         """Test handling of configuration with missing required fields."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 commands:
   - name: "test"
     command_text: "show version"
 # Missing devices section - but might have defaults
-"""
-        )
+""")
 
         # Should raise validation error or use defaults
         try:
@@ -270,8 +260,7 @@ commands:
     def test_config_with_invalid_types(self, tmp_path):
         """Test handling of configuration with invalid data types."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: "not_a_number"
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -289,8 +278,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         with pytest.raises(ValueError):
             Config(str(config_path))
@@ -413,8 +401,7 @@ class TestEdgeCases:
     def test_extremely_high_port_number(self, tmp_path):
         """Test configuration with port at upper boundary."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -432,8 +419,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(config_path))
         assert config.get_devices()[0]["port"] == 65535
@@ -441,8 +427,7 @@ devices:
     def test_port_number_exceeding_maximum(self, tmp_path):
         """Test configuration with invalid port number."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -460,8 +445,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         with pytest.raises(ValueError):
             Config(str(config_path))
@@ -469,8 +453,7 @@ devices:
     def test_empty_device_name(self, tmp_path):
         """Test configuration with empty device name."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -488,8 +471,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         with pytest.raises(ValueError):
             Config(str(config_path))
@@ -497,8 +479,7 @@ devices:
     def test_whitespace_only_command_text(self, tmp_path):
         """Test configuration with whitespace-only command."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -516,8 +497,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         with pytest.raises(ValueError):
             Config(str(config_path))
