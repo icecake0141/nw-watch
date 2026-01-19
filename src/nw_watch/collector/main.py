@@ -28,10 +28,10 @@ from typing import Any, Dict, List, Optional
 from netmiko import ConnectHandler
 from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
-from shared.config import Config
-from shared.control_state import DEFAULT_CONTROL_STATE, read_control_state
-from shared.db import Database
-from shared.filters import process_output
+from nw_watch.shared.config import Config
+from nw_watch.shared.control_state import DEFAULT_CONTROL_STATE, read_control_state
+from nw_watch.shared.db import Database
+from nw_watch.shared.filters import process_output
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

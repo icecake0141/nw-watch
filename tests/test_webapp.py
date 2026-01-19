@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 import tempfile
 import os
 from pathlib import Path
-from shared.db import Database
+from nw_watch.shared.db import Database
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ def client(test_db):
 
     shutil.copy2(test_db, current_db)
 
-    from webapp.main import app
+    from nw_watch.webapp.main import app
 
     client = TestClient(app)
 
@@ -421,7 +421,7 @@ def test_api_without_database():
     if current_db.exists():
         current_db.unlink()
 
-    from webapp.main import app
+    from nw_watch.webapp.main import app
 
     client = TestClient(app)
 
@@ -561,7 +561,7 @@ def test_export_ping_json(client):
 
 def test_sanitize_filename():
     """Test filename sanitization function."""
-    from webapp.main import sanitize_filename
+    from nw_watch.webapp.main import sanitize_filename
 
     # Normal cases - should pass through unchanged
     assert sanitize_filename("device1") == "device1"

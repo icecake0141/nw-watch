@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from shared.config import Config
+from nw_watch.shared.config import Config
 
 
 def test_valid_config(tmp_path):

@@ -268,7 +268,7 @@ devices:
 The collector connects to devices and gathers data:
 
 ```bash
-python -m collector.main --config config.yaml
+python -m nw_watch.collector.main --config config.yaml
 ```
 
 The collector will:
@@ -282,7 +282,7 @@ The collector will:
 In a separate terminal, start the web server:
 
 ```bash
-uvicorn webapp.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn nw_watch.webapp.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ### 5. Access the Web Interface

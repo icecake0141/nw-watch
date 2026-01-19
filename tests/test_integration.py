@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from shared.config import Config
-from shared.db import Database
-from shared.filters import process_output
+from nw_watch.shared.config import Config
+from nw_watch.shared.db import Database
+from nw_watch.shared.filters import process_output
 
 
 @pytest.fixture
@@ -368,7 +368,7 @@ class TestDataExport:
 
     def test_export_preserves_data_integrity(self, integration_db):
         """Test that exported data matches database data."""
-        from shared.export import export_run_as_json
+        from nw_watch.shared.export import export_run_as_json
 
         # Add test data
         current_time = int(time.time())

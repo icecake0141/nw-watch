@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from shared.config import Config
-from shared.db import Database
+from nw_watch.shared.config import Config
+from nw_watch.shared.db import Database
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def client(test_db, monkeypatch):
     # Copy test db to current.sqlite3
     shutil.copy2(test_db, current_db)
 
-    from webapp.main import app
+    from nw_watch.webapp.main import app
 
     client = TestClient(app)
 
@@ -85,7 +85,7 @@ def test_api_config_includes_websocket_flag(client):
 
 def test_websocket_manager_broadcast():
     """Test WebSocket connection manager broadcast functionality."""
-    from webapp.websocket_manager import ConnectionManager
+    from nw_watch.webapp.websocket_manager import ConnectionManager
 
     manager = ConnectionManager()
 
@@ -133,7 +133,7 @@ websocket:
 
 def test_websocket_manager_connect_disconnect():
     """Test WebSocket connection manager connect/disconnect."""
-    from webapp.websocket_manager import ConnectionManager
+    from nw_watch.webapp.websocket_manager import ConnectionManager
 
     manager = ConnectionManager()
 

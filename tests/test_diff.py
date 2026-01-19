@@ -1,7 +1,7 @@
 """Tests for diff functionality."""
 
 import pytest
-from shared.diff import (
+from nw_watch.shared.diff import (
     generate_diff,
     generate_side_by_side_diff,
     generate_inline_char_diff,

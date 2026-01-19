@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import ValidationError
 
-from shared.validation import ConfigSchema
+from nw_watch.shared.validation import ConfigSchema
 
 logger = logging.getLogger(__name__)
 

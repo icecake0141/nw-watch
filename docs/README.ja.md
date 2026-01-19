@@ -255,7 +255,7 @@ devices:
 コレクターがデバイスへ接続してデータを収集します:
 
 ```bash
-python -m collector.main --config config.yaml
+python -m nw_watch.collector.main --config config.yaml
 ```
 
 コレクターの動作:
@@ -269,7 +269,7 @@ python -m collector.main --config config.yaml
 別ターミナルでWebサーバーを起動します:
 
 ```bash
-uvicorn webapp.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn nw_watch.webapp.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ### 5. Web UIへアクセス

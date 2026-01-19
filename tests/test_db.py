@@ -4,7 +4,7 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
-from shared.db import Database
+from nw_watch.shared.db import Database
 
 
 @pytest.fixture

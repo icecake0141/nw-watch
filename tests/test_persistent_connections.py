@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from collector.main import DeviceCollector
-from shared.config import Config
-from shared.db import Database
+from nw_watch.collector.main import DeviceCollector
+from nw_watch.shared.config import Config
+from nw_watch.shared.db import Database
 
 
 def test_device_collector_persistent_connections_enabled():

@@ -9,8 +9,8 @@ from io import StringIO
 
 import pytest
 
-from shared.config import Config
-from shared.db import Database
+from nw_watch.shared.config import Config
+from nw_watch.shared.db import Database
 
 
 class TestLoggingFormat:

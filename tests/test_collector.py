@@ -6,8 +6,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from collector.main import Collector, main
-from shared.config import Config
+from nw_watch.collector.main import Collector, main
+from nw_watch.shared.config import Config
 
 
 def test_collector_stop_method():

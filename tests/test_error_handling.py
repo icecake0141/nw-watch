@@ -13,9 +13,9 @@ from unittest.mock import Mock, patch, MagicMock
 import pytest
 from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
-from shared.config import Config
-from shared.db import Database
-from shared.filters import process_output
+from nw_watch.shared.config import Config
+from nw_watch.shared.db import Database
+from nw_watch.shared.filters import process_output
 
 
 class TestNetworkErrorHandling:
