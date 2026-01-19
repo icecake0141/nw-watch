@@ -47,6 +47,10 @@ class NetworkWatch {
         this.maxReconnectDelay = 30000;  // 30 seconds max delay
         this.reconnectBackoffMultiplier = 2;  // Exponential backoff multiplier
         
+        // Diff state preservation
+        // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
+        this.diffStates = {};
+        
         this.init();
     }
     
@@ -480,6 +484,10 @@ class NetworkWatch {
     
     renderCommandContent(command, runsData, sideBySideData) {
         const contentContainer = document.getElementById('commandContent');
+        
+        // Save current diff states before clearing
+        this.saveDiffStates(command);
+        
         contentContainer.innerHTML = '';
         
         // Check if we have side-by-side data
@@ -534,6 +542,9 @@ class NetworkWatch {
             
             contentContainer.appendChild(deviceSection);
         }
+        
+        // Restore diff states after rendering
+        this.restoreDiffStates(command);
     }
     
     renderSideBySideView(command, sideBySideData) {
@@ -872,6 +883,16 @@ class NetworkWatch {
                 exportControls.dataset.command = command;
                 exportControls.dataset.device = device;
             }
+            
+            // Save the diff state immediately
+            const stateKey = `${command}:${device}`;
+            this.diffStates[stateKey] = {
+                type: 'history',
+                content: diffOutput.innerHTML,
+                isHtml: diffOutput.classList.contains('diff-output-html'),
+                command: command,
+                device: device
+            };
         } catch (error) {
             console.error('Error loading history diff:', error);
         }
@@ -910,6 +931,22 @@ class NetworkWatch {
                 exportControls.dataset.command = command;
                 exportControls.dataset.deviceA = deviceA;
                 exportControls.dataset.deviceB = deviceB;
+            });
+            
+            // Save the diff state for both devices
+            const isHtml = diffOutputs[0] && diffOutputs[0].classList.contains('diff-output-html');
+            const content = diffOutputs[0] ? diffOutputs[0].innerHTML : '';
+            
+            [deviceA, deviceB].forEach(device => {
+                const stateKey = `${command}:${device}`;
+                this.diffStates[stateKey] = {
+                    type: 'device',
+                    content: content,
+                    isHtml: isHtml,
+                    otherDevice: device === deviceA ? deviceB : deviceA,
+                    command: command,
+                    device: device
+                };
             });
         } catch (error) {
             console.error('Error loading device diff:', error);
@@ -1002,6 +1039,76 @@ class NetworkWatch {
         }).join('');
 
         element.innerHTML = html;
+    }
+    
+    saveDiffStates(command) {
+        // Save the state of all visible diffs for the current command
+        this.devices.forEach(device => {
+            const diffOutputElement = document.getElementById(`diff-${device}`);
+            const exportControlsElement = document.getElementById(`diff-export-${device}`);
+            
+            if (!diffOutputElement || !exportControlsElement) {
+                return;
+            }
+            
+            // Check if there's actual diff content (not just the placeholder text)
+            const hasContent = diffOutputElement.textContent !== 'Click a button above to view diff' &&
+                               diffOutputElement.innerHTML.trim().length > 0;
+            
+            if (hasContent && exportControlsElement.style.display !== 'none') {
+                const stateKey = `${command}:${device}`;
+                const diffType = exportControlsElement.dataset.diffType;
+                const otherDevice = exportControlsElement.dataset.deviceB;
+                
+                // Store the diff state
+                this.diffStates[stateKey] = {
+                    type: diffType,
+                    content: diffOutputElement.innerHTML,
+                    isHtml: diffOutputElement.classList.contains('diff-output-html'),
+                    otherDevice: otherDevice,
+                    command: command,
+                    device: device
+                };
+            } else {
+                // Remove state if diff is not visible
+                const stateKey = `${command}:${device}`;
+                delete this.diffStates[stateKey];
+            }
+        });
+    }
+    
+    restoreDiffStates(command) {
+        // Restore previously visible diffs for the current command
+        this.devices.forEach(device => {
+            const stateKey = `${command}:${device}`;
+            const state = this.diffStates[stateKey];
+            
+            if (!state) {
+                return;
+            }
+            
+            const diffOutputElement = document.getElementById(`diff-${device}`);
+            const exportControlsElement = document.getElementById(`diff-export-${device}`);
+            
+            if (!diffOutputElement || !exportControlsElement) {
+                return;
+            }
+            
+            // Restore the diff content
+            diffOutputElement.innerHTML = state.content;
+            if (state.isHtml) {
+                diffOutputElement.classList.add('diff-output-html');
+            }
+            
+            // Restore export controls visibility and metadata
+            exportControlsElement.style.display = 'block';
+            exportControlsElement.dataset.diffType = state.type;
+            exportControlsElement.dataset.command = state.command;
+            exportControlsElement.dataset.device = state.device;
+            if (state.otherDevice) {
+                exportControlsElement.dataset.deviceB = state.otherDevice;
+            }
+        });
     }
     
     async updatePingStatus() {
