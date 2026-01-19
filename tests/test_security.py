@@ -34,8 +34,7 @@ class TestInputValidation:
         ]
 
         for malicious_host in malicious_hosts:
-            config_path.write_text(
-                f"""
+            config_path.write_text(f"""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -54,8 +53,7 @@ devices:
     password: "test123"
     device_type: "cisco_ios"
     ping_host: "{malicious_host}"
-"""
-            )
+""")
 
             # Should raise ValueError due to invalid ping_host format
             try:
@@ -85,8 +83,7 @@ devices:
         ]
 
         for valid_host in valid_hosts:
-            config_path.write_text(
-                f"""
+            config_path.write_text(f"""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -105,8 +102,7 @@ devices:
     password: "test123"
     device_type: "cisco_ios"
     ping_host: "{valid_host}"
-"""
-            )
+""")
 
             # Should not raise an exception
             config = Config(str(config_path))
@@ -215,8 +211,7 @@ class TestPasswordSecurity:
     def test_password_from_environment_variable(self, tmp_path):
         """Test password retrieval from environment variable."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -234,8 +229,7 @@ devices:
     username: "admin"
     password_env_key: "TEST_DEVICE_PASSWORD"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         # Set environment variable
         os.environ["TEST_DEVICE_PASSWORD"] = "secret_password_123"
@@ -251,8 +245,7 @@ devices:
     def test_password_not_logged_or_exposed(self, tmp_path):
         """Test that passwords are not exposed in error messages."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -270,8 +263,7 @@ devices:
     username: "admin"
     password: "my_secret_password"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(config_path))
 
@@ -286,8 +278,7 @@ devices:
     def test_missing_password_raises_clear_error(self, tmp_path):
         """Test that missing password raises a clear error without exposing secrets."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -304,8 +295,7 @@ devices:
     port: 22
     username: "admin"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         # Should raise validation error
         try:
@@ -394,8 +384,7 @@ class TestDataValidationBoundaries:
     def test_minimum_interval_seconds(self, tmp_path):
         """Test minimum interval_seconds value."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 1
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -413,8 +402,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         # Should accept minimum valid value
         config = Config(str(config_path))
@@ -423,8 +411,7 @@ devices:
     def test_zero_interval_seconds_rejected(self, tmp_path):
         """Test that zero interval_seconds is rejected."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 0
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -442,8 +429,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         with pytest.raises(ValueError):
             Config(str(config_path))
@@ -451,8 +437,7 @@ devices:
     def test_negative_interval_seconds_rejected(self, tmp_path):
         """Test that negative interval_seconds is rejected."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: -5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -470,8 +455,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         with pytest.raises(ValueError):
             Config(str(config_path))
@@ -479,8 +463,7 @@ devices:
     def test_maximum_reasonable_values(self, tmp_path):
         """Test maximum reasonable configuration values."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 86400  # 1 day
 ping_interval_seconds: 3600  # 1 hour
 ping_window_seconds: 86400  # 1 day
@@ -498,8 +481,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         # Should accept large but reasonable values
         config = Config(str(config_path))
@@ -513,8 +495,7 @@ class TestSecureDefaults:
     def test_persistent_connections_default(self, tmp_path):
         """Test that persistent connections default is secure."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -532,8 +513,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(config_path))
         # Default should be True (persistent connections enabled)
@@ -542,8 +522,7 @@ devices:
     def test_websocket_disabled_by_default(self, tmp_path):
         """Test that WebSocket is disabled by default for security."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -561,8 +540,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         config = Config(str(config_path))
         # WebSocket should be disabled by default
@@ -593,8 +571,7 @@ class TestErrorMessageSecurity:
     def test_config_validation_error_messages(self, tmp_path, caplog):
         """Test that config validation errors are helpful but not leaky."""
         config_path = tmp_path / "config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 interval_seconds: 5
 ping_interval_seconds: 1
 ping_window_seconds: 60
@@ -612,8 +589,7 @@ devices:
     username: "admin"
     password: "test123"
     device_type: "cisco_ios"
-"""
-        )
+""")
 
         try:
             Config(str(config_path))

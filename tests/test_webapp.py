@@ -142,6 +142,11 @@ def test_get_runs(client):
     assert len(device_a_runs) > 0
     assert device_a_runs[0]["output_text"] == "Version 1.0"
 
+    # Check DeviceB run - should also have data
+    device_b_runs = data["runs"]["DeviceB"]
+    assert len(device_b_runs) > 0
+    assert device_b_runs[0]["output_text"] == "Version 2.0"
+
 
 def test_get_runs_limit_for_device(client):
     """Test limit parameter for runs per device."""
@@ -197,6 +202,73 @@ def test_get_runs_excludes_filtered(client):
     data = response.json()
     device_a_runs = data["runs"]["DeviceA"]
     assert all(run["is_filtered"] == 0 for run in device_a_runs)
+
+
+def test_device_with_all_filtered_runs(client):
+    """Test that a device with all filtered runs returns empty runs array."""
+    db = Database("data/current.sqlite3")
+
+    # Add a new device with only filtered runs
+    db.insert_run(
+        device_name="DeviceC",
+        command_text="show version",
+        ts_epoch=1000010,
+        output_text="% Invalid command",
+        ok=True,
+        is_filtered=True,  # This run is filtered
+        original_line_count=1,
+    )
+
+    db.insert_run(
+        device_name="DeviceC",
+        command_text="show version",
+        ts_epoch=1000011,
+        output_text="% Ambiguous command",
+        ok=True,
+        is_filtered=True,  # This run is also filtered
+        original_line_count=1,
+    )
+    db.close()
+
+    response = client.get("/api/runs/show%20version")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "DeviceC" in data["runs"]
+
+    # DeviceC should appear in the response but with an empty runs array
+    # since all its runs are filtered
+    device_c_runs = data["runs"]["DeviceC"]
+    assert len(device_c_runs) == 0
+
+
+def test_device_name_with_whitespace(client):
+    """Test that device names with whitespace are normalized."""
+    db = Database("data/current.sqlite3")
+
+    # Insert run with device name containing trailing whitespace
+    db.insert_run(
+        device_name="DeviceD ",  # Note trailing whitespace
+        command_text="show version",
+        ts_epoch=1000020,
+        output_text="Version 3.0",
+        ok=True,
+        duration_ms=120.0,
+        original_line_count=15,
+    )
+    db.close()
+
+    response = client.get("/api/runs/show%20version")
+    assert response.status_code == 200
+
+    data = response.json()
+    # Device name should be normalized (whitespace stripped)
+    assert "DeviceD" in data["runs"]
+
+    # Should be able to retrieve runs with or without whitespace
+    device_d_runs = data["runs"]["DeviceD"]
+    assert len(device_d_runs) == 1
+    assert device_d_runs[0]["output_text"] == "Version 3.0"
 
 
 def test_get_runs_single_device(client):

@@ -8,8 +8,7 @@ from shared.config import Config
 def test_config_new_structure(tmp_path, monkeypatch):
     """Ensure new config structure is parsed correctly."""
     cfg_path = Path(tmp_path) / "config.yaml"
-    cfg_path.write_text(
-        """
+    cfg_path.write_text("""
 interval_seconds: 7
 ping_interval_seconds: 2
 ping_window_seconds: 90
@@ -35,8 +34,7 @@ devices:
     username: "admin"
     password_env_key: "PW_A"
     device_type: "cisco_ios"
-"""
-    )
+""")
 
     monkeypatch.setenv("PW_A", "secret")
 

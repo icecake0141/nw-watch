@@ -108,14 +108,12 @@ def test_config_websocket_settings():
     try:
         # Write test config
         with open(config_path, "w") as f:
-            f.write(
-                """
+            f.write("""
 interval_seconds: 5
 websocket:
   enabled: true
   ping_interval: 30
-"""
-            )
+""")
 
         config = Config(config_path)
         assert config.get_websocket_enabled() is True
