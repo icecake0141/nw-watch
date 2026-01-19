@@ -31,7 +31,8 @@ dev = [
 license-files = ["LICENSE", "NOTICE"]
 
 [tool.setuptools.packages.find]
-include = ["collector*", "webapp*", "shared*"]
+where = ["src"]
+include = ["nw_watch*"]
 exclude = ["tests*", "data*"]
 
 [tool.pytest.ini_options]

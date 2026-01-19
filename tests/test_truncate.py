@@ -1,7 +1,7 @@
 """Tests for output truncation."""
 
 import pytest
-from shared.filters import truncate_output
+from nw_watch.shared.filters import truncate_output
 
 
 def test_truncate_output_no_truncation_needed():

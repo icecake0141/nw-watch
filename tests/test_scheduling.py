@@ -4,7 +4,7 @@ import pytest
 import time
 from pathlib import Path
 
-from shared.config import Config
+from nw_watch.shared.config import Config
 
 
 def test_command_interval_parsing(tmp_path, monkeypatch):

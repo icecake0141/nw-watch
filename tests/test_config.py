@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from shared.config import Config
+from nw_watch.shared.config import Config
 
 
 def test_config_new_structure(tmp_path, monkeypatch):

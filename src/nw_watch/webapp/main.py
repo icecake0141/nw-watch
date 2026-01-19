@@ -28,11 +28,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from shared.config import Config
-from shared.control_state import read_control_state, update_control_state
-from shared.db import Database
-from shared.diff import generate_side_by_side_diff, generate_inline_char_diff
-from shared.export import (
+from nw_watch.shared.config import Config
+from nw_watch.shared.control_state import read_control_state, update_control_state
+from nw_watch.shared.db import Database
+from nw_watch.shared.diff import generate_side_by_side_diff, generate_inline_char_diff
+from nw_watch.shared.export import (
     export_run_as_text,
     export_run_as_json,
     export_bulk_runs_as_json,
@@ -41,7 +41,7 @@ from shared.export import (
     export_diff_as_html,
     export_diff_as_text,
 )
-from webapp.websocket_manager import manager
+from nw_watch.webapp.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -151,8 +151,9 @@ async def add_security_headers(request: Request, call_next):
 
 
 # Setup templates and static files
-templates = Jinja2Templates(directory="webapp/templates")
-app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
+_webapp_dir = Path(__file__).parent
+templates = Jinja2Templates(directory=str(_webapp_dir / "templates"))
+app.mount("/static", StaticFiles(directory=str(_webapp_dir / "static")), name="static")
 
 DEFAULT_HISTORY_SIZE = 10
 DATABASE_PATH = Path("data/current.sqlite3")

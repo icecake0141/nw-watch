@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from shared.config import Config
-from shared.db import Database
-from webapp.main import sanitize_filename
+from nw_watch.shared.config import Config
+from nw_watch.shared.db import Database
+from nw_watch.webapp.main import sanitize_filename
 
 
 class TestInputValidation:

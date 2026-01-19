@@ -1,7 +1,7 @@
 """Tests for export utilities."""
 
 import json
-from shared.export import (
+from nw_watch.shared.export import (
     export_run_as_text,
     export_run_as_json,
     export_bulk_runs_as_json,

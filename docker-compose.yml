@@ -20,7 +20,7 @@ services:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
       - ./control:/app/control
-    command: python -m collector.main --config /app/config.yaml
+    command: python -m nw_watch.collector.main --config /app/config.yaml
     environment:
       # Add your device passwords here or use .env file
       - DEVICEA_PASSWORD=${DEVICEA_PASSWORD:-}
@@ -40,7 +40,7 @@ services:
       - ./data:/app/data:ro
       - ./config.yaml:/app/config.yaml:ro
       - ./control:/app/control
-    command: uvicorn webapp.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn nw_watch.webapp.main:app --host 0.0.0.0 --port 8000
     depends_on:
       - collector
     restart: unless-stopped

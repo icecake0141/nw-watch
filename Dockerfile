@@ -12,9 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project files
 COPY pyproject.toml ./
-COPY collector/ ./collector/
-COPY webapp/ ./webapp/
-COPY shared/ ./shared/
+COPY src/ ./src/
 COPY config.example.yaml ./
 
 # Install Python dependencies
@@ -33,4 +31,4 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 
 # Default command - can be overridden in docker-compose
-CMD ["uvicorn", "webapp.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "nw_watch.webapp.main:app", "--host", "0.0.0.0", "--port", "8000"]
