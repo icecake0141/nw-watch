@@ -203,8 +203,10 @@ If you prefer to run nw-watch locally without Docker:
 ### 1. Install Dependencies
 
 ```bash
-pip install -e ".[dev]"
+pip install .
 ```
+
+> **For Developers**: If you plan to contribute or modify the code, see the [Development](#development) section below for developer-specific installation instructions.
 
 ### 2. Configure Devices
 
@@ -545,12 +547,50 @@ The system uses SQLite with the following schema designed for efficient querying
   - Integration with other tools and workflows
   - Data portability and backup
 
-## Running Tests
+## Development
+
+### For Developers and Contributors
+
+If you plan to contribute to nw-watch or modify the source code, follow these setup instructions:
+
+#### 1. Install in Development Mode
+
+Install the package in editable mode with development dependencies:
 
 ```bash
-# Install with dev dependencies
 pip install -e ".[dev]"
+```
 
+**What this does:**
+- `-e` flag: Installs the package in "editable" mode, so changes to the source code are immediately reflected without reinstalling
+- `.[dev]`: Installs the package from the current directory with the optional `dev` dependencies (pytest, pytest-asyncio, httpx)
+
+**Development dependencies include:**
+- `pytest` - Testing framework
+- `pytest-asyncio` - Async testing support
+- `httpx` - HTTP client for testing API endpoints
+
+#### 2. Set Up Your Environment
+
+It's recommended to use a virtual environment:
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+
+# Install in development mode
+pip install -e ".[dev]"
+```
+
+#### 3. Running Tests
+
+```bash
 # Run all tests
 pytest
 
@@ -563,8 +603,6 @@ pytest -v
 # Run with coverage
 pytest --cov=shared --cov=collector --cov=webapp
 ```
-
-## Development
 
 ### Adding New Device Types
 
