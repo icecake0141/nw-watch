@@ -50,6 +50,7 @@ class NetworkWatch {
         // Diff state preservation
         // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
         this.diffStates = {};
+        this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
         
         this.init();
     }
@@ -834,7 +835,7 @@ class NetworkWatch {
         const diffOutput = document.createElement('div');
         diffOutput.className = 'diff-output';
         diffOutput.id = `diff-${device}`;
-        diffOutput.textContent = 'Click a button above to view diff';
+        diffOutput.textContent = this.DIFF_PLACEHOLDER_TEXT;
         section.appendChild(diffOutput);
         
         // Diff export controls
@@ -934,20 +935,23 @@ class NetworkWatch {
             });
             
             // Save the diff state for both devices
-            const isHtml = diffOutputs[0] && diffOutputs[0].classList.contains('diff-output-html');
-            const content = diffOutputs[0] ? diffOutputs[0].innerHTML : '';
-            
-            [deviceA, deviceB].forEach(device => {
-                const stateKey = `${command}:${device}`;
-                this.diffStates[stateKey] = {
-                    type: 'device',
-                    content: content,
-                    isHtml: isHtml,
-                    otherDevice: device === deviceA ? deviceB : deviceA,
-                    command: command,
-                    device: device
-                };
-            });
+            // Only save if we have valid diff output
+            if (diffOutputs && diffOutputs.length > 0 && diffOutputs[0]) {
+                const isHtml = diffOutputs[0].classList.contains('diff-output-html');
+                const content = diffOutputs[0].innerHTML;
+                
+                [deviceA, deviceB].forEach(device => {
+                    const stateKey = `${command}:${device}`;
+                    this.diffStates[stateKey] = {
+                        type: 'device',
+                        content: content,
+                        isHtml: isHtml,
+                        otherDevice: device === deviceA ? deviceB : deviceA,
+                        command: command,
+                        device: device
+                    };
+                });
+            }
         } catch (error) {
             console.error('Error loading device diff:', error);
         }
@@ -1052,10 +1056,15 @@ class NetworkWatch {
             }
             
             // Check if there's actual diff content (not just the placeholder text)
-            const hasContent = diffOutputElement.textContent !== 'Click a button above to view diff' &&
+            const hasContent = diffOutputElement.textContent !== this.DIFF_PLACEHOLDER_TEXT &&
                                diffOutputElement.innerHTML.trim().length > 0;
             
-            if (hasContent && exportControlsElement.style.display !== 'none') {
+            // Check if export controls are visible (more robust check)
+            const isVisible = exportControlsElement.style.display === 'block' ||
+                            (exportControlsElement.style.display !== 'none' && 
+                             exportControlsElement.offsetParent !== null);
+            
+            if (hasContent && isVisible) {
                 const stateKey = `${command}:${device}`;
                 const diffType = exportControlsElement.dataset.diffType;
                 const otherDevice = exportControlsElement.dataset.deviceB;
