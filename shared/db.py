@@ -110,13 +110,20 @@ class Database:
         self.conn.commit()
 
     def get_or_create_device(self, name: str) -> int:
-        """Get or create device, return device ID."""
+        """Get or create device, return device ID.
+        
+        Note: Device names are normalized by stripping whitespace to avoid
+        issues with config files containing trailing/leading spaces.
+        """
+        # Normalize device name by stripping whitespace
+        normalized_name = name.strip()
+        
         cursor = self.conn.cursor()
-        cursor.execute("SELECT id FROM devices WHERE name = ?", (name,))
+        cursor.execute("SELECT id FROM devices WHERE name = ?", (normalized_name,))
         row = cursor.fetchone()
         if row:
             return row[0]
-        cursor.execute("INSERT INTO devices (name) VALUES (?)", (name,))
+        cursor.execute("INSERT INTO devices (name) VALUES (?)", (normalized_name,))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -230,7 +237,13 @@ class Database:
         limit: int = 10,
         include_filtered: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Get latest runs for a device/command combination."""
+        """Get latest runs for a device/command combination.
+        
+        Note: Device names are normalized by stripping whitespace.
+        """
+        # Normalize device name by stripping whitespace
+        normalized_name = device_name.strip()
+        
         cursor = self.conn.cursor()
         sql = """
             SELECT r.* FROM runs r
@@ -238,7 +251,7 @@ class Database:
             JOIN commands c ON r.command_id = c.id
             WHERE d.name = ? AND c.command_text = ?
         """
-        params: List[Any] = [device_name, command_text]
+        params: List[Any] = [normalized_name, command_text]
         if not include_filtered:
             sql += " AND r.is_filtered = 0"
         sql += " ORDER BY r.ts_epoch DESC LIMIT ?"
@@ -271,7 +284,13 @@ class Database:
         return [row[0] for row in cursor.fetchall()]
 
     def get_ping_samples(self, device_name: str, since_ts: int) -> List[Dict[str, Any]]:
-        """Get ping samples for a device since a given timestamp."""
+        """Get ping samples for a device since a given timestamp.
+        
+        Note: Device names are normalized by stripping whitespace.
+        """
+        # Normalize device name by stripping whitespace
+        normalized_name = device_name.strip()
+        
         cursor = self.conn.cursor()
         cursor.execute(
             """
@@ -280,7 +299,7 @@ class Database:
             WHERE d.name = ? AND p.ts_epoch >= ?
             ORDER BY p.ts_epoch DESC
         """,
-            (device_name, since_ts),
+            (normalized_name, since_ts),
         )
 
         rows = cursor.fetchall()

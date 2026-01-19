@@ -242,6 +242,35 @@ def test_device_with_all_filtered_runs(client):
     assert len(device_c_runs) == 0
 
 
+def test_device_name_with_whitespace(client):
+    """Test that device names with whitespace are normalized."""
+    db = Database("data/current.sqlite3")
+    
+    # Insert run with device name containing trailing whitespace
+    db.insert_run(
+        device_name="DeviceD ",  # Note trailing whitespace
+        command_text="show version",
+        ts_epoch=1000020,
+        output_text="Version 3.0",
+        ok=True,
+        duration_ms=120.0,
+        original_line_count=15,
+    )
+    db.close()
+    
+    response = client.get("/api/runs/show%20version")
+    assert response.status_code == 200
+    
+    data = response.json()
+    # Device name should be normalized (whitespace stripped)
+    assert "DeviceD" in data["runs"]
+    
+    # Should be able to retrieve runs with or without whitespace
+    device_d_runs = data["runs"]["DeviceD"]
+    assert len(device_d_runs) == 1
+    assert device_d_runs[0]["output_text"] == "Version 3.0"
+
+
 def test_get_runs_single_device(client):
     """Test getting runs for single device."""
     response = client.get("/api/runs/show%20version?device=DeviceA")
