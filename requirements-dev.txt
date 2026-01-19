@@ -4,10 +4,10 @@
 # This file provides pinned versions for reproducible developer environments.
 # The source-of-truth for dev dependencies is pyproject.toml [project.optional-dependencies.dev]
 #
-# To update these pins, run:
-#   pip install -e ".[dev]"
-#   pip freeze | grep -E "(pytest|httpx|iniconfig|pluggy|httpcore|anyio|certifi|h11|idna)" > requirements-dev.txt
-# Then manually verify and organize the output.
+# To update these pins:
+# 1. Install in a clean environment: pip install -e ".[dev]"
+# 2. Get pinned versions: pip freeze | grep -E "(pytest|httpx|iniconfig|pluggy|httpcore|anyio|certifi|h11|idna)"
+# 3. Manually update the version numbers below while preserving comments and structure
 
 # Testing framework
 pytest==9.0.2
