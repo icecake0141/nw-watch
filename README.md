@@ -204,7 +204,7 @@ If you prefer to run nw-watch locally without Docker:
 ### 1. Install Dependencies
 
 ```bash
-pip install -e ".[dev]"
+pip install .
 ```
 
 ### 2. Configure Devices
@@ -547,12 +547,27 @@ The system uses SQLite with the following schema designed for efficient querying
   - Integration with other tools and workflows
   - Data portability and backup
 
-## Running Tests
+## Development
+
+### For Contributors and Developers
+
+If you want to contribute to nw-watch or modify the source code, follow these steps:
+
+#### 1. Install with Development Dependencies
+
+Install the package in editable mode with development dependencies:
 
 ```bash
-# Install with dev dependencies
 pip install -e ".[dev]"
+```
 
+This installs:
+- The package in editable mode (`-e` flag) so changes to source code are immediately reflected
+- Development dependencies (`[dev]` extras): pytest, pytest-asyncio, httpx, etc.
+
+#### 2. Running Tests
+
+```bash
 # Run all tests
 pytest
 
@@ -565,8 +580,6 @@ pytest -v
 # Run with coverage
 pytest --cov=shared --cov=collector --cov=webapp
 ```
-
-## Development
 
 ### Adding New Device Types
 
