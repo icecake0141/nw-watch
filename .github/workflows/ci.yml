@@ -81,7 +81,7 @@ jobs:
     
     - name: Install test dependencies for validation
       run: |
-        python -m pip install pytest pytest-asyncio httpx
+        python -m pip install -r requirements-dev.txt
     
     - name: Run tests with installed package
       run: |
