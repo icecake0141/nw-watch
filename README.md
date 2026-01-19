@@ -107,6 +107,7 @@ graph LR
   - **Cross-Device Diff**: Compare outputs between different devices for the same command
   - HTML-based side-by-side comparison with color-coded changes
   - Export diffs (HTML/Text)
+  - Diff views persist across auto-refresh cycles, maintaining visibility while data updates
 - **Auto-Refresh Control**: Pause/resume auto-refresh with manual refresh option
 - **JST Timezone Display**: All timestamps displayed in Japan Standard Time (UTC+9)
 - **Data Export**: Export command outputs, diffs, and ping data for offline analysis
@@ -514,6 +515,7 @@ The system uses SQLite with the following schema designed for efficient querying
 - **Previous vs Latest**: Compare consecutive runs for the same device
 - **Device A vs Device B**: Compare outputs between devices
 - Highlighted line-level differences (green/red)
+- Diffs remain visible across auto-refresh cycles for continuous monitoring
 
 ### Auto-Refresh Control
 - Pause/Resume button to stop automatic updates (on-screen banner when paused)
