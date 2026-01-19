@@ -203,10 +203,12 @@ If you prefer to run nw-watch locally without Docker:
 ### 1. Install Dependencies
 
 ```bash
-pip install .
+python -m pip install .
 ```
 
 > **For Developers**: If you plan to contribute or modify the code, see the [Development](#development) section below for developer-specific installation instructions.
+>
+> **Why not use `-e` or `.[dev]`?** End users don't need editable installs or development dependencies (test tools, linters). Using `pip install .` installs only the runtime dependencies, improving security, stability, and reproducibility.
 
 ### 2. Configure Devices
 
@@ -553,12 +555,52 @@ The system uses SQLite with the following schema designed for efficient querying
 
 If you plan to contribute to nw-watch or modify the source code, follow these setup instructions:
 
-#### 1. Install in Development Mode
+#### 1. Create and Activate a Virtual Environment
+
+It's strongly recommended to use a virtual environment:
+
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# On Linux/macOS:
+source .venv/bin/activate
+
+# On Windows:
+.venv\Scripts\activate
+```
+
+#### 2. Upgrade pip and Build Tools
+
+Ensure you have the latest pip with PEP 660 support (required for editable installs):
+
+```bash
+python -m pip install --upgrade pip setuptools wheel
+```
+
+**Note:** Editable installs require pip 21.3+ with PEP 660 support. If you encounter installation errors, please upgrade pip.
+
+#### 3. Install Development Dependencies
+
+You have two options for installing development dependencies:
+
+**Option A: Reproducible environment (recommended for consistency)**
+
+Use the pinned requirements file for a reproducible development environment:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+This ensures all developers and CI use the same dependency versions.
+
+**Option B: Editable install (for active development)**
 
 Install the package in editable mode with development dependencies:
 
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 **What this does:**
@@ -570,25 +612,9 @@ pip install -e ".[dev]"
 - `pytest-asyncio` - Async testing support
 - `httpx` - HTTP client for testing API endpoints
 
-#### 2. Set Up Your Environment
+See `requirements-dev.txt` for pinned versions.
 
-It's recommended to use a virtual environment:
-
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Linux/macOS:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install in development mode
-pip install -e ".[dev]"
-```
-
-#### 3. Running Tests
+#### 4. Running Tests
 
 ```bash
 # Run all tests
@@ -602,6 +628,24 @@ pytest -v
 
 # Run with coverage
 pytest --cov=shared --cov=collector --cov=webapp
+```
+
+#### 5. Code Quality Tools
+
+Run these commands before committing to ensure code quality:
+
+```bash
+# Check code formatting with black
+black --check --diff .
+
+# Format code with black
+black .
+
+# Run linter (flake8)
+flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+# Type checking with mypy (if installed)
+mypy --install-types --non-interactive --ignore-missing-imports collector webapp shared
 ```
 
 ### Adding New Device Types

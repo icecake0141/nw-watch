@@ -190,10 +190,12 @@ Dockerを使用せずにnw-watchをローカルで実行する場合:
 ### 1. 依存関係をインストール
 
 ```bash
-pip install .
+python -m pip install .
 ```
 
 > **開発者向け**: コードの変更や貢献を予定している場合は、以下の[開発](#開発)セクションを参照して、開発者向けのインストール手順を確認してください。
+>
+> **なぜ `-e` や `.[dev]` を使用しないのか?** エンドユーザーは編集可能インストールや開発依存関係（テストツール、リンター）を必要としません。`pip install .` を使用すると、ランタイム依存関係のみがインストールされ、セキュリティ、安定性、再現性が向上します。
 
 ### 2. デバイス設定
 
@@ -536,12 +538,52 @@ commands:
 
 nw-watchへの貢献やソースコードの変更を予定している場合は、以下のセットアップ手順に従ってください:
 
-#### 1. 開発モードでインストール
+#### 1. 仮想環境の作成と有効化
+
+仮想環境の使用を強く推奨します:
+
+```bash
+# 仮想環境を作成
+python -m venv .venv
+
+# 仮想環境を有効化
+# Linux/macOSの場合:
+source .venv/bin/activate
+
+# Windowsの場合:
+.venv\Scripts\activate
+```
+
+#### 2. pipとビルドツールのアップグレード
+
+編集可能インストールに必要なPEP 660サポートを含む最新のpipを確保します:
+
+```bash
+python -m pip install --upgrade pip setuptools wheel
+```
+
+**注意:** 編集可能インストールにはPEP 660サポートを備えたpip 21.3+が必要です。インストールエラーが発生した場合は、pipをアップグレードしてください。
+
+#### 3. 開発依存関係のインストール
+
+開発依存関係をインストールするには2つのオプションがあります:
+
+**オプションA: 再現可能な環境（一貫性のため推奨）**
+
+固定された要件ファイルを使用して再現可能な開発環境を構築します:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+これにより、すべての開発者とCIが同じ依存関係バージョンを使用することが保証されます。
+
+**オプションB: 編集可能インストール（アクティブな開発用）**
 
 編集可能モードで開発依存関係を含めてパッケージをインストールします:
 
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 **これの意味:**
@@ -553,25 +595,9 @@ pip install -e ".[dev]"
 - `pytest-asyncio` - 非同期テストサポート
 - `httpx` - APIエンドポイントをテストするためのHTTPクライアント
 
-#### 2. 環境のセットアップ
+固定バージョンについては `requirements-dev.txt` を参照してください。
 
-仮想環境の使用を推奨します:
-
-```bash
-# 仮想環境を作成
-python -m venv venv
-
-# 仮想環境を有効化
-# Linux/macOSの場合:
-source venv/bin/activate
-# Windowsの場合:
-venv\Scripts\activate
-
-# 開発モードでインストール
-pip install -e ".[dev]"
-```
-
-#### 3. テスト実行
+#### 4. テスト実行
 
 ```bash
 # すべてのテストを実行
@@ -585,6 +611,24 @@ pytest -v
 
 # カバレッジ付き
 pytest --cov=shared --cov=collector --cov=webapp
+```
+
+#### 5. コード品質ツール
+
+コミット前にコード品質を確保するため、これらのコマンドを実行してください:
+
+```bash
+# blackでコードフォーマットをチェック
+black --check --diff .
+
+# blackでコードをフォーマット
+black .
+
+# リンター（flake8）を実行
+flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+# mypyで型チェック（インストール済みの場合）
+mypy --install-types --non-interactive --ignore-missing-imports collector webapp shared
 ```
 
 ### 新しいデバイスタイプの追加
