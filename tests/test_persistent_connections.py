@@ -381,7 +381,7 @@ devices:
         collector = DeviceCollector(device_config, config)
 
         # Mock the connection
-        with patch("collector.main.ConnectHandler") as mock_handler:
+        with patch("nw_watch.collector.main.ConnectHandler") as mock_handler:
             mock_connection = MagicMock()
             mock_connection.send_command.return_value = "Version output"
             mock_connection.find_prompt.return_value = "Router#"
@@ -430,7 +430,7 @@ devices:
         collector = DeviceCollector(device_config, config)
 
         # Mock the connection
-        with patch("collector.main.ConnectHandler") as mock_handler:
+        with patch("nw_watch.collector.main.ConnectHandler") as mock_handler:
             mock_connection = MagicMock()
             mock_connection.send_command.return_value = "Version output"
             mock_handler.return_value = mock_connection

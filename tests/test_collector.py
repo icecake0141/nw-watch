@@ -84,8 +84,8 @@ devices:
 
         os.environ["TEST_PASSWORD"] = "test"
 
-        with patch("collector.main.asyncio.run") as mock_asyncio_run:
-            with patch("collector.main.signal.signal") as mock_signal:
+        with patch("nw_watch.collector.main.asyncio.run") as mock_asyncio_run:
+            with patch("nw_watch.collector.main.signal.signal") as mock_signal:
                 with patch("sys.argv", ["collector", "--config", str(cfg_path)]):
                     # Mock asyncio.run to return immediately instead of running the loop
                     mock_asyncio_run.return_value = None
@@ -136,7 +136,7 @@ devices:
 
         os.environ["TEST_PASSWORD"] = "test"
 
-        with patch("collector.main.asyncio.run") as mock_asyncio_run:
+        with patch("nw_watch.collector.main.asyncio.run") as mock_asyncio_run:
             with patch("sys.argv", ["collector", "--config", str(cfg_path)]):
                 # Mock asyncio.run to return immediately
                 mock_asyncio_run.return_value = None

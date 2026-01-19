@@ -188,9 +188,7 @@ class TestDockerBuildProcess:
                 timeout=30,
             )
             output = result.stdout.decode()
-            assert "collector" in output, "Image should contain collector directory"
-            assert "webapp" in output, "Image should contain webapp directory"
-            assert "shared" in output, "Image should contain shared directory"
+            assert "src" in output, "Image should contain src directory"
             assert "data" in output, "Image should contain data directory"
         except subprocess.TimeoutExpired:
             pytest.fail("Docker run command timed out")
@@ -211,15 +209,17 @@ class TestDockerComposeConfiguration:
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
         assert (
-            "python -m collector.main" in content
-        ), "Collector should run collector.main"
+            "python -m nw_watch.collector.main" in content
+        ), "Collector should run nw_watch.collector.main"
         assert "--config" in content, "Collector should use config file"
 
     def test_docker_compose_webapp_command(self):
         """Test that webapp service has correct command."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert "uvicorn webapp.main:app" in content, "Webapp should run via uvicorn"
+        assert (
+            "uvicorn nw_watch.webapp.main:app" in content
+        ), "Webapp should run via uvicorn"
         assert "--host 0.0.0.0" in content, "Webapp should listen on all interfaces"
 
     def test_docker_compose_has_restart_policy(self):

@@ -151,8 +151,9 @@ async def add_security_headers(request: Request, call_next):
 
 
 # Setup templates and static files
-templates = Jinja2Templates(directory="webapp/templates")
-app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
+_webapp_dir = Path(__file__).parent
+templates = Jinja2Templates(directory=str(_webapp_dir / "templates"))
+app.mount("/static", StaticFiles(directory=str(_webapp_dir / "static")), name="static")
 
 DEFAULT_HISTORY_SIZE = 10
 DATABASE_PATH = Path("data/current.sqlite3")

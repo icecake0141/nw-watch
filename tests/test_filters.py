@@ -1,7 +1,11 @@
 """Tests for filtering functionality."""
 
 import pytest
-from nw_watch.shared.filters import apply_line_filters, check_output_filtered, process_output
+from nw_watch.shared.filters import (
+    apply_line_filters,
+    check_output_filtered,
+    process_output,
+)
 
 
 def test_apply_line_filters_empty_exclusions():
