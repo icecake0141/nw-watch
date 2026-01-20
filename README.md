@@ -203,8 +203,19 @@ If you prefer to run nw-watch locally without Docker:
 
 ### 1. Install Dependencies
 
+For production use:
 ```bash
 pip install .
+```
+
+For development (editable install):
+```bash
+pip install -e .
+```
+
+Or with development dependencies:
+```bash
+pip install -e ".[dev]"
 ```
 
 ### 2. Configure Devices
