@@ -150,7 +150,7 @@ class TestStartupWithValidConfig:
         """Test that collector can start with a valid config (and exit quickly)."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             config_path = Path(tmp_dir) / "test_config.yaml"
-            config_path.write_text("""
+            config_path.write_text("""\
 interval_seconds: 5
 ping_interval_seconds: 1
 history_size: 10

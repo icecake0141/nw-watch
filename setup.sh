@@ -23,15 +23,14 @@ echo ""
 
 # Check Python version
 echo "Checking Python version..."
-python_version=$(python3 --version 2>&1 | awk '{print $2}')
-required_version="3.11"
-
 if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"; then
-    echo "Error: Python $required_version or higher is required."
+    python_version=$(python3 --version 2>&1 | awk '{print $2}')
+    echo "Error: Python 3.11 or higher is required."
     echo "Current version: $python_version"
     exit 1
 fi
 
+python_version=$(python3 --version 2>&1 | awk '{print $2}')
 echo "✓ Python $python_version found"
 echo ""
 
