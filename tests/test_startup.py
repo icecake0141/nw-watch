@@ -27,8 +27,9 @@ class TestModuleImport:
         """Test that nw_watch.collector.main can be imported."""
         try:
             import nw_watch.collector.main
-            assert hasattr(nw_watch.collector.main, 'main')
-            assert hasattr(nw_watch.collector.main, 'Collector')
+
+            assert hasattr(nw_watch.collector.main, "main")
+            assert hasattr(nw_watch.collector.main, "Collector")
         except ModuleNotFoundError as e:
             pytest.fail(f"Failed to import nw_watch.collector.main: {e}")
 
@@ -36,26 +37,27 @@ class TestModuleImport:
         """Test that nw_watch.webapp.main can be imported."""
         try:
             import nw_watch.webapp.main
-            assert hasattr(nw_watch.webapp.main, 'app')
+
+            assert hasattr(nw_watch.webapp.main, "app")
         except ModuleNotFoundError as e:
             pytest.fail(f"Failed to import nw_watch.webapp.main: {e}")
 
     def test_all_submodules_can_be_imported(self):
         """Test that all main submodules can be imported."""
         modules = [
-            'nw_watch',
-            'nw_watch.collector',
-            'nw_watch.collector.main',
-            'nw_watch.webapp',
-            'nw_watch.webapp.main',
-            'nw_watch.shared',
-            'nw_watch.shared.config',
-            'nw_watch.shared.db',
-            'nw_watch.shared.diff',
-            'nw_watch.shared.export',
-            'nw_watch.shared.filters',
+            "nw_watch",
+            "nw_watch.collector",
+            "nw_watch.collector.main",
+            "nw_watch.webapp",
+            "nw_watch.webapp.main",
+            "nw_watch.shared",
+            "nw_watch.shared.config",
+            "nw_watch.shared.db",
+            "nw_watch.shared.diff",
+            "nw_watch.shared.export",
+            "nw_watch.shared.filters",
         ]
-        
+
         for module_name in modules:
             try:
                 __import__(module_name)
@@ -72,7 +74,7 @@ class TestModuleExecution:
             [sys.executable, "-m", "nw_watch.collector.main", "--help"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         assert result.returncode == 0, f"Collector --help failed: {result.stderr}"
         assert "usage:" in result.stdout.lower(), "Help message should contain usage"
@@ -84,7 +86,7 @@ class TestModuleExecution:
             [sys.executable, "-m", "nw_watch.collector.main"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         assert result.returncode != 0, "Should fail without --config"
         assert "required" in result.stderr.lower() or "error" in result.stderr.lower()
@@ -94,10 +96,16 @@ class TestModuleExecution:
         with tempfile.TemporaryDirectory() as tmp_dir:
             nonexistent_config = Path(tmp_dir) / "nonexistent.yaml"
             result = subprocess.run(
-                [sys.executable, "-m", "nw_watch.collector.main", "--config", str(nonexistent_config)],
+                [
+                    sys.executable,
+                    "-m",
+                    "nw_watch.collector.main",
+                    "--config",
+                    str(nonexistent_config),
+                ],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             assert result.returncode != 0, "Should fail with non-existent config file"
 
@@ -108,7 +116,7 @@ class TestModuleExecution:
             [sys.executable, "-c", "import nw_watch.webapp.main; print('OK')"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         assert result.returncode == 0, f"Failed to load webapp.main: {result.stderr}"
         assert "OK" in result.stdout
@@ -120,13 +128,16 @@ class TestPackageStructure:
     def test_package_has_init_files(self):
         """Test that all package directories have __init__.py files."""
         import nw_watch
+
         package_root = Path(nw_watch.__file__).parent
-        
+
         # Check main package init
-        assert (package_root / "__init__.py").exists(), "nw_watch/__init__.py should exist"
-        
+        assert (
+            package_root / "__init__.py"
+        ).exists(), "nw_watch/__init__.py should exist"
+
         # Check subpackages
-        subpackages = ['collector', 'webapp', 'shared']
+        subpackages = ["collector", "webapp", "shared"]
         for subpkg in subpackages:
             init_file = package_root / subpkg / "__init__.py"
             assert init_file.exists(), f"nw_watch/{subpkg}/__init__.py should exist"
@@ -137,7 +148,7 @@ class TestPackageStructure:
             [sys.executable, "-m", "pip", "show", "nw-watch"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         assert result.returncode == 0, "Package nw-watch should be installed"
         assert "nw-watch" in result.stdout.lower()
@@ -167,34 +178,50 @@ devices:
     password_env_key: "TEST_PASSWORD"
     device_type: "cisco_ios"
 """)
-            
+
             # Set environment variable
             env = os.environ.copy()
             env["TEST_PASSWORD"] = "test"
-            
+
             # Start collector with timeout - it should initialize without errors
             # We'll kill it after a second since we're just testing startup
             try:
                 result = subprocess.run(
-                    [sys.executable, "-m", "nw_watch.collector.main", "--config", str(config_path)],
+                    [
+                        sys.executable,
+                        "-m",
+                        "nw_watch.collector.main",
+                        "--config",
+                        str(config_path),
+                    ],
                     capture_output=True,
                     text=True,
                     timeout=2,
                     env=env,
-                    cwd=tmp_dir
+                    cwd=tmp_dir,
                 )
                 # If it completed, check for errors
                 if result.returncode != 0:
                     stderr_lower = result.stderr.lower()
-                    assert "modulenotfounderror" not in stderr_lower, f"Module import failed: {result.stderr}"
-                    assert "no module named" not in stderr_lower, f"Module import failed: {result.stderr}"
+                    assert (
+                        "modulenotfounderror" not in stderr_lower
+                    ), f"Module import failed: {result.stderr}"
+                    assert (
+                        "no module named" not in stderr_lower
+                    ), f"Module import failed: {result.stderr}"
             except subprocess.TimeoutExpired as e:
                 # This is expected - the collector runs indefinitely
                 # Check that startup messages were logged (no import errors)
                 stderr = e.stderr.decode() if e.stderr else ""
                 stderr_lower = stderr.lower()
-                assert "modulenotfounderror" not in stderr_lower, f"Module import failed: {stderr}"
-                assert "no module named" not in stderr_lower, f"Module import failed: {stderr}"
+                assert (
+                    "modulenotfounderror" not in stderr_lower
+                ), f"Module import failed: {stderr}"
+                assert (
+                    "no module named" not in stderr_lower
+                ), f"Module import failed: {stderr}"
                 # Verify that it actually started successfully
-                assert "created session database" in stderr_lower or "created devicecollector" in stderr_lower, \
-                    f"Collector didn't start properly: {stderr}"
+                assert (
+                    "created session database" in stderr_lower
+                    or "created devicecollector" in stderr_lower
+                ), f"Collector didn't start properly: {stderr}"
