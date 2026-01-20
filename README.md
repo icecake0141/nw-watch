@@ -918,10 +918,23 @@ docker-compose up -d
 ##### Container keeps restarting
 - Check logs for errors: `docker-compose logs -f collector`
 - Verify config.yaml is valid YAML
-- Ensure all required environment variables are set
+- Ensure all required environment variables are set (e.g., device passwords)
 - Check if there are any network issues preventing SSH connections
+- **Important**: If the collector has a configuration error or can't find the config file, it will now exit with a non-zero code and stop (not restart endlessly). Check the logs to see the error message.
 
 #### Local Installation Issues
+
+##### ModuleNotFoundError: No module named 'nw_watch'
+- **Cause**: The package is not installed
+- **Solution**: Run the installation command:
+  ```bash
+  pip install -e .
+  ```
+  Or use the setup script:
+  ```bash
+  ./setup.sh
+  ```
+- **Note**: Simply cloning the repository is not enough. The package must be installed using pip.
 
 ##### Collector won't connect to device
 - Verify SSH credentials
