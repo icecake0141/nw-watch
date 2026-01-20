@@ -594,10 +594,12 @@ def main():
         logger.info("Collector stopped by user")
         if collector:
             collector.stop()
+        sys.exit(0)
     except Exception as e:
         logger.error(f"Collector error: {e}", exc_info=True)
         if collector:
             collector.stop()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
