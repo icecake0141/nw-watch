@@ -82,8 +82,7 @@ devices:
                     pass
                 finally:
                     # Restore original handler
-                    if original_add_signal_handler:
-                        loop.add_signal_handler = original_add_signal_handler
+                    loop.add_signal_handler = original_add_signal_handler
 
             # Verify all three signals were registered
             assert signal.SIGTERM in registered_signals, "SIGTERM should be registered"

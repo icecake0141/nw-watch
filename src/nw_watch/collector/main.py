@@ -601,9 +601,11 @@ async def async_main(config_path: str):
             )
             if collector:
                 collector.running = False
-                # Cancel all pending tasks to force immediate shutdown
+                # Cancel all pending tasks except the current one to force immediate shutdown
+                current_task = asyncio.current_task(loop)
                 for task in asyncio.all_tasks(loop):
-                    task.cancel()
+                    if task != current_task:
+                        task.cancel()
 
         # Register signal handlers for SIGTERM, SIGINT, and SIGHUP
         for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
