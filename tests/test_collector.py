@@ -250,8 +250,6 @@ devices:
                 device_collector.execute_command = make_mock(device_name)
 
             # Run collect_commands once
-            import asyncio
-
             asyncio.run(collector.collect_commands())
 
             # Verify that commands were executed for BOTH devices
