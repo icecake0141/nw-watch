@@ -1,10 +1,22 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for collector graceful shutdown."""
 
+import asyncio
 import os
 import signal
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from nw_watch.collector.main import Collector, main
 from nw_watch.shared.config import Config
@@ -178,3 +190,94 @@ devices:
                                 mock_exit.assert_called_once_with(0)
                 finally:
                     os.chdir(original_cwd)
+
+
+def test_multi_device_command_execution():
+    """Test that commands are executed for all devices, not just the first one.
+
+    This is a regression test for the bug where command_next_run is indexed
+    only by command name, causing second device commands to be skipped.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ping_interval_seconds: 1
+history_size: 10
+max_output_lines: 500
+
+commands:
+  - name: "show_version"
+    command_text: "show version"
+  - name: "show_interfaces"
+    command_text: "show interfaces"
+
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+  - name: "DeviceB"
+    host: "192.168.1.2"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+
+        config = Config(str(cfg_path))
+
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(tmp_dir)
+
+            collector = Collector(config)
+
+            # Mock execute_command to track calls
+            execution_log = []
+
+            # Patch execute_command for all device collectors
+            for device_name, device_collector in collector.device_collectors.items():
+                # Create a closure to capture device_name
+                def make_mock(dev_name):
+                    def mock_exec(command, db):
+                        execution_log.append({"device": dev_name, "command": command})
+
+                    return mock_exec
+
+                device_collector.execute_command = make_mock(device_name)
+
+            # Run collect_commands once
+            asyncio.run(collector.collect_commands())
+
+            # Verify that commands were executed for BOTH devices
+            # Expected: 2 devices × 2 commands = 4 executions
+            assert (
+                len(execution_log) == 4
+            ), f"Expected 4 executions, got {len(execution_log)}"
+
+            # Verify DeviceA executions
+            devicea_execs = [e for e in execution_log if e["device"] == "DeviceA"]
+            assert (
+                len(devicea_execs) == 2
+            ), f"DeviceA should have 2 executions, got {len(devicea_execs)}"
+
+            # Verify DeviceB executions (this is the bug - it would be 0)
+            deviceb_execs = [e for e in execution_log if e["device"] == "DeviceB"]
+            assert (
+                len(deviceb_execs) == 2
+            ), f"DeviceB should have 2 executions, got {len(deviceb_execs)}"
+
+            # Verify all commands were executed
+            commands_executed = {e["command"] for e in execution_log}
+            assert "show version" in commands_executed
+            assert "show interfaces" in commands_executed
+
+            collector.stop()
+
+        finally:
+            os.chdir(original_cwd)
+            if "TEST_PASSWORD" in os.environ:
+                del os.environ["TEST_PASSWORD"]
