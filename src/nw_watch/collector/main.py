@@ -443,14 +443,14 @@ class Collector:
                         self.executor, collector.execute_command, command, self.db
                     )
                     futures.append(future)
-                    
+
                     # Track that this command was executed (will update schedule after all devices)
                     commands_executed.add(command)
 
         # Wait for all commands to complete
         if futures:
             await asyncio.gather(*futures, return_exceptions=True)
-        
+
         # Update next run times for commands that were executed
         # This must happen AFTER all devices have run the command
         for command in commands_executed:
