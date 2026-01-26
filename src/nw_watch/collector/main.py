@@ -431,6 +431,7 @@ class Collector:
         loop = asyncio.get_event_loop()
         futures = []
         now = time.time()
+        commands_executed = set()  # Track which commands were executed
 
         for device_name, collector in self.device_collectors.items():
             for command in self.commands:
@@ -442,14 +443,19 @@ class Collector:
                         self.executor, collector.execute_command, command, self.db
                     )
                     futures.append(future)
-
-                    # Update next run time using cached interval
-                    interval = self.command_intervals.get(command, self.global_interval)
-                    self.command_next_run[command] = now + interval
+                    
+                    # Track that this command was executed (will update schedule after all devices)
+                    commands_executed.add(command)
 
         # Wait for all commands to complete
         if futures:
             await asyncio.gather(*futures, return_exceptions=True)
+        
+        # Update next run times for commands that were executed
+        # This must happen AFTER all devices have run the command
+        for command in commands_executed:
+            interval = self.command_intervals.get(command, self.global_interval)
+            self.command_next_run[command] = now + interval
 
         # Atomically update current.sqlite3
         if futures:  # Only update if we actually ran commands
