@@ -534,10 +534,12 @@ The system uses SQLite with the following schema designed for efficient querying
 - Polling intervals derived from `interval_seconds` and `ping_interval_seconds`
 
 ### Collector Controls
-- Pause/Resume backend command execution without stopping pings
-- Stop the collector process from the Web UI when ending a session
+- **Pause/Resume**: Pause backend command execution without stopping pings
+- **Stop**: Gracefully terminate the collector process from the Web UI
 - Collector controls rely on a shared control state file (default: `./control/collector_control.json`)
-- If you run Docker with `restart: unless-stopped`, a stop request will cause the container to restart; use pause or change the restart policy if you want the collector to remain down.
+- Changes propagate to the collector within ~2 seconds via file-based polling
+- **📖 Detailed Guide**: See [Collector Control Buttons User Guide](docs/collector-controls.md) for complete documentation on how the control system works, troubleshooting, and testing
+- **Docker Note**: If you run Docker with `restart: unless-stopped`, a stop request will cause the container to restart; use pause or change the restart policy if you want the collector to remain down.
 
 ### Export Functionality
 - **Individual Output Export**: Export single command outputs for offline analysis
