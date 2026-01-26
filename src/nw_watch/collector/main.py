@@ -21,7 +21,6 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -177,10 +176,12 @@ class DeviceCollector:
                     password_env_key = self.device_config.get("password_env_key")
                     if password_env_key:
                         raise ValueError(
-                            f"Password not provided for device '{self.device_name}'; set environment variable '{password_env_key}'"
+                            f"Password not provided for device '{self.device_name}'; "
+                            f"set environment variable '{password_env_key}'"
                         )
                     raise ValueError(
-                        f"Password not provided for device '{self.device_name}' and no password_env_key set in config"
+                        f"Password not provided for device '{self.device_name}' "
+                        f"and no password_env_key set in config"
                     )
 
                 # Connect to device
@@ -504,54 +505,65 @@ class Collector:
 
         # Schedule command collection with intelligent sleep intervals
         async def command_loop():
-            while self.running:
-                control_state = self._load_control_state()
-                if control_state.get("shutdown_requested"):
-                    logger.info("Shutdown requested via control state.")
-                    self.running = False
-                    break
+            try:
+                while self.running:
+                    control_state = self._load_control_state()
+                    if control_state.get("shutdown_requested"):
+                        logger.info("Shutdown requested via control state.")
+                        self.running = False
+                        break
 
-                self._apply_control_state(control_state)
-                if self.commands_paused:
-                    await asyncio.sleep(self.control_poll_interval)
-                    continue
+                    self._apply_control_state(control_state)
+                    if self.commands_paused:
+                        await asyncio.sleep(self.control_poll_interval)
+                        continue
 
-                await self.collect_commands()
+                    await self.collect_commands()
 
-                # Calculate minimum time until next command needs to run
-                now = time.time()
-                min_wait = float("inf")
-                for cmd in self.commands:
-                    next_run = self.command_next_run.get(cmd, now)
-                    wait_time = max(0, next_run - now)
-                    min_wait = min(min_wait, wait_time)
+                    # Calculate minimum time until next command needs to run
+                    now = time.time()
+                    min_wait = float("inf")
+                    for cmd in self.commands:
+                        next_run = self.command_next_run.get(cmd, now)
+                        wait_time = max(0, next_run - now)
+                        min_wait = min(min_wait, wait_time)
 
-                # Handle empty commands or no scheduled commands
-                if min_wait == float("inf"):
-                    # No commands configured, use cached global interval
-                    sleep_time = self.global_interval
-                else:
-                    # Sleep until next command, but check at most every 60 seconds
-                    # and no less than 1 second to avoid busy waiting
-                    sleep_time = max(1, min(60, min_wait))
+                    # Handle empty commands or no scheduled commands
+                    if min_wait == float("inf"):
+                        # No commands configured, use cached global interval
+                        sleep_time = self.global_interval
+                    else:
+                        # Sleep until next command, but check at most every 60 seconds
+                        # and no less than 1 second to avoid busy waiting
+                        sleep_time = max(1, min(60, min_wait))
 
-                await asyncio.sleep(sleep_time)
+                    await asyncio.sleep(sleep_time)
+            except asyncio.CancelledError:
+                logger.info("Command loop cancelled")
+                raise
 
         # Schedule ping collection
         async def ping_loop():
-            while self.running:
-                control_state = self._load_control_state()
-                if control_state.get("shutdown_requested"):
-                    logger.info("Shutdown requested via control state.")
-                    self.running = False
-                    break
+            try:
+                while self.running:
+                    control_state = self._load_control_state()
+                    if control_state.get("shutdown_requested"):
+                        logger.info("Shutdown requested via control state.")
+                        self.running = False
+                        break
 
-                await self.collect_pings()
-                await asyncio.sleep(ping_interval_seconds)
+                    await self.collect_pings()
+                    await asyncio.sleep(ping_interval_seconds)
+            except asyncio.CancelledError:
+                logger.info("Ping loop cancelled")
+                raise
 
         # Run both loops concurrently
         try:
             await asyncio.gather(command_loop(), ping_loop())
+        except asyncio.CancelledError:
+            logger.info("Main loop cancelled")
+            raise
         finally:
             if not self.running:
                 self.stop()
@@ -571,40 +583,59 @@ class Collector:
         self.db.close()
 
 
+async def async_main(config_path: str):
+    """Async main function with proper signal handling."""
+    collector = None
+
+    try:
+        config = Config(config_path)
+        collector = Collector(config)
+
+        # Set up signal handlers in the event loop
+        loop = asyncio.get_running_loop()
+
+        def signal_handler(signame):
+            """Handle shutdown signals by canceling tasks."""
+            logger.info(
+                f"Shutdown signal {signame} received, finishing current operations..."
+            )
+            if collector:
+                collector.running = False
+                # Cancel all pending tasks except the current one to force immediate shutdown
+                current_task = asyncio.current_task(loop)
+                for task in asyncio.all_tasks(loop):
+                    if task != current_task:
+                        task.cancel()
+
+        # Register signal handlers for SIGTERM, SIGINT, and SIGHUP
+        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+            loop.add_signal_handler(
+                sig, lambda s=sig: signal_handler(signal.Signals(s).name)
+            )
+
+        # Run the collector
+        await collector.run()
+
+    except asyncio.CancelledError:
+        logger.info("Collector stopped by signal")
+    finally:
+        if collector:
+            collector.stop()
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Network device data collector")
     parser.add_argument("--config", required=True, help="Path to config YAML file")
     args = parser.parse_args()
 
-    def signal_handler(signum, frame):
-        """Handle shutdown signals gracefully."""
-        logger.info("Shutdown signal received, finishing current operations...")
-        if collector:
-            collector.stop()
-        sys.exit(0)
-
-    collector = None
-
-    # Register signal handlers
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
-
     try:
-        config = Config(args.config)
-        collector = Collector(config)
-
-        asyncio.run(collector.run())
-
+        asyncio.run(async_main(args.config))
     except KeyboardInterrupt:
         logger.info("Collector stopped by user")
-        if collector:
-            collector.stop()
         sys.exit(0)
     except Exception as e:
         logger.error(f"Collector error: {e}", exc_info=True)
-        if collector:
-            collector.stop()
         sys.exit(1)
 
 
