@@ -12,6 +12,7 @@ This file was created or modified with the assistance of an AI (Large Language M
 Review required for correctness, security, and licensing.
 -->
 # nw-watch - Network Device CLI Monitor
+[![CI](https://github.com/icecake0141/nw-watch/actions/workflows/ci.yml/badge.svg)](https://github.com/icecake0141/nw-watch/actions/workflows/ci.yml)
 
 A Python-based network monitoring system that collects command outputs and ping data from multiple network devices via SSH and displays them in a real-time web interface with comprehensive diff capabilities.
 
