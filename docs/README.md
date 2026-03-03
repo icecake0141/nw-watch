@@ -11,30 +11,30 @@ You may obtain a copy of the License at
 This file was created or modified with the assistance of an AI (Large Language Model).
 Review required for correctness, security, and licensing.
 -->
-# ドキュメント一覧
+# Documentation Index
 
-English: [README.md](README.md)
+Japanese: [README.ja.md](README.ja.md)
 
-## コア
+## Core
 
-- [仕様書](specification.ja.md) - システム仕様、設定スキーマ、API
-- [テスト](testing.ja.md) - テスト対象と検証コマンド
+- [Specification](specification.md) - System behavior, configuration schema, APIs
+- [Testing](testing.md) - Test scope and validation commands
 
-## 運用
+## Operations
 
-- [トラブルシューティング](TROUBLESHOOTING.ja.md)
-- [コレクター制御](collector-controls.ja.md)
-
-## UI と改善
-
-- [Web UI スクリーンショット](webui-screenshots.ja.md)
-- [改善提案](IMPROVEMENT_SUGGESTIONS.ja.md)
-
-## English Documents
-
-- [Specification](specification.md)
-- [Testing](testing.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Collector Controls](collector-controls.md)
+
+## UI and Planning
+
 - [Web UI Screenshots](webui-screenshots.md)
 - [Improvement Suggestions](IMPROVEMENT_SUGGESTIONS.md)
+
+## Japanese Translations
+
+- [仕様書](specification.ja.md)
+- [テスト](testing.ja.md)
+- [トラブルシューティング](TROUBLESHOOTING.ja.md)
+- [コレクター制御](collector-controls.ja.md)
+- [Web UI スクリーンショット](webui-screenshots.ja.md)
+- [改善提案](IMPROVEMENT_SUGGESTIONS.ja.md)
