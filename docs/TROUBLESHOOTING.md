@@ -1,3 +1,16 @@
+<!--
+Copyright 2026 icecake0141
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This file was created or modified with the assistance of an AI (Large Language Model).
+Review required for correctness, security, and licensing.
+-->
 # Troubleshooting Guide
 
 This guide provides solutions to common issues you may encounter when using nw-watch.
@@ -323,11 +336,11 @@ This guide provides solutions to common issues you may encounter when using nw-w
    interval_seconds: 10  # Increase interval
    ```
 
-2. **Use per-command scheduling:**
+2. **Use per-command intervals:**
    ```yaml
    commands:
      - command_text: "show version"
-       schedule: "0 */6 * * *"  # Every 6 hours instead of every interval
+       interval_seconds: 60  # Maximum supported per-command interval
      - command_text: "show interfaces"
        # Uses interval_seconds for frequently needed data
    ```
@@ -340,7 +353,7 @@ This guide provides solutions to common issues you may encounter when using nw-w
 
 4. **Reduce number of concurrent commands:**
    - Consider scheduling expensive commands less frequently
-   - Spread commands across time using cron schedules
+   - Use command-level `interval_seconds` overrides for heavier commands
 
 ### High memory usage
 
@@ -405,12 +418,12 @@ This guide provides solutions to common issues you may encounter when using nw-w
      history_size: 10     # Must be > 0
      ```
    
-   - **Invalid cron schedules:**
+   - **Invalid command interval ranges:**
      ```yaml
      commands:
        - command_text: "show version"
-         schedule: "0 */6 * * *"  # Valid: 5 fields
-         # schedule: "invalid"    # INVALID
+         interval_seconds: 60  # Valid range: 5-60
+         # interval_seconds: 120  # INVALID
      ```
    
    - **Invalid port numbers:**
