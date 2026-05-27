@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Configuration loading and validation."""
 
 import logging
@@ -144,6 +155,11 @@ class Config:
         ssh_config = self.data.get("ssh", {})
         return float(ssh_config.get("reconnect_backoff_base", 1.0))
 
+    def get_global_initial_commands(self) -> List[str]:
+        """Initial commands to run after every SSH login."""
+        ssh_config = self.data.get("ssh", {})
+        return list(ssh_config.get("initial_commands", []))
+
     # ------------------------------------------------------------------ #
     # Devices and commands
     # ------------------------------------------------------------------ #
@@ -168,6 +184,12 @@ class Config:
                 device.get("name", "unknown"),
             )
         return fallback
+
+    def get_device_initial_commands(self, device: Dict[str, Any]) -> List[str]:
+        """Initial commands for a device, including global SSH commands first."""
+        return self.get_global_initial_commands() + list(
+            device.get("initial_commands", [])
+        )
 
     # ------------------------------------------------------------------ #
     # Filters

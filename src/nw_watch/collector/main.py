@@ -98,6 +98,9 @@ class DeviceCollector:
         self.connection_timeout = self.config.get_connection_timeout()
         self.max_reconnect_attempts = self.config.get_max_reconnect_attempts()
         self.reconnect_backoff_base = self.config.get_reconnect_backoff_base()
+        self.initial_commands = self.config.get_device_initial_commands(
+            self.device_config
+        )
 
         # Connection state (only used if persistent_connections_enabled)
         self._connection: Optional[ConnectHandler] = None
@@ -132,7 +135,26 @@ class DeviceCollector:
         """Establish a new connection to the device."""
         params = self._get_connection_params()
         logger.info(f"Establishing SSH connection to {self.device_name}")
-        return ConnectHandler(**params)
+        connection = ConnectHandler(**params)
+        try:
+            self._run_initial_commands(connection)
+        except Exception:
+            try:
+                connection.disconnect()
+            except Exception:
+                pass
+            raise
+        return connection
+
+    def _run_initial_commands(self, connection: ConnectHandler) -> None:
+        """Run device login initialization commands for this SSH session."""
+        for initial_command in self.initial_commands:
+            logger.info(
+                "Executing initial SSH command for %s: %s",
+                self.device_name,
+                initial_command,
+            )
+            connection.send_command(initial_command)
 
     def _is_connection_alive(self) -> bool:
         """Check if the current connection is alive."""
@@ -213,30 +235,8 @@ class DeviceCollector:
                     connection = self._ensure_connected()
                     output = connection.send_command(command)
             else:
-                # Legacy mode: create new connection for each command
-                password = self.config.get_device_password(self.device_config)
-                if password is None:
-                    password_env_key = self.device_config.get("password_env_key")
-                    if password_env_key:
-                        raise ValueError(
-                            f"Password not provided for device '{self.device_name}'; "
-                            f"set environment variable '{password_env_key}'"
-                        )
-                    raise ValueError(
-                        f"Password not provided for device '{self.device_name}' "
-                        f"and no password_env_key set in config"
-                    )
-
-                # Connect to device
-                connection = ConnectHandler(
-                    device_type=self.device_config["device_type"],
-                    host=self.device_config["host"],
-                    port=self.device_config.get("port", 22),
-                    username=self.device_config["username"],
-                    password=password,
-                )
-
-                # Execute command
+                # Legacy mode: create new connection for each command.
+                connection = self._connect()
                 output = connection.send_command(command)
                 connection.disconnect()
 
