@@ -26,6 +26,10 @@ ping_window_seconds: 90
 history_size: 5
 max_output_lines: 400
 
+ping_targets:
+  - name: "GatewayVIP"
+    host: "192.0.2.254"
+
 global_filters:
   line_exclude_substrings:
     - "global"
@@ -62,6 +66,7 @@ devices:
     assert config.get_ping_window_seconds() == 90
     assert config.get_history_size() == 5
     assert config.get_max_output_lines() == 400
+    assert config.get_ping_targets() == [{"name": "GatewayVIP", "host": "192.0.2.254"}]
     assert config.get_command_line_exclusions("show run") == ["local"]
     # Falls back to global output exclusions when none are set on the command
     assert config.get_command_output_exclusions("show run") == ["% Invalid"]

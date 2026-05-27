@@ -17,6 +17,7 @@ import signal
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from subprocess import CompletedProcess
 
 from nw_watch.collector.main import Collector
 from nw_watch.shared.config import Config
@@ -298,6 +299,70 @@ devices:
             commands_executed = {e["command"] for e in execution_log}
             assert "show version" in commands_executed
             assert "show interfaces" in commands_executed
+
+            collector.stop()
+
+        finally:
+            os.chdir(original_cwd)
+            if "TEST_PASSWORD" in os.environ:
+                del os.environ["TEST_PASSWORD"]
+
+
+def test_collect_pings_includes_standalone_ping_targets():
+    """Test that standalone ping targets are collected separately from devices."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ping_interval_seconds: 1
+history_size: 10
+max_output_lines: 500
+
+ping_targets:
+  - name: "GatewayVIP"
+    host: "192.0.2.254"
+
+commands:
+  - name: "show_version"
+    command_text: "show version"
+
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+
+        config = Config(str(cfg_path))
+
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(tmp_dir)
+
+            collector = Collector(config)
+            for device_collector in collector.device_collectors.values():
+                device_collector.ping_device = MagicMock()
+
+            with patch(
+                "nw_watch.collector.main.subprocess.run",
+                return_value=CompletedProcess(
+                    args=["ping"],
+                    returncode=0,
+                    stdout="64 bytes from 192.0.2.254: icmp_seq=1 ttl=64 time=1.23 ms",
+                    stderr="",
+                ),
+            ):
+                asyncio.run(collector.collect_pings())
+
+            target_samples = collector.db.get_ping_samples("GatewayVIP", since_ts=0)
+
+            assert collector.device_collectors["DeviceA"].ping_device.called
+            assert len(target_samples) == 1
+            assert target_samples[0]["ok"] == 1
+            assert target_samples[0]["rtt_ms"] == 1.23
 
             collector.stop()
 

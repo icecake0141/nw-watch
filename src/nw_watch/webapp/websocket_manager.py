@@ -1,10 +1,21 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """WebSocket connection manager for real-time updates."""
 
 import asyncio
 import json
 import logging
 import time
-from typing import Set
+from typing import Any, Optional, Set
 from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
@@ -63,7 +74,9 @@ class ConnectionManager:
                 self.active_connections -= disconnected
             logger.info("Removed %d disconnected clients", len(disconnected))
 
-    async def broadcast_update(self, update_type: str, data: dict = None):
+    async def broadcast_update(
+        self, update_type: str, data: Optional[dict[str, Any]] = None
+    ):
         """Broadcast an update notification to all clients."""
         message = {
             "type": update_type,

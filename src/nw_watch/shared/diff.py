@@ -1,8 +1,19 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Diff generation utilities."""
 
 import difflib
 import html
-from typing import List, Tuple
+from typing import Tuple
 
 
 def generate_diff(old_text: str, new_text: str) -> str:
