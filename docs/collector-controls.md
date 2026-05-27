@@ -52,6 +52,8 @@ Format:
 ```json
 {
   "commands_paused": false,
+  "manual_mode": false,
+  "manual_run_requested": false,
   "shutdown_requested": false,
   "updated_at": 1769421307
 }
@@ -86,6 +88,26 @@ Format:
 3. Button changes back to "⏸ Pause Commands"
 4. Status changes to "Collector: Running"
 5. Collector resumes executing commands
+
+### Manual Mode Button
+
+**Initial State**: "Manual Mode: Off" (enabled)
+
+**When Clicked**:
+1. Sends POST request to `/api/collector/mode`
+2. Sets `manual_mode: true` in control state
+3. Shows the "▶ Run Commands Now" button
+4. Collector waits for a manual run request instead of collecting commands on schedule
+
+### Run Commands Now Button
+
+**Initial State**: Hidden until manual mode is enabled
+
+**When Clicked**:
+1. Sends POST request to `/api/collector/run_once`
+2. Sets `manual_run_requested: true` in control state
+3. Collector executes one command collection cycle on the next control poll
+4. Collector clears `manual_run_requested` after accepting the request
 
 ### Stop Collector Button
 
@@ -163,6 +185,8 @@ Returns current collector state:
 ```json
 {
   "commands_paused": false,
+  "manual_mode": false,
+  "manual_run_requested": false,
   "shutdown_requested": false,
   "status": "running",
   "updated_at": 1769421307
@@ -171,6 +195,7 @@ Returns current collector state:
 
 Status values:
 - `"running"`: Commands executing normally
+- `"manual"`: Commands execute only when manually requested
 - `"paused"`: Commands paused, ping continues
 - `"stopped"`: Shutdown requested, collector will terminate
 
@@ -222,6 +247,21 @@ Requests collector shutdown.
   "updated_at": 1769421307
 }
 ```
+
+### POST /api/collector/mode
+
+Switches automatic/manual command execution mode.
+
+**Request**:
+```json
+{
+  "manual_mode": true
+}
+```
+
+### POST /api/collector/run_once
+
+Requests one command collection cycle. This endpoint is valid only when manual mode is enabled and commands are not paused.
 
 ## Troubleshooting
 

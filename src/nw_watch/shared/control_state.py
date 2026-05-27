@@ -26,6 +26,8 @@ CONTROL_DIR_ENV = "NW_WATCH_CONTROL_DIR"
 
 DEFAULT_CONTROL_STATE: Dict[str, Any] = {
     "commands_paused": False,
+    "manual_mode": False,
+    "manual_run_requested": False,
     "shutdown_requested": False,
     "updated_at": 0,
 }
@@ -42,6 +44,8 @@ def normalize_control_state(state: Dict[str, Any]) -> Dict[str, Any]:
     normalized = DEFAULT_CONTROL_STATE.copy()
     normalized.update({k: state.get(k, v) for k, v in DEFAULT_CONTROL_STATE.items()})
     normalized["commands_paused"] = bool(normalized.get("commands_paused"))
+    normalized["manual_mode"] = bool(normalized.get("manual_mode"))
+    normalized["manual_run_requested"] = bool(normalized.get("manual_run_requested"))
     normalized["shutdown_requested"] = bool(normalized.get("shutdown_requested"))
     normalized["updated_at"] = int(normalized.get("updated_at") or 0)
     return normalized

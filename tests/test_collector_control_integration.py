@@ -13,8 +13,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from pathlib import Path
-import os
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +40,8 @@ def test_pause_button_updates_control_state(client, control_dir):
     assert response.status_code == 200
     data = response.json()
     assert data["commands_paused"] is False
+    assert data["manual_mode"] is False
+    assert data["manual_run_requested"] is False
     assert data["status"] == "running"
 
     # Click pause button (POST to pause endpoint)
@@ -103,18 +103,43 @@ def test_stop_button_updates_control_state(client, control_dir):
     assert state["shutdown_requested"] is True
 
 
+def test_manual_mode_buttons_update_control_state(client, control_dir):
+    """Test that manual mode and run buttons update control state."""
+    from nw_watch.shared.control_state import read_control_state
+
+    response = client.post("/api/collector/mode", json={"manual_mode": True})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manual_mode"] is True
+    assert data["manual_run_requested"] is False
+    assert data["status"] == "manual"
+
+    state = read_control_state()
+    assert state["manual_mode"] is True
+    assert state["manual_run_requested"] is False
+
+    response = client.post("/api/collector/run_once")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manual_run_requested"] is True
+
+    state = read_control_state()
+    assert state["manual_mode"] is True
+    assert state["manual_run_requested"] is True
+
+
 def test_collector_would_respect_pause_state(control_dir):
     """Test that collector logic would respect pause state."""
     from nw_watch.shared.control_state import update_control_state, read_control_state
 
     # Simulate collector checking state while running
-    state = update_control_state({"commands_paused": False})
+    update_control_state({"commands_paused": False})
     current = read_control_state()
     assert current["commands_paused"] is False
     # Collector would continue executing commands
 
     # Simulate webapp pausing via button
-    state = update_control_state({"commands_paused": True})
+    update_control_state({"commands_paused": True})
 
     # Simulate collector checking state on next poll
     current = read_control_state()
@@ -127,7 +152,7 @@ def test_collector_would_respect_stop_state(control_dir):
     from nw_watch.shared.control_state import update_control_state, read_control_state
 
     # Simulate webapp stopping via button
-    state = update_control_state({"shutdown_requested": True, "commands_paused": True})
+    update_control_state({"shutdown_requested": True, "commands_paused": True})
 
     # Simulate collector checking state
     current = read_control_state()

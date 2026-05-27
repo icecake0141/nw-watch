@@ -190,6 +190,8 @@ def build_collector_status() -> Dict[str, object]:
         status = "stopped"
     elif state.get("commands_paused"):
         status = "paused"
+    elif state.get("manual_mode"):
+        status = "manual"
     state["status"] = status
     return state
 
@@ -584,9 +586,13 @@ async def resume_collector_commands():
     """Resume backend command execution."""
     try:
         updated = update_control_state(
-            {"commands_paused": False, "shutdown_requested": False}
+            {
+                "commands_paused": False,
+                "manual_run_requested": False,
+                "shutdown_requested": False,
+            }
         )
-        updated["status"] = "running"
+        updated["status"] = "manual" if updated.get("manual_mode") else "running"
         return JSONResponse(updated)
     except Exception as exc:
         logger.error("Failed to resume collector: %s", exc)
@@ -605,6 +611,56 @@ async def stop_collector():
     except Exception as exc:
         logger.error("Failed to stop collector: %s", exc)
         return JSONResponse({"error": "Failed to stop collector."}, status_code=500)
+
+
+@app.post("/api/collector/mode")
+async def set_collector_mode(request: Request):
+    """Set automatic or manual command execution mode."""
+    state = read_control_state()
+    if state.get("shutdown_requested"):
+        return JSONResponse(
+            {"error": "Collector shutdown already requested."}, status_code=409
+        )
+
+    try:
+        payload = await request.json()
+        manual_mode = bool(payload.get("manual_mode", False))
+        updated = update_control_state(
+            {"manual_mode": manual_mode, "manual_run_requested": False}
+        )
+        updated["status"] = build_collector_status()["status"]
+        return JSONResponse(updated)
+    except Exception as exc:
+        logger.error("Failed to set collector mode: %s", exc)
+        return JSONResponse({"error": "Failed to set collector mode."}, status_code=500)
+
+
+@app.post("/api/collector/run_once")
+async def run_collector_once():
+    """Request one manual command collection cycle."""
+    state = read_control_state()
+    if state.get("shutdown_requested"):
+        return JSONResponse(
+            {"error": "Collector shutdown already requested."}, status_code=409
+        )
+    if state.get("commands_paused"):
+        return JSONResponse(
+            {"error": "Collector commands are paused."}, status_code=409
+        )
+    if not state.get("manual_mode"):
+        return JSONResponse(
+            {"error": "Collector is not in manual mode."}, status_code=409
+        )
+
+    try:
+        updated = update_control_state({"manual_run_requested": True})
+        updated["status"] = "manual"
+        return JSONResponse(updated)
+    except Exception as exc:
+        logger.error("Failed to request manual collector run: %s", exc)
+        return JSONResponse(
+            {"error": "Failed to request manual collector run."}, status_code=500
+        )
 
 
 @app.get("/api/export/run")

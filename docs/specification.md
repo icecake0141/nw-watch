@@ -65,6 +65,8 @@ Reference example: [`config.example.yaml`](../config.example.yaml)
 - `POST /api/collector/pause`
 - `POST /api/collector/resume`
 - `POST /api/collector/stop`
+- `POST /api/collector/mode`
+- `POST /api/collector/run_once`
 - `GET /api/export/run`
 - `GET /api/export/bulk`
 - `GET /api/export/diff`
