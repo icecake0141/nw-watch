@@ -656,7 +656,7 @@ class NetworkWatch {
             } else {
                 const errorMsg = document.createElement('div');
                 errorMsg.className = 'error-message';
-                errorMsg.textContent = `Error: ${deviceData.run.error_message || 'Unknown error'}`;
+                errorMsg.textContent = `Error: ${this.formatRunError(deviceData.run)}`;
                 outputContainer.appendChild(errorMsg);
             }
             
@@ -778,7 +778,7 @@ class NetworkWatch {
         } else {
             const errorMsg = document.createElement('div');
             errorMsg.className = 'error-message';
-            errorMsg.textContent = `Error: ${run.error_message || 'Unknown error'}`;
+            errorMsg.textContent = `Error: ${this.formatRunError(run)}`;
             output.appendChild(errorMsg);
         }
         
@@ -1215,7 +1215,7 @@ class NetworkWatch {
             const stats = document.createElement('div');
             stats.className = 'stats';
             
-            const statusText = status.status.charAt(0).toUpperCase() + status.status.slice(1);
+            const statusText = this.formatPingStatus(status);
             stats.innerHTML = `
                 <div><strong>Status:</strong> ${statusText}</div>
                 <div><strong>Success Rate:</strong> ${status.success_rate.toFixed(1)}%</div>
@@ -1269,6 +1269,23 @@ class NetworkWatch {
         if (Object.keys(pingStatus).length === 0) {
             container.innerHTML = '<p class="loading">No ping data available</p>';
         }
+    }
+
+    formatPingStatus(status) {
+        if (status.last_error_message) {
+            return this.escapeHtml(status.last_error_message);
+        }
+        if (status.status === 'down') {
+            return 'Not Responding';
+        }
+        if (status.status === 'unknown') {
+            return 'No Data';
+        }
+        return status.status.charAt(0).toUpperCase() + status.status.slice(1);
+    }
+
+    formatRunError(run) {
+        return run.error_message || 'Disconnected';
     }
     
     exportPing(device, format) {
