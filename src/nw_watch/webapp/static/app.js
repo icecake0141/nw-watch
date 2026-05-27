@@ -51,6 +51,7 @@ class NetworkWatch {
         // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
         this.diffStates = {};
         this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
+        this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
         
         this.init();
     }
@@ -150,6 +151,24 @@ class NetworkWatch {
         
         // Load saved theme preference
         this.loadThemePreference();
+    }
+
+    loadSideBySideOutputHeight() {
+        const savedHeight = Number(localStorage.getItem('sideBySideOutputHeight'));
+        if (Number.isFinite(savedHeight)) {
+            return Math.max(240, Math.min(savedHeight, 1200));
+        }
+        return 600;
+    }
+
+    setSideBySideOutputHeight(height) {
+        this.sideBySideOutputHeight = Math.max(240, Math.min(height, 1200));
+        localStorage.setItem('sideBySideOutputHeight', String(this.sideBySideOutputHeight));
+
+        document.querySelectorAll('.side-by-side-section .device-panel-output').forEach(output => {
+            output.style.maxHeight = `${this.sideBySideOutputHeight}px`;
+            output.style.height = `${this.sideBySideOutputHeight}px`;
+        });
     }
     
     toggleTheme() {
@@ -626,6 +645,8 @@ class NetworkWatch {
             // Output with character-level diff highlighting
             const outputContainer = document.createElement('div');
             outputContainer.className = 'device-panel-output';
+            outputContainer.style.maxHeight = `${this.sideBySideOutputHeight}px`;
+            outputContainer.style.height = `${this.sideBySideOutputHeight}px`;
             
             if (deviceData.run.ok) {
                 const outputPre = document.createElement('pre');
@@ -644,7 +665,53 @@ class NetworkWatch {
         });
         
         sideBySideSection.appendChild(comparisonContainer);
+
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'comparison-resize-handle';
+        resizeHandle.setAttribute('role', 'separator');
+        resizeHandle.setAttribute('aria-orientation', 'horizontal');
+        resizeHandle.setAttribute('tabindex', '0');
+        resizeHandle.title = 'Drag to resize comparison output height';
+        resizeHandle.textContent = 'Drag to resize';
+        this.setupComparisonResizeHandle(resizeHandle);
+        sideBySideSection.appendChild(resizeHandle);
+
         contentContainer.appendChild(sideBySideSection);
+    }
+
+    setupComparisonResizeHandle(handle) {
+        let startY = 0;
+        let startHeight = this.sideBySideOutputHeight;
+
+        const stopResize = () => {
+            document.body.classList.remove('comparison-resizing');
+            window.removeEventListener('mousemove', resize);
+            window.removeEventListener('mouseup', stopResize);
+        };
+
+        const resize = (event) => {
+            const deltaY = event.clientY - startY;
+            this.setSideBySideOutputHeight(startHeight + deltaY);
+        };
+
+        handle.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            startY = event.clientY;
+            startHeight = this.sideBySideOutputHeight;
+            document.body.classList.add('comparison-resizing');
+            window.addEventListener('mousemove', resize);
+            window.addEventListener('mouseup', stopResize);
+        });
+
+        handle.addEventListener('keydown', (event) => {
+            if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
+                return;
+            }
+            event.preventDefault();
+            const step = event.shiftKey ? 80 : 24;
+            const direction = event.key === 'ArrowDown' ? 1 : -1;
+            this.setSideBySideOutputHeight(this.sideBySideOutputHeight + (step * direction));
+        });
     }
     
     createRunEntry(run, command, index) {
