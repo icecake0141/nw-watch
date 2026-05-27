@@ -710,6 +710,22 @@ def test_security_headers(client):
     assert response.headers.get("X-Frame-Options") == "DENY"
     assert response.headers.get("X-XSS-Protection") == "1; mode=block"
     assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+    assert (
+        response.headers.get("Cache-Control")
+        == "no-store, no-cache, must-revalidate, max-age=0"
+    )
+    assert response.headers.get("Pragma") == "no-cache"
+    assert response.headers.get("Expires") == "0"
+
+    # Test on static assets as well
+    response = client.get("/static/app.js")
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert (
+        response.headers.get("Cache-Control")
+        == "no-store, no-cache, must-revalidate, max-age=0"
+    )
+    assert response.headers.get("Pragma") == "no-cache"
+    assert response.headers.get("Expires") == "0"
 
     # Test on API endpoint as well
     response = client.get("/api/commands")
@@ -717,3 +733,9 @@ def test_security_headers(client):
     assert response.headers.get("X-Frame-Options") == "DENY"
     assert response.headers.get("X-XSS-Protection") == "1; mode=block"
     assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+    assert (
+        response.headers.get("Cache-Control")
+        == "no-store, no-cache, must-revalidate, max-age=0"
+    )
+    assert response.headers.get("Pragma") == "no-cache"
+    assert response.headers.get("Expires") == "0"
