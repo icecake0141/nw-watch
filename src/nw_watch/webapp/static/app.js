@@ -52,6 +52,7 @@ class NetworkWatch {
         this.diffStates = {};
         this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
         this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
+        this.sideBySideScrollStates = {};
         
         this.init();
     }
@@ -507,6 +508,7 @@ class NetworkWatch {
         
         // Save current diff states before clearing
         this.saveDiffStates(command);
+        this.saveSideBySideScrollStates(command);
         
         contentContainer.innerHTML = '';
         
@@ -565,6 +567,46 @@ class NetworkWatch {
         
         // Restore diff states after rendering
         this.restoreDiffStates(command);
+        this.restoreSideBySideScrollStates(command);
+    }
+
+    getSideBySideScrollKey(command, deviceName) {
+        return `${command}:${deviceName}`;
+    }
+
+    saveSideBySideScrollStates(command) {
+        document.querySelectorAll('.device-panel').forEach(panel => {
+            const deviceName = panel.dataset.deviceName;
+            const output = panel.querySelector('.device-panel-output');
+
+            if (!deviceName || !output) {
+                return;
+            }
+
+            this.sideBySideScrollStates[this.getSideBySideScrollKey(command, deviceName)] = {
+                scrollTop: output.scrollTop,
+                scrollLeft: output.scrollLeft
+            };
+        });
+    }
+
+    restoreSideBySideScrollStates(command) {
+        document.querySelectorAll('.device-panel').forEach(panel => {
+            const deviceName = panel.dataset.deviceName;
+            const output = panel.querySelector('.device-panel-output');
+
+            if (!deviceName || !output) {
+                return;
+            }
+
+            const state = this.sideBySideScrollStates[this.getSideBySideScrollKey(command, deviceName)];
+            if (!state) {
+                return;
+            }
+
+            output.scrollTop = Math.max(0, Math.min(state.scrollTop, output.scrollHeight - output.clientHeight));
+            output.scrollLeft = Math.max(0, Math.min(state.scrollLeft, output.scrollWidth - output.clientWidth));
+        });
     }
     
     renderSideBySideView(command, sideBySideData) {
@@ -588,6 +630,7 @@ class NetworkWatch {
         sideBySideData.devices.forEach(deviceData => {
             const devicePanel = document.createElement('div');
             devicePanel.className = 'device-panel';
+            devicePanel.dataset.deviceName = deviceData.name;
             
             // Device header
             const header = document.createElement('div');
