@@ -462,6 +462,8 @@ header h1 {
 .diff-controls {
     margin-bottom: 15px;
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 10px;
 }
 
@@ -479,6 +481,21 @@ header h1 {
     background-color: #5568d3;
 }
 
+.diff-controls .diff-mode-btn {
+    background-color: var(--tab-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.diff-controls .diff-mode-btn:hover {
+    background-color: var(--tab-hover-bg);
+}
+
+.diff-controls .diff-mode-btn.active {
+    background-color: var(--tab-active-bg);
+    color: white;
+}
+
 .diff-controls select {
     padding: 8px;
     border: 1px solid var(--border-color);
@@ -487,6 +504,18 @@ header h1 {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.diff-origin-status {
+    display: inline-block;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .diff-output {

@@ -50,6 +50,7 @@ class NetworkWatch {
         // Diff state preservation
         // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
         this.diffStates = {};
+        this.historyDiffModes = {};
         this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
         this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
         
@@ -866,9 +867,32 @@ class NetworkWatch {
         
         // History diff button
         const historyBtn = document.createElement('button');
-        historyBtn.textContent = 'Show Previous vs Latest';
+        historyBtn.textContent = 'Show History Diff';
         historyBtn.addEventListener('click', () => this.showHistoryDiff(command, device));
         controls.appendChild(historyBtn);
+
+        const previousModeBtn = document.createElement('button');
+        previousModeBtn.className = 'diff-mode-btn active';
+        previousModeBtn.id = `diff-mode-previous-${device}`;
+        previousModeBtn.textContent = 'Previous';
+        previousModeBtn.addEventListener('click', () => {
+            this.setHistoryDiffMode(command, device, 'previous');
+        });
+        controls.appendChild(previousModeBtn);
+
+        const snapshotModeBtn = document.createElement('button');
+        snapshotModeBtn.className = 'diff-mode-btn';
+        snapshotModeBtn.id = `diff-mode-snapshot-${device}`;
+        snapshotModeBtn.textContent = 'Snapshot';
+        snapshotModeBtn.addEventListener('click', () => {
+            this.setHistoryDiffMode(command, device, 'snapshot');
+        });
+        controls.appendChild(snapshotModeBtn);
+
+        const snapshotBtn = document.createElement('button');
+        snapshotBtn.textContent = 'Capture Origin Snapshot';
+        snapshotBtn.addEventListener('click', () => this.captureHistorySnapshot(command, device));
+        controls.appendChild(snapshotBtn);
         
         // Device diff controls (if multiple devices)
         if (this.devices.length > 1) {
@@ -897,6 +921,13 @@ class NetworkWatch {
         }
         
         section.appendChild(controls);
+
+        const status = document.createElement('div');
+        status.className = 'diff-origin-status';
+        status.id = `diff-origin-status-${device}`;
+        status.textContent = 'Origin mode: Previous run';
+        section.appendChild(status);
+        this.loadHistorySnapshotStatus(command, device);
         
         // Diff output
         const diffOutput = document.createElement('div');
@@ -930,8 +961,9 @@ class NetworkWatch {
     
     async showHistoryDiff(command, device) {
         try {
+            const originMode = this.getHistoryDiffMode(command, device);
             const response = await fetch(
-                `/api/diff/history?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}`
+                `/api/diff/history?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&origin_mode=${originMode}`
             );
             const data = await response.json();
             
@@ -942,6 +974,7 @@ class NetworkWatch {
                 'No differences found',
                 data.diff_format === 'html'
             );
+            this.renderHistoryDiffStatus(command, device, data);
             
             // Show export controls and store diff context
             const exportControls = document.getElementById(`diff-export-${device}`);
@@ -950,6 +983,7 @@ class NetworkWatch {
                 exportControls.dataset.diffType = 'history';
                 exportControls.dataset.command = command;
                 exportControls.dataset.device = device;
+                exportControls.dataset.originMode = originMode;
             }
             
             // Save the diff state immediately
@@ -958,12 +992,93 @@ class NetworkWatch {
                 type: 'history',
                 content: diffOutput.innerHTML,
                 isHtml: diffOutput.classList.contains('diff-output-html'),
+                originMode: originMode,
                 command: command,
                 device: device
             };
         } catch (error) {
             console.error('Error loading history diff:', error);
         }
+    }
+
+    getHistoryDiffMode(command, device) {
+        return this.historyDiffModes[`${command}:${device}`] || 'previous';
+    }
+
+    setHistoryDiffMode(command, device, mode) {
+        this.historyDiffModes[`${command}:${device}`] = mode;
+        this.updateHistoryModeControls(command, device);
+        this.renderHistoryDiffStatus(command, device);
+        this.showHistoryDiff(command, device);
+    }
+
+    updateHistoryModeControls(command, device) {
+        const mode = this.getHistoryDiffMode(command, device);
+        const previousBtn = document.getElementById(`diff-mode-previous-${device}`);
+        const snapshotBtn = document.getElementById(`diff-mode-snapshot-${device}`);
+        if (previousBtn) {
+            previousBtn.classList.toggle('active', mode === 'previous');
+        }
+        if (snapshotBtn) {
+            snapshotBtn.classList.toggle('active', mode === 'snapshot');
+        }
+    }
+
+    async captureHistorySnapshot(command, device) {
+        try {
+            const response = await fetch(
+                `/api/diff/snapshot?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}`,
+                { method: 'POST' }
+            );
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to capture snapshot');
+            }
+            this.historyDiffModes[`${command}:${device}`] = 'snapshot';
+            this.updateHistoryModeControls(command, device);
+            this.renderHistoryDiffStatus(command, device, data);
+            await this.showHistoryDiff(command, device);
+        } catch (error) {
+            console.error('Error capturing history snapshot:', error);
+            alert('Failed to capture origin snapshot');
+        }
+    }
+
+    async loadHistorySnapshotStatus(command, device) {
+        try {
+            const response = await fetch(
+                `/api/diff/snapshot/status?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}`
+            );
+            const data = await response.json();
+            this.renderHistoryDiffStatus(command, device, data);
+        } catch (error) {
+            console.error('Error loading history snapshot status:', error);
+        }
+    }
+
+    renderHistoryDiffStatus(command, device, data = {}) {
+        const status = document.getElementById(`diff-origin-status-${device}`);
+        if (!status) return;
+
+        const mode = this.getHistoryDiffMode(command, device);
+        const modeLabel = mode === 'snapshot' ? 'Snapshot' : 'Previous run';
+        const details = [`Origin mode: ${modeLabel}`];
+
+        const snapshotCapturedAt = data.captured_at || data.snapshot_captured_at;
+        if (data.snapshot_available && snapshotCapturedAt) {
+            details.push(`Snapshot captured: ${this.formatTimestampJST(snapshotCapturedAt)}`);
+        } else if (mode === 'snapshot') {
+            details.push('Snapshot: not captured');
+        }
+
+        if (data.origin_ts) {
+            details.push(`Origin data: ${this.formatTimestampJST(data.origin_ts)}`);
+        }
+        if (data.latest_ts) {
+            details.push(`Latest data: ${this.formatTimestampJST(data.latest_ts)}`);
+        }
+
+        status.textContent = details.join(' | ');
     }
     
     async showDeviceDiff(command, deviceA, deviceB) {
@@ -1032,7 +1147,8 @@ class NetworkWatch {
         let url;
         
         if (diffType === 'history') {
-            url = `/api/export/diff?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}`;
+            const originMode = exportControls.dataset.originMode || this.getHistoryDiffMode(command, device);
+            url = `/api/export/diff?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}&origin_mode=${originMode}`;
         } else if (diffType === 'device') {
             const deviceA = exportControls.dataset.deviceA;
             const deviceB = exportControls.dataset.deviceB;
@@ -1060,6 +1176,8 @@ class NetworkWatch {
     }
 
     renderDiff(element, diffText, fallbackMessage, isHtml = false) {
+        element.classList.remove('diff-output-html');
+
         if (!diffText || diffText.length === 0) {
             element.textContent = fallbackMessage;
             return;
@@ -1141,6 +1259,7 @@ class NetworkWatch {
                     type: diffType,
                     content: diffOutputElement.innerHTML,
                     isHtml: diffOutputElement.classList.contains('diff-output-html'),
+                    originMode: exportControlsElement.dataset.originMode,
                     otherDevice: otherDevice,
                     command: command,
                     device: device
@@ -1181,6 +1300,11 @@ class NetworkWatch {
             exportControlsElement.dataset.diffType = state.type;
             exportControlsElement.dataset.command = state.command;
             exportControlsElement.dataset.device = state.device;
+            if (state.originMode) {
+                exportControlsElement.dataset.originMode = state.originMode;
+                this.historyDiffModes[stateKey] = state.originMode;
+                this.updateHistoryModeControls(command, device);
+            }
             if (state.otherDevice) {
                 exportControlsElement.dataset.deviceB = state.otherDevice;
             }

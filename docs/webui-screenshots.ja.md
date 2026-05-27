@@ -118,14 +118,21 @@ Network Watch Webインターフェースは、リアルタイムのネットワ
 
 インターフェースは、ネットワークデバイスの状態変化を識別するための2種類の差分比較を提供します。
 
-### 5.1 履歴差分（前回 vs 最新）
+### 5.1 履歴差分（前回またはSnapshot vs 最新）
 
-同じデバイスとコマンドの最新2回の実行を比較します。
+同じデバイスとコマンドの最新実行を、選択したOriginと比較します。
+初期状態のOriginは直前の実行です。必要に応じて固定Origin Snapshotを取得し、
+以降の最新データをそのSnapshotと比較できます。
 
 **機能**:
-- **ボタン**: "Show Previous vs Latest"（≥2回の実行が存在する場合に表示）
+- **ボタン**: "Show History Diff"（各デバイスの出力パネルに表示）
+- **Originモード切り替え**:
+  - "Previous": 最新実行と直前の実行を比較
+  - "Snapshot": 最新実行と取得済みのOrigin Snapshotを比較
+- **Snapshot取得**: "Capture Origin Snapshot" で現在の最新実行を固定Originとして保存
+- **Originステータス**: 現在のモード、Snapshot取得時刻、Originデータ時刻、最新データ時刻を表示
 - **比較ラベル**: 
-  - 左列: "Previous"（古い実行とタイムスタンプ）
+  - 左列: "Previous" または "Snapshot"（Origin実行）
   - 右列: "Latest"（新しい実行とタイムスタンプ）
 - **カラーコーディング**:
   - 🟩 緑背景: 最新実行で追加された行
