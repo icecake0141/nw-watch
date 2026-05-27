@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for Docker functionality."""
 
 import os
@@ -83,7 +94,9 @@ class TestDockerConfiguration:
         """Test that docker-compose.yml maps ports."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert "8000:8000" in content, "docker-compose.yml should map port 8000"
+        assert (
+            "127.0.0.1:8000:8000" in content
+        ), "docker-compose.yml should map port 8000 to host loopback only"
 
     def test_dockerignore_excludes_git(self):
         """Test that .dockerignore excludes .git directory."""
@@ -214,13 +227,15 @@ class TestDockerComposeConfiguration:
         assert "--config" in content, "Collector should use config file"
 
     def test_docker_compose_webapp_command(self):
-        """Test that webapp service has correct command."""
+        """Test that webapp service has correct in-container command."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
         assert (
             "uvicorn nw_watch.webapp.main:app" in content
         ), "Webapp should run via uvicorn"
-        assert "--host 0.0.0.0" in content, "Webapp should listen on all interfaces"
+        assert (
+            "--host 0.0.0.0" in content
+        ), "Webapp should listen on container interfaces for Docker port forwarding"
 
     def test_docker_compose_has_restart_policy(self):
         """Test that services have restart policy."""

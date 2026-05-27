@@ -31,7 +31,7 @@ graph LR
     subgraph "nw-watch System"
         C[📡 Collector<br/>SSH + Ping<br/>every 5s]
         DB[(💾 SQLite<br/>History)]
-        W[🌐 Web UI<br/>localhost:8000]
+        W[🌐 Web UI<br/>127.0.0.1:8000]
     end
     
     subgraph "User"
@@ -176,7 +176,7 @@ This will:
 Open your browser and navigate to:
 
 ```
-http://localhost:8000
+http://127.0.0.1:8000
 ```
 
 6. **View logs**
@@ -626,16 +626,16 @@ The collector control endpoints allow pausing/resuming command execution and req
 
 ```bash
 # Check collector status
-curl "http://localhost:8000/api/collector/status"
+curl "http://127.0.0.1:8000/api/collector/status"
 
 # Pause command execution
-curl -X POST "http://localhost:8000/api/collector/pause"
+curl -X POST "http://127.0.0.1:8000/api/collector/pause"
 
 # Resume command execution
-curl -X POST "http://localhost:8000/api/collector/resume"
+curl -X POST "http://127.0.0.1:8000/api/collector/resume"
 
 # Request collector shutdown
-curl -X POST "http://localhost:8000/api/collector/stop"
+curl -X POST "http://127.0.0.1:8000/api/collector/stop"
 ```
 
 The control state is stored in `./control/collector_control.json`. Set `NW_WATCH_CONTROL_DIR` to customize the location.
@@ -647,33 +647,33 @@ The export functionality is available via REST API endpoints:
 **Export Individual Run:**
 ```bash
 # Text format
-curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=text" -o output.txt
+curl "http://127.0.0.1:8000/api/export/run?command=show%20version&device=DeviceA&format=text" -o output.txt
 
 # JSON format
-curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=json" -o output.json
+curl "http://127.0.0.1:8000/api/export/run?command=show%20version&device=DeviceA&format=json" -o output.json
 ```
 
 **Export Bulk Runs (All Devices):**
 ```bash
-curl "http://localhost:8000/api/export/bulk?command=show%20version&format=json" -o bulk_export.json
+curl "http://127.0.0.1:8000/api/export/bulk?command=show%20version&format=json" -o bulk_export.json
 ```
 
 **Export Diff:**
 ```bash
 # History diff (Previous vs Latest)
-curl "http://localhost:8000/api/export/diff?command=show%20version&device=DeviceA&format=html" -o diff.html
+curl "http://127.0.0.1:8000/api/export/diff?command=show%20version&device=DeviceA&format=html" -o diff.html
 
 # Device diff (DeviceA vs DeviceB)
-curl "http://localhost:8000/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html" -o diff.html
+curl "http://127.0.0.1:8000/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html" -o diff.html
 ```
 
 **Export Ping Data:**
 ```bash
 # CSV format (last hour)
-curl "http://localhost:8000/api/export/ping?device=DeviceA&format=csv&window_seconds=3600" -o ping_data.csv
+curl "http://127.0.0.1:8000/api/export/ping?device=DeviceA&format=csv&window_seconds=3600" -o ping_data.csv
 
 # JSON format (last 24 hours)
-curl "http://localhost:8000/api/export/ping?device=DeviceA&format=json&window_seconds=86400" -o ping_data.json
+curl "http://127.0.0.1:8000/api/export/ping?device=DeviceA&format=json&window_seconds=86400" -o ping_data.json
 ```
 
 ## Architecture

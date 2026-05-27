@@ -30,7 +30,7 @@ graph LR
     subgraph "nw-watch システム"
         C[📡 コレクター<br/>SSH + Ping<br/>5秒ごと]
         DB[(💾 SQLite<br/>履歴保存)]
-        W[🌐 Web UI<br/>localhost:8000]
+        W[🌐 Web UI<br/>127.0.0.1:8000]
     end
     
     subgraph "ユーザー"
@@ -161,7 +161,7 @@ docker-compose up -d
 ブラウザで以下のURLにアクセスします:
 
 ```
-http://localhost:8000
+http://127.0.0.1:8000
 ```
 
 6. **ログを表示**
@@ -593,16 +593,16 @@ pytest --cov=shared --cov=collector --cov=webapp
 
 ```bash
 # 状態確認
-curl "http://localhost:8000/api/collector/status"
+curl "http://127.0.0.1:8000/api/collector/status"
 
 # コマンド実行を一時停止
-curl -X POST "http://localhost:8000/api/collector/pause"
+curl -X POST "http://127.0.0.1:8000/api/collector/pause"
 
 # コマンド実行を再開
-curl -X POST "http://localhost:8000/api/collector/resume"
+curl -X POST "http://127.0.0.1:8000/api/collector/resume"
 
 # コレクター停止を要求
-curl -X POST "http://localhost:8000/api/collector/stop"
+curl -X POST "http://127.0.0.1:8000/api/collector/stop"
 ```
 
 制御情報は `./control/collector_control.json` に保存されます。`NW_WATCH_CONTROL_DIR` で保存先を変更できます。
@@ -614,33 +614,33 @@ curl -X POST "http://localhost:8000/api/collector/stop"
 **個別実行のエクスポート:**
 ```bash
 # テキスト形式
-curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=text" -o output.txt
+curl "http://127.0.0.1:8000/api/export/run?command=show%20version&device=DeviceA&format=text" -o output.txt
 
 # JSON形式
-curl "http://localhost:8000/api/export/run?command=show%20version&device=DeviceA&format=json" -o output.json
+curl "http://127.0.0.1:8000/api/export/run?command=show%20version&device=DeviceA&format=json" -o output.json
 ```
 
 **一括実行のエクスポート（すべてのデバイス）:**
 ```bash
-curl "http://localhost:8000/api/export/bulk?command=show%20version&format=json" -o bulk_export.json
+curl "http://127.0.0.1:8000/api/export/bulk?command=show%20version&format=json" -o bulk_export.json
 ```
 
 **差分のエクスポート:**
 ```bash
 # 履歴差分（前回 vs 最新）
-curl "http://localhost:8000/api/export/diff?command=show%20version&device=DeviceA&format=html" -o diff.html
+curl "http://127.0.0.1:8000/api/export/diff?command=show%20version&device=DeviceA&format=html" -o diff.html
 
 # デバイス差分（DeviceA vs DeviceB）
-curl "http://localhost:8000/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html" -o diff.html
+curl "http://127.0.0.1:8000/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html" -o diff.html
 ```
 
 **Pingデータのエクスポート:**
 ```bash
 # CSV形式（過去1時間）
-curl "http://localhost:8000/api/export/ping?device=DeviceA&format=csv&window_seconds=3600" -o ping_data.csv
+curl "http://127.0.0.1:8000/api/export/ping?device=DeviceA&format=csv&window_seconds=3600" -o ping_data.csv
 
 # JSON形式（過去24時間）
-curl "http://localhost:8000/api/export/ping?device=DeviceA&format=json&window_seconds=86400" -o ping_data.json
+curl "http://127.0.0.1:8000/api/export/ping?device=DeviceA&format=json&window_seconds=86400" -o ping_data.json
 ```
 
 ## アーキテクチャ

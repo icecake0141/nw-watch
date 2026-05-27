@@ -1,3 +1,16 @@
+<!--
+Copyright 2026 icecake0141
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This file was created or modified with the assistance of an AI (Large Language Model).
+Review required for correctness, security, and licensing.
+-->
 # Troubleshooting Guide
 
 This guide provides solutions to common issues you may encounter when using nw-watch.
@@ -542,7 +555,7 @@ This guide provides solutions to common issues you may encounter when using nw-w
    services:
      webapp:
        ports:
-         - "8080:8000"  # Use port 8080 on host
+         - "127.0.0.1:8080:8000"  # Use port 8080 on host loopback only
    ```
 
 ## Web Interface Issues
