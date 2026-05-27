@@ -53,6 +53,7 @@ _db_mtime_lock = asyncio.Lock()
 # Constants for database monitoring
 DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
 PING_TIMELINE_DISPLAY_LAG_SECONDS = 1
+NO_CACHE_CONTROL = "no-store, no-cache, must-revalidate, max-age=0"
 
 
 def sanitize_filename(name: str) -> str:
@@ -148,6 +149,9 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Cache-Control"] = NO_CACHE_CONTROL
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
