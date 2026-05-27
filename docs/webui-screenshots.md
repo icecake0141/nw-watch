@@ -118,14 +118,21 @@ Each run entry displays:
 
 The interface provides two types of diff comparisons to identify changes in network device states.
 
-### 5.1 Historical Diff (Previous vs Latest)
+### 5.1 Historical Diff (Previous or Snapshot vs Latest)
 
-Compares the two most recent runs for the same device and command.
+Compares the latest run for the same device and command against a selectable origin.
+The default origin is the previous run. Users can also capture a fixed origin
+snapshot and keep comparing newer data against that snapshot.
 
 **Features**:
-- **Button**: "Show Previous vs Latest" (appears when ≥2 runs exist)
+- **Button**: "Show History Diff" (appears in each device output panel)
+- **Origin Mode Toggle**:
+  - "Previous": compares the latest run with the immediately preceding run
+  - "Snapshot": compares the latest run with the captured origin snapshot
+- **Snapshot Capture**: "Capture Origin Snapshot" stores the current latest run as the fixed origin
+- **Origin Status**: shows the active mode, snapshot capture time, origin data time, and latest data time
 - **Comparison Labels**: 
-  - Left column: "Previous" (older run with timestamp)
+  - Left column: "Previous" or "Snapshot" (origin run)
   - Right column: "Latest" (newer run with timestamp)
 - **Color Coding**:
   - 🟩 Green background: Lines added in latest run
