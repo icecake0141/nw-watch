@@ -48,6 +48,13 @@ Main optional blocks:
 - `ssh.connection_timeout`
 - `ssh.max_reconnect_attempts`
 - `ssh.reconnect_backoff_base`
+- `ssh.initial_commands`
+- `devices[].initial_commands`
+
+`ssh.initial_commands` run once immediately after every SSH login for all devices.
+`devices[].initial_commands` are appended for that device. With persistent SSH
+connections they run once per connection, and after reconnects. Without persistent
+connections they run at the start of each short-lived command session.
 
 Reference example: [`config.example.yaml`](../config.example.yaml)
 

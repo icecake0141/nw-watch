@@ -48,6 +48,13 @@ English: [specification.md](specification.md)
 - `ssh.connection_timeout`
 - `ssh.max_reconnect_attempts`
 - `ssh.reconnect_backoff_base`
+- `ssh.initial_commands`
+- `devices[].initial_commands`
+
+`ssh.initial_commands` は全デバイスで SSH ログイン直後に一度実行されます。
+`devices[].initial_commands` は対象デバイスで追加実行されます。永続 SSH 接続では
+接続ごと、および再接続後に一度実行されます。永続接続を無効にした場合は、
+各コマンド用の短期セッション開始時に実行されます。
 
 設定例: [`config.example.yaml`](../config.example.yaml)
 

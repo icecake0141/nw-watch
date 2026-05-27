@@ -14,7 +14,7 @@
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from netmiko.exceptions import (
     NetmikoAuthenticationException,
@@ -437,6 +437,97 @@ devices:
         db.close()
 
 
+def test_initial_commands_run_once_per_persistent_connection():
+    """Test initial commands run once when a persistent connection is created."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ssh:
+  initial_commands:
+    - "terminal length 0"
+commands:
+  - name: "test"
+    command_text: "show version"
+devices:
+  - name: "TestDevice"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+    initial_commands:
+      - "enable"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+        config = Config(str(cfg_path))
+        db_path = Path(tmp_dir) / "test.db"
+        db = Database(str(db_path))
+
+        device_config = config.get_devices()[0]
+        collector = DeviceCollector(device_config, config)
+
+        with patch("nw_watch.collector.main.ConnectHandler") as mock_handler:
+            mock_connection = MagicMock()
+            mock_connection.send_command.return_value = "Version output"
+            mock_connection.find_prompt.return_value = "Router#"
+            mock_handler.return_value = mock_connection
+
+            collector.execute_command("show version", db)
+            collector.execute_command("show version", db)
+
+            mock_connection.send_command.assert_has_calls(
+                [
+                    call("terminal length 0"),
+                    call("enable"),
+                    call("show version"),
+                    call("show version"),
+                ]
+            )
+            assert mock_handler.call_count == 1
+
+        db.close()
+
+
+def test_initial_command_failure_disconnects_new_connection():
+    """Test failed initialization closes the newly-created connection."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+commands:
+  - name: "test"
+    command_text: "show version"
+devices:
+  - name: "TestDevice"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+    initial_commands:
+      - "enable"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+        config = Config(str(cfg_path))
+        device_config = config.get_devices()[0]
+        collector = DeviceCollector(device_config, config)
+
+        with patch("nw_watch.collector.main.ConnectHandler") as mock_handler:
+            mock_connection = MagicMock()
+            mock_connection.send_command.side_effect = Exception("enable failed")
+            mock_handler.return_value = mock_connection
+
+            try:
+                collector._connect()
+            except Exception as exc:
+                assert str(exc) == "enable failed"
+            else:
+                raise AssertionError("Expected _connect to raise")
+
+            mock_connection.disconnect.assert_called_once()
+
+
 def test_execute_command_without_persistent_connection():
     """Test command execution without persistent connections (legacy mode)."""
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -481,5 +572,56 @@ devices:
 
             # Verify disconnect was called twice
             assert mock_connection.disconnect.call_count == 2
+
+        db.close()
+
+
+def test_initial_commands_run_for_each_short_lived_connection():
+    """Test initial commands run before monitored commands without persistence."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ssh:
+  persistent_connections: false
+commands:
+  - name: "test"
+    command_text: "show version"
+devices:
+  - name: "TestDevice"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+    initial_commands:
+      - "enable"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+        config = Config(str(cfg_path))
+        db_path = Path(tmp_dir) / "test.db"
+        db = Database(str(db_path))
+
+        device_config = config.get_devices()[0]
+        collector = DeviceCollector(device_config, config)
+
+        with patch("nw_watch.collector.main.ConnectHandler") as mock_handler:
+            first_connection = MagicMock()
+            first_connection.send_command.return_value = "Version output"
+            second_connection = MagicMock()
+            second_connection.send_command.return_value = "Version output"
+            mock_handler.side_effect = [first_connection, second_connection]
+
+            collector.execute_command("show version", db)
+            collector.execute_command("show version", db)
+
+            first_connection.send_command.assert_has_calls(
+                [call("enable"), call("show version")]
+            )
+            second_connection.send_command.assert_has_calls(
+                [call("enable"), call("show version")]
+            )
+            first_connection.disconnect.assert_called_once()
+            second_connection.disconnect.assert_called_once()
 
         db.close()
