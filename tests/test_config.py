@@ -36,6 +36,10 @@ global_filters:
   output_exclude_substrings:
     - "% Invalid"
 
+ssh:
+  initial_commands:
+    - "terminal length 0"
+
 commands:
   - name: "cmd1"
     command_text: "show run"
@@ -49,6 +53,8 @@ devices:
     username: "admin"
     password_env_key: "PW_A"
     device_type: "cisco_ios"
+    initial_commands:
+      - "enable"
 """)
 
     monkeypatch.setenv("PW_A", "secret")
@@ -65,3 +71,8 @@ devices:
     # Falls back to global output exclusions when none are set on the command
     assert config.get_command_output_exclusions("show run") == ["% Invalid"]
     assert config.get_device_password(config.get_devices()[0]) == "secret"
+    assert config.get_global_initial_commands() == ["terminal length 0"]
+    assert config.get_device_initial_commands(config.get_devices()[0]) == [
+        "terminal length 0",
+        "enable",
+    ]

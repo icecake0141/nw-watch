@@ -155,6 +155,11 @@ class Config:
         ssh_config = self.data.get("ssh", {})
         return float(ssh_config.get("reconnect_backoff_base", 1.0))
 
+    def get_global_initial_commands(self) -> List[str]:
+        """Initial commands to run after every SSH login."""
+        ssh_config = self.data.get("ssh", {})
+        return list(ssh_config.get("initial_commands", []))
+
     # ------------------------------------------------------------------ #
     # Devices and commands
     # ------------------------------------------------------------------ #
@@ -183,6 +188,12 @@ class Config:
                 device.get("name", "unknown"),
             )
         return fallback
+
+    def get_device_initial_commands(self, device: Dict[str, Any]) -> List[str]:
+        """Initial commands for a device, including global SSH commands first."""
+        return self.get_global_initial_commands() + list(
+            device.get("initial_commands", [])
+        )
 
     # ------------------------------------------------------------------ #
     # Filters

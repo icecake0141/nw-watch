@@ -9,7 +9,6 @@
 #
 # This file was created or modified with the assistance of an AI (Large Language Model).
 # Review required for correctness, security, and licensing.
-
 # Network Watch Configuration Example
 
 # Core intervals and history
@@ -39,6 +38,9 @@ ssh:
   connection_timeout: 100        # SSH connection timeout in seconds (default: 100)
   max_reconnect_attempts: 3      # Maximum reconnection attempts (default: 3)
   reconnect_backoff_base: 1.0    # Base time for exponential backoff in seconds (default: 1.0)
+  # Commands to run once immediately after every SSH login, before monitored commands
+  # initial_commands:
+  #   - "terminal length 0"
 
 # Global filters applied to every command (unless command override exists)
 global_filters:
@@ -77,6 +79,9 @@ devices:
     password_env_key: "DEVICEA_PASSWORD"  # Read password from environment
     device_type: "cisco_ios"              # netmiko device type
     ping_host: "192.168.1.1"
+    # Device-specific commands appended after ssh.initial_commands on every SSH login
+    # initial_commands:
+    #   - "enable"
 
   - name: "DeviceB"
     host: "192.168.1.2"

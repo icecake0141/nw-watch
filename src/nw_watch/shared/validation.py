@@ -93,6 +93,7 @@ class DeviceConfig(BaseModel):
     password: Optional[str] = None
     device_type: str
     ping_host: Optional[str] = None
+    initial_commands: List[str] = Field(default_factory=list)
 
     @field_validator("name")
     @classmethod
@@ -160,6 +161,15 @@ class DeviceConfig(BaseModel):
             return validate_ping_host_value(v)
         return v
 
+    @field_validator("initial_commands")
+    @classmethod
+    def validate_initial_commands(cls, v: List[str]) -> List[str]:
+        """Validate initial commands are non-empty strings."""
+        for command in v:
+            if not command or not command.strip():
+                raise ValueError("initial_commands must not contain empty commands")
+        return v
+
     @model_validator(mode="after")
     def validate_password_config(self) -> "DeviceConfig":
         """Ensure either password_env_key or password is provided."""
@@ -220,6 +230,7 @@ class SSHConfig(BaseModel):
     connection_timeout: int = Field(default=100, gt=0)
     max_reconnect_attempts: int = Field(default=3, ge=0)
     reconnect_backoff_base: float = Field(default=1.0, gt=0)
+    initial_commands: List[str] = Field(default_factory=list)
 
     @field_validator("connection_timeout")
     @classmethod
@@ -245,6 +256,15 @@ class SSHConfig(BaseModel):
         """Validate reconnect backoff base is positive."""
         if v <= 0:
             raise ValueError(f"SSH reconnect_backoff_base must be positive, got {v}")
+        return v
+
+    @field_validator("initial_commands")
+    @classmethod
+    def validate_initial_commands(cls, v: List[str]) -> List[str]:
+        """Validate initial commands are non-empty strings."""
+        for command in v:
+            if not command or not command.strip():
+                raise ValueError("SSH initial_commands must not contain empty commands")
         return v
 
 
