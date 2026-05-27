@@ -35,6 +35,8 @@ class NetworkWatch {
         this.collectorPollTimer = null;
         this.collectorState = {
             commands_paused: false,
+            manual_mode: false,
+            manual_run_requested: false,
             shutdown_requested: false,
             status: 'unknown',
             updated_at: 0
@@ -144,6 +146,14 @@ class NetworkWatch {
             this.toggleCollectorCommands();
         });
 
+        document.getElementById('toggleCollectorMode').addEventListener('click', () => {
+            this.toggleCollectorMode();
+        });
+
+        document.getElementById('runCollectorOnce').addEventListener('click', () => {
+            this.runCollectorOnce();
+        });
+
         document.getElementById('stopCollector').addEventListener('click', () => {
             this.stopCollector();
         });
@@ -248,15 +258,58 @@ class NetworkWatch {
         }
     }
 
+    async toggleCollectorMode() {
+        try {
+            const response = await fetch('/api/collector/mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ manual_mode: !this.collectorState.manual_mode })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update collector mode');
+            }
+            this.collectorState = data;
+            this.updateCollectorControls();
+        } catch (error) {
+            console.error('Error updating collector mode:', error);
+            alert('Failed to update collector mode');
+        }
+    }
+
+    async runCollectorOnce() {
+        try {
+            const runButton = document.getElementById('runCollectorOnce');
+            runButton.disabled = true;
+            runButton.textContent = '⏳ Run Requested';
+
+            const response = await fetch('/api/collector/run_once', { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to request manual command run');
+            }
+            this.collectorState = data;
+            this.updateCollectorControls();
+        } catch (error) {
+            console.error('Error requesting manual command run:', error);
+            alert('Failed to request manual command run');
+            this.updateCollectorControls();
+        }
+    }
+
     updateCollectorControls(hasError = false) {
         const statusElement = document.getElementById('collectorStatus');
         const toggleButton = document.getElementById('toggleCollectorCommands');
+        const modeButton = document.getElementById('toggleCollectorMode');
+        const runButton = document.getElementById('runCollectorOnce');
         const stopButton = document.getElementById('stopCollector');
-        statusElement.classList.remove('status-unknown', 'status-paused', 'status-running', 'status-stopped');
+        statusElement.classList.remove('status-unknown', 'status-paused', 'status-running', 'status-stopped', 'status-manual');
 
         if (hasError) {
             statusElement.textContent = 'Collector: Unknown';
             statusElement.classList.add('status-unknown');
+            modeButton.disabled = true;
+            runButton.style.display = 'none';
             return;
         }
         const status = this.collectorState.status || 'unknown';
@@ -265,6 +318,9 @@ class NetworkWatch {
             statusElement.textContent = 'Collector: Stopped';
             statusElement.classList.add('status-stopped');
             toggleButton.disabled = true;
+            modeButton.disabled = true;
+            runButton.disabled = true;
+            runButton.style.display = 'none';
             stopButton.disabled = true;
             toggleButton.textContent = '⏹ Collector Stopped';
             return;
@@ -280,7 +336,25 @@ class NetworkWatch {
             toggleButton.textContent = '⏸ Pause Commands';
         }
 
+        if (!this.collectorState.commands_paused && this.collectorState.manual_mode) {
+            statusElement.textContent = this.collectorState.manual_run_requested
+                ? 'Collector: Manual Run Pending'
+                : 'Collector: Manual';
+            statusElement.classList.remove('status-running', 'status-paused');
+            statusElement.classList.add('status-manual');
+        }
+
+        modeButton.textContent = this.collectorState.manual_mode
+            ? 'Manual Mode: On'
+            : 'Manual Mode: Off';
+        runButton.style.display = this.collectorState.manual_mode ? 'inline-flex' : 'none';
+        runButton.disabled = Boolean(this.collectorState.commands_paused || this.collectorState.manual_run_requested);
+        runButton.textContent = this.collectorState.manual_run_requested
+            ? '⏳ Run Requested'
+            : '▶ Run Commands Now';
+
         toggleButton.disabled = false;
+        modeButton.disabled = false;
         stopButton.disabled = false;
     }
 

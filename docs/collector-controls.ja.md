@@ -35,6 +35,10 @@ Web UI には collector を制御する 3 つのボタンがあります。
 - `POST /api/collector/pause`
 - `POST /api/collector/resume`
 - `POST /api/collector/stop`
+- `POST /api/collector/mode`
+- `POST /api/collector/run_once`
+
+手動モードでは `manual_mode: true` が保存され、collector は通常スケジュールでのコマンド取得を停止します。Web UI に表示される `Run Commands Now` ボタンを押すと `manual_run_requested: true` が保存され、collector は次回ポーリング時に1回だけコマンド取得を実行してからリクエストをクリアします。
 
 ## 動作上の注意
 

@@ -28,7 +28,11 @@ from netmiko import ConnectHandler
 from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
 from nw_watch.shared.config import Config
-from nw_watch.shared.control_state import DEFAULT_CONTROL_STATE, read_control_state
+from nw_watch.shared.control_state import (
+    DEFAULT_CONTROL_STATE,
+    read_control_state,
+    update_control_state,
+)
 from nw_watch.shared.db import Database
 from nw_watch.shared.filters import process_output
 
@@ -349,6 +353,7 @@ class Collector:
         self.running = True
         self.commands: List[str] = self._resolve_commands()
         self.commands_paused = False
+        self.manual_mode = False
         self.control_poll_interval = 2
 
         # Cache global interval to avoid repeated method calls
@@ -408,6 +413,14 @@ class Collector:
             else:
                 logger.info("Command execution resumed via control state.")
 
+        manual_mode = bool(state.get("manual_mode", False))
+        if manual_mode != self.manual_mode:
+            self.manual_mode = manual_mode
+            if manual_mode:
+                logger.info("Command execution switched to manual mode.")
+            else:
+                logger.info("Command execution switched to automatic mode.")
+
     def _resolve_commands(self) -> List[str]:
         """Build command list honoring global commands or per-device fallbacks."""
         configured_commands = self.config.get_commands()
@@ -427,7 +440,7 @@ class Collector:
                 seen.add(cmd)
         return ordered
 
-    async def collect_commands(self):
+    async def collect_commands(self, force: bool = False):
         """Collect commands from all devices (only commands due to run)."""
         loop = asyncio.get_event_loop()
         futures = []
@@ -438,7 +451,7 @@ class Collector:
             for command in self.commands:
                 # Check if this command should run now
                 next_run = self.command_next_run.get(command, now)
-                if now >= next_run:
+                if force or now >= next_run:
                     # Run in thread pool to avoid blocking
                     future = loop.run_in_executor(
                         self.executor, collector.execute_command, command, self.db
@@ -515,6 +528,20 @@ class Collector:
 
                     self._apply_control_state(control_state)
                     if self.commands_paused:
+                        await asyncio.sleep(self.control_poll_interval)
+                        continue
+
+                    if self.manual_mode:
+                        if not control_state.get("manual_run_requested"):
+                            await asyncio.sleep(self.control_poll_interval)
+                            continue
+                        await self.collect_commands(force=True)
+                        try:
+                            update_control_state({"manual_run_requested": False})
+                        except Exception as exc:
+                            logger.warning(
+                                "Failed to clear manual run request: %s", exc
+                            )
                         await asyncio.sleep(self.control_poll_interval)
                         continue
 

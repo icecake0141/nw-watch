@@ -380,6 +380,8 @@ def test_collector_status_default(client):
 
     data = response.json()
     assert data["commands_paused"] is False
+    assert data["manual_mode"] is False
+    assert data["manual_run_requested"] is False
     assert data["shutdown_requested"] is False
     assert data["status"] == "running"
 
@@ -411,6 +413,36 @@ def test_collector_stop(client):
     assert data["status"] == "stopped"
 
     response = client.post("/api/collector/pause")
+    assert response.status_code == 409
+
+
+def test_collector_manual_mode_and_run_once(client):
+    """Test manual command execution mode controls."""
+    response = client.post("/api/collector/mode", json={"manual_mode": True})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manual_mode"] is True
+    assert data["manual_run_requested"] is False
+    assert data["status"] == "manual"
+
+    response = client.post("/api/collector/run_once")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manual_mode"] is True
+    assert data["manual_run_requested"] is True
+    assert data["status"] == "manual"
+
+    response = client.post("/api/collector/mode", json={"manual_mode": False})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manual_mode"] is False
+    assert data["manual_run_requested"] is False
+    assert data["status"] == "running"
+
+
+def test_collector_run_once_requires_manual_mode(client):
+    """Test manual run requests are rejected outside manual mode."""
+    response = client.post("/api/collector/run_once")
     assert response.status_code == 409
 
 

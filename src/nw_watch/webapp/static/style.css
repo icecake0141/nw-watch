@@ -185,9 +185,18 @@ header h1 {
     border-color: rgba(255, 193, 7, 0.9);
 }
 
+.collector-status.status-manual {
+    color: #e3f2fd;
+    border-color: rgba(33, 150, 243, 0.9);
+}
+
 .collector-status.status-stopped {
     color: #ffebee;
     border-color: rgba(220, 53, 69, 0.9);
+}
+
+.collector-manual-run {
+    display: none;
 }
 
 .collector-status.status-unknown {
