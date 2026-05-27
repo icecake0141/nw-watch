@@ -30,7 +30,7 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-`http://localhost:8000` を開いてください。
+`http://127.0.0.1:8000` を開いてください。
 
 ### 方法2: ローカル
 
@@ -39,7 +39,7 @@ pip install -e ".[dev]"
 cp config.example.yaml config.yaml
 # DEVICE*_PASSWORD 環境変数を設定
 PYTHONPATH=src python -m nw_watch.collector.main --config config.yaml
-PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000
 ```
 
 ## ドキュメント

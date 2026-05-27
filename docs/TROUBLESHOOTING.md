@@ -555,7 +555,7 @@ This guide provides solutions to common issues you may encounter when using nw-w
    services:
      webapp:
        ports:
-         - "8080:8000"  # Use port 8080 on host
+         - "127.0.0.1:8080:8000"  # Use port 8080 on host loopback only
    ```
 
 ## Web Interface Issues

@@ -31,7 +31,7 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-Open `http://localhost:8000`.
+Open `http://127.0.0.1:8000`.
 
 ### Option 2: Local
 
@@ -40,7 +40,7 @@ pip install -e ".[dev]"
 cp config.example.yaml config.yaml
 # set DEVICE*_PASSWORD environment variables
 PYTHONPATH=src python -m nw_watch.collector.main --config config.yaml
-PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000
 ```
 
 ## Documentation

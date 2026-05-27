@@ -34,7 +34,7 @@ services:
     build: .
     container_name: nw-watch-webapp
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       # Data directory mounted read-only - webapp only reads from database
       - ./data:/app/data:ro
