@@ -1,17 +1,54 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for persistent SSH connection functionality."""
 
 import os
 import tempfile
-import threading
-import time
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
+from netmiko.exceptions import (
+    NetmikoAuthenticationException,
+    NetmikoTimeoutException,
+)
 
-from nw_watch.collector.main import DeviceCollector
+from nw_watch.collector.main import DeviceCollector, classify_command_error
 from nw_watch.shared.config import Config
 from nw_watch.shared.db import Database
+
+
+def test_classify_command_error_not_responding():
+    """Test timeout and reachability failures are user-facing."""
+    assert (
+        classify_command_error(NetmikoTimeoutException("TCP connection timeout"))
+        == "Not Responding"
+    )
+    assert classify_command_error(OSError("No route to host")) == "Not Responding"
+
+
+def test_classify_command_error_disconnected():
+    """Test broken SSH sessions are reported as disconnected."""
+    assert classify_command_error(Exception("Connection lost during command")) == (
+        "Disconnected"
+    )
+    assert classify_command_error(Exception("Broken pipe")) == "Disconnected"
+
+
+def test_classify_command_error_authentication_failed():
+    """Test authentication failures keep a specific message."""
+    assert (
+        classify_command_error(NetmikoAuthenticationException("Login failed"))
+        == "Authentication Failed"
+    )
 
 
 def test_device_collector_persistent_connections_enabled():
