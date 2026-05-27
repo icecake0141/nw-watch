@@ -11,39 +11,38 @@ You may obtain a copy of the License at
 This file was created or modified with the assistance of an AI (Large Language Model).
 Review required for correctness, security, and licensing.
 -->
-# nw-watch - Network Device CLI Monitor
-[![CI](https://github.com/icecake0141/nw-watch/actions/workflows/ci.yml/badge.svg)](https://github.com/icecake0141/nw-watch/actions/workflows/ci.yml)
+# nw-watch - ネットワークデバイス CLI モニター
 
-Japanese: [README.ja.md](README.ja.md)
+English: [README.md](README.md)
 
-nw-watch collects CLI outputs and ping health from network devices over SSH, stores data in SQLite, and serves real-time monitoring and diff views through a FastAPI web UI.
+nw-watch は、ネットワーク機器に SSH で接続して CLI 出力と ping 結果を収集し、SQLite に保存、FastAPI 製 Web UI でリアルタイム表示と差分比較を行うツールです。
 
-## Installation
+## インストール
 
-### Option 1: Docker
+### 方法1: Docker
 
 ```bash
 git clone https://github.com/icecake0141/nw-watch.git
 cd nw-watch
 cp config.example.yaml config.yaml
 cp .env.example .env
-# edit config.yaml and .env
+# config.yaml と .env を編集
 docker-compose up -d
 ```
 
-Open `http://127.0.0.1:8000`.
+`http://127.0.0.1:8000` を開いてください。
 
-### Option 2: Local
+### 方法2: ローカル
 
 ```bash
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml
-# set DEVICE*_PASSWORD environment variables
+# DEVICE*_PASSWORD 環境変数を設定
 python -m nw_watch.collector.main --config config.yaml
 uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000
 ```
 
-## Documentation
+## ドキュメント
 
 - [Documentation Index (English)](docs/README.md)
 - [ドキュメント一覧 (日本語)](docs/README.ja.md)
