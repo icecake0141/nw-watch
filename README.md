@@ -39,8 +39,8 @@ Open `http://localhost:8000`.
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml
 # set DEVICE*_PASSWORD environment variables
-python -m nw_watch.collector.main --config config.yaml
-uvicorn nw_watch.webapp.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src python -m nw_watch.collector.main --config config.yaml
+PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Documentation
