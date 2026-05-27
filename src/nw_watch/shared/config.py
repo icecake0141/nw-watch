@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Configuration loading and validation."""
 
 import logging
@@ -150,6 +161,10 @@ class Config:
     def get_devices(self) -> List[Dict[str, Any]]:
         """Configured devices."""
         return self.data.get("devices", [])
+
+    def get_ping_targets(self) -> List[Dict[str, str]]:
+        """Configured standalone ping targets."""
+        return self.data.get("ping_targets", [])
 
     def get_commands(self) -> List[Dict[str, Any]]:
         """Configured commands (global list)."""

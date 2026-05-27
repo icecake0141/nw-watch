@@ -182,6 +182,23 @@ def get_db(history_size: int) -> Optional[Database]:
     return Database(str(DATABASE_PATH), history_size=history_size)
 
 
+def get_command_device_names(db: Database) -> list[str]:
+    """Return database device names that have command run records."""
+    all_devices = db.get_all_devices()
+    commands = db.get_all_commands()
+    if not commands:
+        return all_devices
+
+    command_devices = []
+    for device in all_devices:
+        if any(
+            db.get_latest_runs(device, command, limit=1, include_filtered=True)
+            for command in commands
+        ):
+            command_devices.append(device)
+    return command_devices
+
+
 def build_collector_status() -> Dict[str, object]:
     """Build a collector control status payload."""
     state = read_control_state()
@@ -236,7 +253,7 @@ async def get_devices():
         return JSONResponse({"devices": []})
 
     try:
-        devices = db.get_all_devices()
+        devices = get_command_device_names(db)
         return JSONResponse({"devices": devices})
     finally:
         db.close()
@@ -260,7 +277,7 @@ async def get_runs(
         return JSONResponse({"runs": {}})
 
     try:
-        devices = [device] if device else db.get_all_devices()
+        devices = [device] if device else get_command_device_names(db)
         result = {}
 
         for dev in devices:
@@ -284,7 +301,7 @@ async def get_runs_side_by_side(command: str):
         return JSONResponse({"devices": []})
 
     try:
-        devices = db.get_all_devices()
+        devices = get_command_device_names(db)
 
         if len(devices) < 2:
             # Need at least 2 devices for comparison
@@ -482,7 +499,7 @@ async def get_ping_status(window_seconds: int = 60):
                         avg_rtt = sum(rtts) / len(rtts)
                 # Build timeline (oldest -> newest)
                 samples_by_ts = {s["ts_epoch"]: s for s in samples}
-                timeline = []
+                timeline: list[Optional[bool]] = []
                 for offset in range(window_seconds - 1, -1, -1):
                     ts = timeline_end_ts - offset
                     sample = samples_by_ts.get(ts)
@@ -714,7 +731,7 @@ async def export_bulk(command: str, format: str = "json"):
         return JSONResponse({"error": "Database not available"}, status_code=503)
 
     try:
-        devices = db.get_all_devices()
+        devices = get_command_device_names(db)
         runs_by_device = {}
 
         for device in devices:
@@ -798,7 +815,11 @@ async def export_diff(
             )
             label_a = device_a
             label_b = device_b
-            filename_prefix = f"device_diff_{sanitize_filename(device_a)}_vs_{sanitize_filename(device_b)}_{sanitize_filename(command.replace(' ', '_'))}"
+            command_name = sanitize_filename(command.replace(" ", "_"))
+            filename_prefix = (
+                f"device_diff_{sanitize_filename(device_a)}_vs_"
+                f"{sanitize_filename(device_b)}_{command_name}"
+            )
         else:
             return JSONResponse({"error": "Invalid parameters"}, status_code=400)
 

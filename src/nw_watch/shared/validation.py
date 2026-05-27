@@ -1,9 +1,34 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Configuration validation using Pydantic models."""
 
 import re
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+PING_HOST_PATTERN = r"^[a-zA-Z0-9\.\:\-\_]+$"
+
+
+def validate_ping_host_value(v: str, field_name: str = "ping_host") -> str:
+    """Validate ping host format to prevent command injection."""
+    if not v or not v.strip():
+        raise ValueError(f"{field_name} must not be empty")
+    if not re.match(PING_HOST_PATTERN, v):
+        raise ValueError(
+            f"Invalid {field_name} format '{v}'. Must contain only "
+            "alphanumeric characters, dots, colons, hyphens, and underscores."
+        )
+    return v
 
 
 class FiltersConfig(BaseModel):
@@ -132,14 +157,7 @@ class DeviceConfig(BaseModel):
     def validate_ping_host(cls, v: Optional[str]) -> Optional[str]:
         """Validate ping host format to prevent command injection."""
         if v is not None:
-            # Allow IPv4, IPv6, and hostnames
-            # This regex is permissive but prevents command injection
-            pattern = r"^[a-zA-Z0-9\.\:\-\_]+$"
-            if not re.match(pattern, v):
-                raise ValueError(
-                    f"Invalid ping_host format '{v}'. Must contain only "
-                    "alphanumeric characters, dots, colons, hyphens, and underscores."
-                )
+            return validate_ping_host_value(v)
         return v
 
     @model_validator(mode="after")
@@ -157,6 +175,27 @@ class GlobalFiltersConfig(BaseModel):
 
     line_exclude_substrings: Optional[List[str]] = Field(default_factory=list)
     output_exclude_substrings: Optional[List[str]] = Field(default_factory=list)
+
+
+class PingTargetConfig(BaseModel):
+    """Standalone ping target configuration."""
+
+    name: str
+    host: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate ping target name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Ping target name must not be empty")
+        return v
+
+    @field_validator("host")
+    @classmethod
+    def validate_host(cls, v: str) -> str:
+        """Validate ping target host format."""
+        return validate_ping_host_value(v, "ping target host")
 
 
 class WebSocketConfig(BaseModel):
@@ -241,6 +280,7 @@ class ConfigSchema(BaseModel):
 
     commands: List[CommandConfig] = Field(default_factory=list)
     devices: List[DeviceConfig] = Field(default_factory=list)
+    ping_targets: List[PingTargetConfig] = Field(default_factory=list)
 
     # Legacy fields for backward compatibility
     webapp: Optional[Dict[str, Any]] = None
@@ -302,6 +342,16 @@ class ConfigSchema(BaseModel):
             raise ValueError("At least one command must be configured")
         return v
 
+    @field_validator("ping_targets")
+    @classmethod
+    def validate_ping_targets_limit(
+        cls, v: List[PingTargetConfig]
+    ) -> List[PingTargetConfig]:
+        """Validate standalone ping target count."""
+        if len(v) > 3:
+            raise ValueError("ping_targets supports up to 3 targets")
+        return v
+
     @model_validator(mode="after")
     def validate_unique_device_names(self) -> "ConfigSchema":
         """Ensure device names are unique."""
@@ -309,6 +359,22 @@ class ConfigSchema(BaseModel):
         if len(names) != len(set(names)):
             duplicates = [name for name in names if names.count(name) > 1]
             raise ValueError(f"Duplicate device names found: {set(duplicates)}")
+        return self
+
+    @model_validator(mode="after")
+    def validate_unique_ping_target_names(self) -> "ConfigSchema":
+        """Ensure standalone ping target names are unique and separate from devices."""
+        names = [target.name for target in self.ping_targets]
+        if len(names) != len(set(names)):
+            duplicates = [name for name in names if names.count(name) > 1]
+            raise ValueError(f"Duplicate ping target names found: {set(duplicates)}")
+
+        device_names = {device.name for device in self.devices}
+        overlaps = sorted(device_names.intersection(names))
+        if overlaps:
+            raise ValueError(
+                f"ping_targets names must not duplicate device names: {overlaps}"
+            )
         return self
 
     @model_validator(mode="after")

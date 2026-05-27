@@ -26,6 +26,7 @@ English: [specification.md](specification.md)
 - グローバル実行間隔: `interval_seconds`
 - コマンド個別上書き: `commands[].interval_seconds`（許容範囲 5-60 秒）
 - ping 間隔: `ping_interval_seconds`
+- 独立 ping 監視対象: `ping_targets[]`（任意、最大 3 件）
 - 履歴保持: `history_size`（デバイス/コマンドごとに最新 N 件）
 - フィルター:
 - `global_filters.line_exclude_substrings` は一致行を削除
@@ -42,6 +43,8 @@ English: [specification.md](specification.md)
 主な任意ブロック:
 
 - `collector.max_workers`
+- `ping_targets[].name`
+- `ping_targets[].host`
 - `websocket.enabled`
 - `websocket.ping_interval`
 - `ssh.persistent_connections`
