@@ -88,11 +88,15 @@ def client(test_db):
 
     shutil.copy2(test_db, current_db)
 
-    from nw_watch.webapp.main import app
+    from nw_watch.webapp.main import _history_diff_snapshots, app
+
+    _history_diff_snapshots.clear()
 
     client = TestClient(app)
 
     yield client
+
+    _history_diff_snapshots.clear()
 
     # Cleanup
     if current_db.exists():
@@ -303,6 +307,85 @@ def test_get_history_diff(client):
     data = response.json()
     assert "diff" in data
     assert "has_diff" in data
+    assert data["origin_mode"] == "previous"
+
+
+def test_get_history_diff_snapshot_without_capture(client):
+    """Test getting snapshot diff before a snapshot exists."""
+    response = client.get(
+        "/api/diff/history?command=show%20version&device=DeviceA&origin_mode=snapshot"
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["origin_mode"] == "snapshot"
+    assert data["snapshot_available"] is False
+    assert data["diff_format"] == "text"
+
+
+def test_capture_history_diff_snapshot(client):
+    """Test capturing a fixed origin snapshot for history diff."""
+    response = client.post("/api/diff/snapshot?command=show%20version&device=DeviceA")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["snapshot_available"] is True
+    assert data["origin_ts"] == 1000000
+    assert data["latest_ts"] == 1000000
+
+    status_response = client.get(
+        "/api/diff/snapshot/status?command=show%20version&device=DeviceA"
+    )
+    assert status_response.status_code == 200
+    status = status_response.json()
+    assert status["snapshot_available"] is True
+    assert status["origin_ts"] == 1000000
+
+
+def test_get_history_diff_uses_fixed_snapshot_origin(client):
+    """Test snapshot diff keeps the captured origin as newer runs arrive."""
+    response = client.post("/api/diff/snapshot?command=show%20version&device=DeviceA")
+    assert response.status_code == 200
+
+    db = Database("data/current.sqlite3")
+    db.insert_run(
+        device_name="DeviceA",
+        command_text="show version",
+        ts_epoch=1000002,
+        output_text="Version 1.1",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=10,
+    )
+    db.insert_run(
+        device_name="DeviceA",
+        command_text="show version",
+        ts_epoch=1000003,
+        output_text="Version 1.2",
+        ok=True,
+        duration_ms=100.0,
+        original_line_count=10,
+    )
+    db.close()
+
+    snapshot_response = client.get(
+        "/api/diff/history?command=show%20version&device=DeviceA&origin_mode=snapshot"
+    )
+    previous_response = client.get(
+        "/api/diff/history?command=show%20version&device=DeviceA"
+    )
+
+    assert snapshot_response.status_code == 200
+    assert previous_response.status_code == 200
+
+    snapshot = snapshot_response.json()
+    previous = previous_response.json()
+    assert snapshot["origin_mode"] == "snapshot"
+    assert snapshot["origin_ts"] == 1000000
+    assert snapshot["latest_ts"] == 1000003
+    assert snapshot["snapshot_available"] is True
+    assert previous["origin_mode"] == "previous"
+    assert previous["origin_ts"] == 1000002
 
 
 def test_get_device_diff(client):

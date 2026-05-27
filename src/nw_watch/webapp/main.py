@@ -19,7 +19,7 @@ import time
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from yaml import YAMLError
 
@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 _background_task = None
 _last_db_mtime = None
 _db_mtime_lock = asyncio.Lock()
+_history_diff_snapshots: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
 # Constants for database monitoring
 DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
@@ -184,6 +185,43 @@ def get_db(history_size: int) -> Optional[Database]:
     if not DATABASE_PATH.exists():
         return None
     return Database(str(DATABASE_PATH), history_size=history_size)
+
+
+def get_history_snapshot_key(command: str, device: str) -> Tuple[str, str]:
+    """Return the stable key for a history diff snapshot."""
+    return command, device.strip()
+
+
+def build_history_diff_response(
+    origin_run: Dict[str, Any],
+    latest_run: Dict[str, Any],
+    *,
+    origin_label: str,
+    origin_mode: str,
+    snapshot_captured_at: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Build a history diff payload from a selected origin and latest run."""
+    origin_text = origin_run.get("output_text", "")
+    latest_text = latest_run.get("output_text", "")
+    diff = generate_side_by_side_diff(
+        origin_text, latest_text, label_a=origin_label, label_b="Latest"
+    )
+
+    response: Dict[str, Any] = {
+        "diff": diff,
+        "diff_format": "html",
+        "has_diff": origin_text != latest_text,
+        "origin_mode": origin_mode,
+        "origin_label": origin_label,
+        "origin_ts": origin_run["ts_epoch"],
+        "latest_ts": latest_run["ts_epoch"],
+        "snapshot_available": origin_mode == "snapshot",
+    }
+    if origin_mode == "previous":
+        response["previous_ts"] = origin_run["ts_epoch"]
+    if snapshot_captured_at is not None:
+        response["snapshot_captured_at"] = snapshot_captured_at
+    return response
 
 
 def build_collector_status() -> Dict[str, object]:
@@ -368,13 +406,54 @@ async def get_runs_side_by_side(command: str):
 
 
 @app.get("/api/diff/history")
-async def get_history_diff(command: str, device: str):
-    """Get diff between latest and previous run."""
+async def get_history_diff(command: str, device: str, origin_mode: str = "previous"):
+    """Get diff between latest and the selected history origin."""
     db = get_db(resolve_history_size())
     if not db:
         return JSONResponse({"error": "Database not available"}, status_code=503)
 
     try:
+        if origin_mode not in {"previous", "snapshot"}:
+            return JSONResponse({"error": "Invalid origin_mode"}, status_code=400)
+
+        if origin_mode == "snapshot":
+            latest = db.get_latest_run(device, command, include_filtered=False)
+            if not latest:
+                return JSONResponse(
+                    {
+                        "diff": "Latest data is not available",
+                        "has_diff": False,
+                        "diff_format": "text",
+                        "origin_mode": "snapshot",
+                        "snapshot_available": False,
+                    }
+                )
+
+            snapshot = _history_diff_snapshots.get(
+                get_history_snapshot_key(command, device)
+            )
+            if not snapshot:
+                return JSONResponse(
+                    {
+                        "diff": "Snapshot has not been captured",
+                        "has_diff": False,
+                        "diff_format": "text",
+                        "origin_mode": "snapshot",
+                        "latest_ts": latest["ts_epoch"],
+                        "snapshot_available": False,
+                    }
+                )
+
+            return JSONResponse(
+                build_history_diff_response(
+                    snapshot["run"],
+                    latest,
+                    origin_label="Snapshot",
+                    origin_mode="snapshot",
+                    snapshot_captured_at=snapshot["captured_at"],
+                )
+            )
+
         runs = db.get_latest_runs(device, command, limit=2, include_filtered=False)
 
         if len(runs) < 2:
@@ -383,30 +462,88 @@ async def get_history_diff(command: str, device: str):
                     "diff": "Not enough history for comparison",
                     "has_diff": False,
                     "diff_format": "text",
+                    "origin_mode": "previous",
+                    "snapshot_available": False,
                 }
             )
 
         latest = runs[0]
         previous = runs[1]
 
-        previous_text = previous.get("output_text", "")
-        latest_text = latest.get("output_text", "")
-        diff = generate_side_by_side_diff(
-            previous_text, latest_text, label_a="Previous", label_b="Latest"
+        return JSONResponse(
+            build_history_diff_response(
+                previous,
+                latest,
+                origin_label="Previous",
+                origin_mode="previous",
+            )
         )
-        has_diff = previous_text != latest_text
+    finally:
+        db.close()
 
+
+@app.post("/api/diff/snapshot")
+async def capture_history_diff_snapshot(command: str, device: str):
+    """Capture the latest run as the fixed origin for history diff."""
+    db = get_db(resolve_history_size())
+    if not db:
+        return JSONResponse({"error": "Database not available"}, status_code=503)
+
+    try:
+        latest = db.get_latest_run(device, command, include_filtered=False)
+        if not latest:
+            return JSONResponse(
+                {"error": "Latest data is not available"}, status_code=404
+            )
+
+        captured_at = int(time.time())
+        snapshot = {
+            "captured_at": captured_at,
+            "run": dict(latest),
+        }
+        _history_diff_snapshots[get_history_snapshot_key(command, device)] = snapshot
         return JSONResponse(
             {
-                "diff": diff,
-                "diff_format": "html",
-                "has_diff": has_diff,
+                "snapshot_available": True,
+                "captured_at": captured_at,
+                "origin_ts": latest["ts_epoch"],
                 "latest_ts": latest["ts_epoch"],
-                "previous_ts": previous["ts_epoch"],
             }
         )
     finally:
         db.close()
+
+
+@app.get("/api/diff/snapshot/status")
+async def get_history_diff_snapshot_status(command: str, device: str):
+    """Get fixed history diff snapshot status for a device and command."""
+    snapshot = _history_diff_snapshots.get(get_history_snapshot_key(command, device))
+
+    db = get_db(resolve_history_size())
+    latest_ts = None
+    if db:
+        try:
+            latest = db.get_latest_run(device, command, include_filtered=False)
+            latest_ts = latest["ts_epoch"] if latest else None
+        finally:
+            db.close()
+
+    if not snapshot:
+        return JSONResponse(
+            {
+                "snapshot_available": False,
+                "latest_ts": latest_ts,
+            }
+        )
+
+    return JSONResponse(
+        {
+            "snapshot_available": True,
+            "captured_at": snapshot["captured_at"],
+            "origin_ts": snapshot["run"]["ts_epoch"],
+            "latest_ts": latest_ts,
+        }
+    )
 
 
 @app.get("/api/diff/devices")
@@ -486,7 +623,7 @@ async def get_ping_status(window_seconds: int = 60):
                         avg_rtt = sum(rtts) / len(rtts)
                 # Build timeline (oldest -> newest)
                 samples_by_ts = {s["ts_epoch"]: s for s in samples}
-                timeline = []
+                timeline: list[Optional[bool]] = []
                 for offset in range(window_seconds - 1, -1, -1):
                     ts = timeline_end_ts - offset
                     sample = samples_by_ts.get(ts)
@@ -748,6 +885,7 @@ async def export_diff(
     device_a: Optional[str] = None,
     device_b: Optional[str] = None,
     format: str = "html",
+    origin_mode: str = "previous",
 ):
     """Export diff view.
 
@@ -763,25 +901,42 @@ async def export_diff(
         return JSONResponse({"error": "Database not available"}, status_code=503)
 
     try:
-        # Determine diff type
         if device and not device_a and not device_b:
-            # History diff
-            runs = db.get_latest_runs(device, command, limit=2, include_filtered=False)
+            if origin_mode not in {"previous", "snapshot"}:
+                return JSONResponse({"error": "Invalid origin_mode"}, status_code=400)
 
-            if len(runs) < 2:
+            latest = db.get_latest_run(device, command, include_filtered=False)
+            if not latest:
                 return JSONResponse(
-                    {"error": "Not enough history for comparison"}, status_code=404
+                    {"error": "Latest data is not available"}, status_code=404
                 )
 
-            latest = runs[0]
-            previous = runs[1]
+            if origin_mode == "snapshot":
+                snapshot = _history_diff_snapshots.get(
+                    get_history_snapshot_key(command, device)
+                )
+                if not snapshot:
+                    return JSONResponse(
+                        {"error": "Snapshot has not been captured"}, status_code=404
+                    )
+                origin_run = snapshot["run"]
+                label_a = "Snapshot"
+            else:
+                runs = db.get_latest_runs(
+                    device, command, limit=2, include_filtered=False
+                )
+                if len(runs) < 2:
+                    return JSONResponse(
+                        {"error": "Not enough history for comparison"}, status_code=404
+                    )
+                origin_run = runs[1]
+                label_a = "Previous"
 
-            previous_text = previous.get("output_text", "")
+            previous_text = origin_run.get("output_text", "")
             latest_text = latest.get("output_text", "")
             diff_html = generate_side_by_side_diff(
-                previous_text, latest_text, label_a="Previous", label_b="Latest"
+                previous_text, latest_text, label_a=label_a, label_b="Latest"
             )
-            label_a = "Previous"
             label_b = "Latest"
             filename_prefix = f"history_diff_{sanitize_filename(device)}_{sanitize_filename(command.replace(' ', '_'))}"
 
