@@ -300,6 +300,8 @@ header h1 {
     margin-bottom: 20px;
     border-bottom: 2px solid var(--border-color);
     padding-bottom: 10px;
+    max-height: 220px;
+    overflow-y: auto;
 }
 
 .tab {
@@ -311,6 +313,10 @@ header h1 {
     font-size: 14px;
     color: var(--text-primary);
     transition: all 0.3s;
+    max-width: 100%;
+    text-align: left;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .tab:hover {
@@ -732,7 +738,9 @@ header h1 {
     padding: 15px;
     background: #f8f9fa;
     max-height: 600px;
+    min-height: 240px;
     overflow-y: auto;
+    resize: none;
 }
 
 .output-text-char-diff {
@@ -745,6 +753,34 @@ header h1 {
     background: white;
     padding: 10px;
     border-radius: 4px;
+    min-height: 100%;
+}
+
+.comparison-resize-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    margin-top: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: #f1f3f5;
+    color: #495057;
+    cursor: ns-resize;
+    font-size: 12px;
+    font-weight: 600;
+    user-select: none;
+}
+
+.comparison-resize-handle:hover,
+.comparison-resize-handle:focus {
+    background: #e9ecef;
+    outline: none;
+}
+
+body.comparison-resizing {
+    cursor: ns-resize;
+    user-select: none;
 }
 
 /* Character-level diff highlighting */

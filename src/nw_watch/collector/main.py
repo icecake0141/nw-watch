@@ -38,6 +38,45 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def classify_command_error(error: Exception) -> str:
+    """Return a user-facing command error message."""
+    error_text = str(error).strip()
+    error_text_lower = error_text.lower()
+
+    if isinstance(error, NetmikoTimeoutException) or any(
+        marker in error_text_lower
+        for marker in (
+            "timed out",
+            "timeout",
+            "no route to host",
+            "host is unreachable",
+            "network is unreachable",
+            "connection refused",
+        )
+    ):
+        return "Not Responding"
+
+    if any(
+        marker in error_text_lower
+        for marker in (
+            "connection lost",
+            "connection reset",
+            "connection closed",
+            "socket is closed",
+            "session closed",
+            "broken pipe",
+            "eof",
+            "disconnect",
+        )
+    ):
+        return "Disconnected"
+
+    if isinstance(error, NetmikoAuthenticationException):
+        return "Authentication Failed"
+
+    return error_text or "Command Failed"
+
+
 class DeviceCollector:
     """Collector for a single device."""
 
@@ -228,7 +267,7 @@ class DeviceCollector:
 
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
-            error_msg = str(e)
+            error_msg = classify_command_error(e)
 
             db.insert_run(
                 device_name=self.device_name,
@@ -309,19 +348,30 @@ class DeviceCollector:
                     rtt_ms=rtt_ms,
                 )
             else:
+                stderr = result.stderr.strip()
+                stdout = result.stdout.strip()
+                detail = stderr or stdout
+                if detail:
+                    logger.debug(
+                        "Ping failed for %s (%s): %s",
+                        self.device_name,
+                        ping_host,
+                        detail,
+                    )
                 db.insert_ping_sample(
                     device_name=self.device_name,
                     ts_epoch=ts_epoch,
                     ok=False,
-                    error_message="Ping failed",
+                    error_message="Not Responding",
                 )
 
         except Exception as e:
+            logger.debug("Ping check failed for %s: %s", self.device_name, e)
             db.insert_ping_sample(
                 device_name=self.device_name,
                 ts_epoch=ts_epoch,
                 ok=False,
-                error_message=str(e),
+                error_message="Not Responding",
             )
 
 

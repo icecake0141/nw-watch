@@ -491,6 +491,14 @@ async def get_ping_status(window_seconds: int = 60):
                     "successful_samples": successful,
                     "avg_rtt_ms": avg_rtt,
                     "last_check_ts": samples[0]["ts_epoch"] if samples else None,
+                    "last_error_message": next(
+                        (
+                            s["error_message"]
+                            for s in samples
+                            if not s["ok"] and s["error_message"]
+                        ),
+                        None,
+                    ),
                     "timeline": timeline,
                 }
             else:
@@ -501,6 +509,7 @@ async def get_ping_status(window_seconds: int = 60):
                     "successful_samples": 0,
                     "avg_rtt_ms": None,
                     "last_check_ts": None,
+                    "last_error_message": None,
                     "timeline": [None for _ in range(window_seconds)],
                 }
 

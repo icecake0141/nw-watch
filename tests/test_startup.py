@@ -68,6 +68,25 @@ class TestModuleImport:
 class TestModuleExecution:
     """Test that modules can be executed as __main__."""
 
+    def test_collector_main_can_run_from_source_checkout(self):
+        """Test the README source-checkout command from the repository root."""
+        repo_root = Path(__file__).parent.parent
+        env = os.environ.copy()
+        env["PYTHONPATH"] = "src"
+
+        result = subprocess.run(
+            [sys.executable, "-m", "nw_watch.collector.main", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=repo_root,
+            env=env,
+        )
+
+        assert result.returncode == 0, f"Collector --help failed: {result.stderr}"
+        assert "usage:" in result.stdout.lower(), "Help message should contain usage"
+        assert "--config" in result.stdout, "Help should mention --config option"
+
     def test_collector_main_can_run_with_help(self):
         """Test that collector main can be run with --help flag."""
         result = subprocess.run(
