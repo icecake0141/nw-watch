@@ -52,6 +52,7 @@ _db_mtime_lock = asyncio.Lock()
 
 # Constants for database monitoring
 DATABASE_CHECK_INTERVAL_DIVISOR = 2  # Monitor at half the collection interval
+PING_TIMELINE_DISPLAY_LAG_SECONDS = 1
 
 
 def sanitize_filename(name: str) -> str:
@@ -451,12 +452,16 @@ async def get_ping_status(window_seconds: int = 60):
 
     try:
         devices = db.get_all_devices()
-        current_ts = int(time.time())
-        since_ts = current_ts - window_seconds
+        timeline_end_ts = int(time.time()) - PING_TIMELINE_DISPLAY_LAG_SECONDS
+        since_ts = timeline_end_ts - window_seconds + 1
 
         result = {}
         for device in devices:
-            samples = db.get_ping_samples(device, since_ts)
+            samples = [
+                sample
+                for sample in db.get_ping_samples(device, since_ts)
+                if sample["ts_epoch"] <= timeline_end_ts
+            ]
 
             # Calculate stats
             total = len(samples)
@@ -477,7 +482,7 @@ async def get_ping_status(window_seconds: int = 60):
                 samples_by_ts = {s["ts_epoch"]: s for s in samples}
                 timeline = []
                 for offset in range(window_seconds - 1, -1, -1):
-                    ts = current_ts - offset
+                    ts = timeline_end_ts - offset
                     sample = samples_by_ts.get(ts)
                     if sample is None:
                         timeline.append(None)

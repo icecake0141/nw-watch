@@ -362,6 +362,28 @@ def test_get_ping_status(client):
     assert len(device_a_status["timeline"]) == 60
 
 
+def test_get_ping_status_delays_timeline(client, monkeypatch):
+    """Test ping timeline excludes the in-progress current second."""
+    from nw_watch.webapp import main
+
+    db = Database("data/current.sqlite3")
+    db.insert_ping_sample(device_name="LagDevice", ts_epoch=1999, ok=True, rtt_ms=1.0)
+    db.insert_ping_sample(device_name="LagDevice", ts_epoch=2000, ok=False, rtt_ms=None)
+    db.close()
+
+    monkeypatch.setattr(main.time, "time", lambda: 2000)
+
+    response = client.get("/api/ping?window_seconds=3")
+    assert response.status_code == 200
+
+    lag_device_status = response.json()["ping_status"]["LagDevice"]
+    assert lag_device_status["timeline"] == [None, None, True]
+    assert lag_device_status["total_samples"] == 1
+    assert lag_device_status["successful_samples"] == 1
+    assert lag_device_status["success_rate"] == 100.0
+    assert lag_device_status["last_check_ts"] == 1999
+
+
 def test_get_config(client):
     """Test getting configuration."""
     response = client.get("/api/config")
