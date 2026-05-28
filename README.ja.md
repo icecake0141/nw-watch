@@ -39,9 +39,13 @@ docker-compose up -d
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml
 # DEVICE*_PASSWORD 環境変数を設定
-PYTHONPATH=src python -m nw_watch.collector.main --config config.yaml
-PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000
+PYTHONPATH=src python -m nw_watch.runtime --config config.yaml --host 127.0.0.1 --port 8000
 ```
+
+runtime wrapper は collector と Uvicorn をまとめて起動し、Ctrl+C などの終了時も
+両方を停止します。個別調査が必要な場合は、従来どおり
+`python -m nw_watch.collector.main --config config.yaml` と
+`uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000` を別々に実行できます。
 
 ## ドキュメント
 

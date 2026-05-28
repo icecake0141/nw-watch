@@ -20,6 +20,7 @@ Japanese: [specification.ja.md](specification.ja.md)
 - Collector: Executes SSH commands and ping probes on configured devices.
 - Database: Stores command runs and ping samples in `data/current.sqlite3`.
 - Web App: Exposes UI and API endpoints for viewing, diffing, and exporting data.
+- Runtime Wrapper: Starts Collector and Web App together and stops both on shutdown signals.
 
 ## Data Collection Behavior
 
@@ -82,6 +83,12 @@ Reference example: [`config.example.yaml`](../config.example.yaml)
 - `GET /api/export/diff`
 - `GET /api/export/ping`
 - `GET /ws` (WebSocket endpoint)
+
+## Startup
+
+- Managed startup: `python -m nw_watch.runtime --config config.yaml --host 127.0.0.1 --port 8000`
+- Docker: `docker-compose up -d` uses the runtime wrapper to manage collector and Uvicorn in one container.
+- `NW_WATCH_CONFIG` and `NW_WATCH_DATA_DIR` can override the Web App config file and data directory.
 
 ## Notable Clarifications
 

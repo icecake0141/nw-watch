@@ -52,10 +52,12 @@ class NetworkWatch {
         // Diff state preservation
         // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
         this.diffStates = {};
-        this.historyDiffModes = {};
         this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
         this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
         this.sideBySideScrollStates = {};
+        this.latestSideBySideData = {};
+        this.outputSnapshots = {};
+        this.outputViewModes = {};
         
         this.init();
     }
@@ -88,6 +90,14 @@ class NetworkWatch {
             this.switchToCommand(this.commands[0]);
         }
     }
+
+    logClientError(code, error, context = {}) {
+        console.error(`[NW-WATCH:${code}]`, {
+            message: error && error.message ? error.message : String(error),
+            name: error && error.name ? error.name : 'Error',
+            context: context
+        });
+    }
     
     async loadConfig() {
         try {
@@ -95,7 +105,7 @@ class NetworkWatch {
             const data = await response.json();
             this.config = data;
         } catch (error) {
-            console.error('Error loading config:', error);
+            this.logClientError('CONFIG_LOAD_FAILED', error, { endpoint: '/api/config' });
         }
     }
     
@@ -105,7 +115,7 @@ class NetworkWatch {
             const data = await response.json();
             this.devices = data.devices || [];
         } catch (error) {
-            console.error('Error loading devices:', error);
+            this.logClientError('DEVICES_LOAD_FAILED', error, { endpoint: '/api/devices' });
         }
     }
     
@@ -115,7 +125,7 @@ class NetworkWatch {
             const data = await response.json();
             this.commands = data.commands || [];
         } catch (error) {
-            console.error('Error loading commands:', error);
+            this.logClientError('COMMANDS_LOAD_FAILED', error, { endpoint: '/api/commands' });
         }
     }
 
@@ -126,7 +136,7 @@ class NetworkWatch {
             this.collectorState = data;
             this.updateCollectorControls();
         } catch (error) {
-            console.error('Error loading collector status:', error);
+            this.logClientError('COLLECTOR_STATUS_LOAD_FAILED', error, { endpoint: '/api/collector/status' });
             this.updateCollectorControls(true);
         }
     }
@@ -365,9 +375,15 @@ class NetworkWatch {
             statusElement.classList.add('status-manual');
         }
 
+        modeButton.classList.toggle('mode-on', Boolean(this.collectorState.manual_mode));
+        modeButton.classList.toggle('mode-off', !this.collectorState.manual_mode);
+        modeButton.setAttribute('aria-pressed', String(Boolean(this.collectorState.manual_mode)));
+        modeButton.title = this.collectorState.manual_mode
+            ? 'Manual mode is on. Click to return to automatic command collection.'
+            : 'Manual mode is off. Click to pause scheduled command collection and run commands manually.';
         modeButton.textContent = this.collectorState.manual_mode
-            ? 'Manual Mode: On'
-            : 'Manual Mode: Off';
+            ? 'Manual Mode ON'
+            : 'Manual Mode OFF';
         runButton.style.display = this.collectorState.manual_mode ? 'inline-flex' : 'none';
         runButton.disabled = Boolean(this.collectorState.commands_paused || this.collectorState.manual_run_requested);
         runButton.textContent = this.collectorState.manual_run_requested
@@ -567,6 +583,7 @@ class NetworkWatch {
             // Fetch side-by-side data for character-level diff
             const sideBySideResponse = await fetch(`/api/runs/${encodeURIComponent(command)}/side_by_side`);
             const sideBySideData = await sideBySideResponse.json();
+            this.latestSideBySideData[command] = sideBySideData;
             
             // Also fetch regular run data for history
             const response = await fetch(`/api/runs/${encodeURIComponent(command)}`);
@@ -574,7 +591,7 @@ class NetworkWatch {
             
             this.renderCommandContent(command, data.runs, sideBySideData);
         } catch (error) {
-            console.error('Error loading command data:', error);
+            this.logClientError('COMMAND_DATA_LOAD_FAILED', error, { command });
         }
     }
     
@@ -590,7 +607,7 @@ class NetworkWatch {
         // Check if we have side-by-side data
         if (sideBySideData && sideBySideData.devices && sideBySideData.devices.length >= 2) {
             // Render side-by-side comparison view
-            this.renderSideBySideView(command, sideBySideData);
+            this.renderSideBySideView(command, this.getDisplayedSideBySideData(command, sideBySideData));
             
             // Add separator
             const separator = document.createElement('hr');
@@ -683,6 +700,92 @@ class NetworkWatch {
             output.scrollLeft = Math.max(0, Math.min(state.scrollLeft, output.scrollWidth - output.clientWidth));
         });
     }
+
+    getDisplayedSideBySideData(command, latestData) {
+        const snapshot = this.outputSnapshots[command];
+        const mode = this.outputViewModes[command] || 'latest';
+
+        if (mode === 'snapshot' && snapshot) {
+            return {
+                ...snapshot.data,
+                output_view_mode: 'snapshot',
+                snapshot_available: true,
+                snapshot_captured_at: snapshot.capturedAt
+            };
+        }
+
+        return {
+            ...latestData,
+            output_view_mode: 'latest',
+            snapshot_available: Boolean(snapshot),
+            snapshot_captured_at: snapshot ? snapshot.capturedAt : null
+        };
+    }
+
+    createOutputSnapshotControls(command, sideBySideData) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'output-snapshot-controls';
+
+        const latestBtn = document.createElement('button');
+        latestBtn.className = 'snapshot-mode-btn';
+        latestBtn.textContent = 'Latest';
+        latestBtn.addEventListener('click', () => {
+            this.outputViewModes[command] = 'latest';
+            this.updateCommandData(command);
+        });
+
+        const snapshotBtn = document.createElement('button');
+        snapshotBtn.className = 'snapshot-mode-btn';
+        snapshotBtn.textContent = 'Snapshot';
+        snapshotBtn.disabled = !this.outputSnapshots[command];
+        snapshotBtn.addEventListener('click', () => {
+            this.outputViewModes[command] = 'snapshot';
+            this.updateCommandData(command);
+        });
+
+        const captureBtn = document.createElement('button');
+        captureBtn.className = 'capture-snapshot-btn';
+        captureBtn.textContent = 'Capture Snapshot';
+        captureBtn.disabled = !sideBySideData || !sideBySideData.devices || sideBySideData.devices.length === 0;
+        captureBtn.addEventListener('click', () => this.captureOutputSnapshot(command));
+
+        const status = document.createElement('span');
+        status.className = 'snapshot-status';
+
+        const mode = this.outputViewModes[command] || 'latest';
+        latestBtn.classList.toggle('active', mode !== 'snapshot');
+        snapshotBtn.classList.toggle('active', mode === 'snapshot');
+
+        const snapshot = this.outputSnapshots[command];
+        if (mode === 'snapshot' && snapshot) {
+            status.textContent = `Showing snapshot captured ${this.formatTimestampJST(snapshot.capturedAt)}`;
+        } else if (snapshot) {
+            status.textContent = `Snapshot available from ${this.formatTimestampJST(snapshot.capturedAt)}`;
+        } else {
+            status.textContent = 'Showing latest command output';
+        }
+
+        toolbar.appendChild(latestBtn);
+        toolbar.appendChild(snapshotBtn);
+        toolbar.appendChild(captureBtn);
+        toolbar.appendChild(status);
+        return toolbar;
+    }
+
+    captureOutputSnapshot(command) {
+        const latestData = this.latestSideBySideData[command];
+        if (!latestData || !latestData.devices || latestData.devices.length === 0) {
+            alert('No command output is available to capture.');
+            return;
+        }
+
+        this.outputSnapshots[command] = {
+            capturedAt: Math.floor(Date.now() / 1000),
+            data: JSON.parse(JSON.stringify(latestData))
+        };
+        this.outputViewModes[command] = 'snapshot';
+        this.updateCommandData(command);
+    }
     
     renderSideBySideView(command, sideBySideData) {
         const contentContainer = document.getElementById('commandContent');
@@ -691,11 +794,14 @@ class NetworkWatch {
         const sideBySideSection = document.createElement('div');
         sideBySideSection.className = 'side-by-side-section';
         
-        // Title
+        const sectionHeader = document.createElement('div');
+        sectionHeader.className = 'side-by-side-header';
+
         const title = document.createElement('h2');
-        title.textContent = 'Side-by-Side Comparison (Character-level Diff)';
-        title.style.marginBottom = '15px';
-        sideBySideSection.appendChild(title);
+        title.textContent = 'Side-by-Side Command Output';
+        sectionHeader.appendChild(title);
+        sectionHeader.appendChild(this.createOutputSnapshotControls(command, sideBySideData));
+        sideBySideSection.appendChild(sectionHeader);
         
         // Container for the two device outputs
         const comparisonContainer = document.createElement('div');
@@ -987,29 +1093,6 @@ class NetworkWatch {
         historyBtn.textContent = 'Show History Diff';
         historyBtn.addEventListener('click', () => this.showHistoryDiff(command, device));
         controls.appendChild(historyBtn);
-
-        const previousModeBtn = document.createElement('button');
-        previousModeBtn.className = 'diff-mode-btn active';
-        previousModeBtn.id = `diff-mode-previous-${device}`;
-        previousModeBtn.textContent = 'Previous';
-        previousModeBtn.addEventListener('click', () => {
-            this.setHistoryDiffMode(command, device, 'previous');
-        });
-        controls.appendChild(previousModeBtn);
-
-        const snapshotModeBtn = document.createElement('button');
-        snapshotModeBtn.className = 'diff-mode-btn';
-        snapshotModeBtn.id = `diff-mode-snapshot-${device}`;
-        snapshotModeBtn.textContent = 'Snapshot';
-        snapshotModeBtn.addEventListener('click', () => {
-            this.setHistoryDiffMode(command, device, 'snapshot');
-        });
-        controls.appendChild(snapshotModeBtn);
-
-        const snapshotBtn = document.createElement('button');
-        snapshotBtn.textContent = 'Capture Origin Snapshot';
-        snapshotBtn.addEventListener('click', () => this.captureHistorySnapshot(command, device));
-        controls.appendChild(snapshotBtn);
         
         // Device diff controls (if multiple devices)
         if (this.devices.length > 1) {
@@ -1039,13 +1122,6 @@ class NetworkWatch {
         
         section.appendChild(controls);
 
-        const status = document.createElement('div');
-        status.className = 'diff-origin-status';
-        status.id = `diff-origin-status-${device}`;
-        status.textContent = 'Origin mode: Previous run';
-        section.appendChild(status);
-        this.loadHistorySnapshotStatus(command, device);
-        
         // Diff output
         const diffOutput = document.createElement('div');
         diffOutput.className = 'diff-output';
@@ -1078,9 +1154,8 @@ class NetworkWatch {
     
     async showHistoryDiff(command, device) {
         try {
-            const originMode = this.getHistoryDiffMode(command, device);
             const response = await fetch(
-                `/api/diff/history?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&origin_mode=${originMode}`
+                `/api/diff/history?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&origin_mode=previous`
             );
             const data = await response.json();
             
@@ -1091,8 +1166,6 @@ class NetworkWatch {
                 'No differences found',
                 data.diff_format === 'html'
             );
-            this.renderHistoryDiffStatus(command, device, data);
-            
             // Show export controls and store diff context
             const exportControls = document.getElementById(`diff-export-${device}`);
             if (exportControls) {
@@ -1100,7 +1173,7 @@ class NetworkWatch {
                 exportControls.dataset.diffType = 'history';
                 exportControls.dataset.command = command;
                 exportControls.dataset.device = device;
-                exportControls.dataset.originMode = originMode;
+                exportControls.dataset.originMode = 'previous';
             }
             
             // Save the diff state immediately
@@ -1109,95 +1182,14 @@ class NetworkWatch {
                 type: 'history',
                 content: diffOutput.innerHTML,
                 isHtml: diffOutput.classList.contains('diff-output-html'),
-                originMode: originMode,
                 command: command,
                 device: device
             };
         } catch (error) {
-            console.error('Error loading history diff:', error);
+            this.logClientError('HISTORY_DIFF_LOAD_FAILED', error, { command, device });
         }
     }
 
-    getHistoryDiffMode(command, device) {
-        return this.historyDiffModes[`${command}:${device}`] || 'previous';
-    }
-
-    setHistoryDiffMode(command, device, mode) {
-        this.historyDiffModes[`${command}:${device}`] = mode;
-        this.updateHistoryModeControls(command, device);
-        this.renderHistoryDiffStatus(command, device);
-        this.showHistoryDiff(command, device);
-    }
-
-    updateHistoryModeControls(command, device) {
-        const mode = this.getHistoryDiffMode(command, device);
-        const previousBtn = document.getElementById(`diff-mode-previous-${device}`);
-        const snapshotBtn = document.getElementById(`diff-mode-snapshot-${device}`);
-        if (previousBtn) {
-            previousBtn.classList.toggle('active', mode === 'previous');
-        }
-        if (snapshotBtn) {
-            snapshotBtn.classList.toggle('active', mode === 'snapshot');
-        }
-    }
-
-    async captureHistorySnapshot(command, device) {
-        try {
-            const response = await fetch(
-                `/api/diff/snapshot?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}`,
-                { method: 'POST' }
-            );
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to capture snapshot');
-            }
-            this.historyDiffModes[`${command}:${device}`] = 'snapshot';
-            this.updateHistoryModeControls(command, device);
-            this.renderHistoryDiffStatus(command, device, data);
-            await this.showHistoryDiff(command, device);
-        } catch (error) {
-            console.error('Error capturing history snapshot:', error);
-            alert('Failed to capture origin snapshot');
-        }
-    }
-
-    async loadHistorySnapshotStatus(command, device) {
-        try {
-            const response = await fetch(
-                `/api/diff/snapshot/status?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}`
-            );
-            const data = await response.json();
-            this.renderHistoryDiffStatus(command, device, data);
-        } catch (error) {
-            console.error('Error loading history snapshot status:', error);
-        }
-    }
-
-    renderHistoryDiffStatus(command, device, data = {}) {
-        const status = document.getElementById(`diff-origin-status-${device}`);
-        if (!status) return;
-
-        const mode = this.getHistoryDiffMode(command, device);
-        const modeLabel = mode === 'snapshot' ? 'Snapshot' : 'Previous run';
-        const details = [`Origin mode: ${modeLabel}`];
-
-        const snapshotCapturedAt = data.captured_at || data.snapshot_captured_at;
-        if (data.snapshot_available && snapshotCapturedAt) {
-            details.push(`Snapshot captured: ${this.formatTimestampJST(snapshotCapturedAt)}`);
-        } else if (mode === 'snapshot') {
-            details.push('Snapshot: not captured');
-        }
-
-        if (data.origin_ts) {
-            details.push(`Origin data: ${this.formatTimestampJST(data.origin_ts)}`);
-        }
-        if (data.latest_ts) {
-            details.push(`Latest data: ${this.formatTimestampJST(data.latest_ts)}`);
-        }
-
-        status.textContent = details.join(' | ');
-    }
-    
     async showDeviceDiff(command, deviceA, deviceB) {
         try {
             const response = await fetch(
@@ -1252,7 +1244,7 @@ class NetworkWatch {
                 });
             }
         } catch (error) {
-            console.error('Error loading device diff:', error);
+            this.logClientError('DEVICE_DIFF_LOAD_FAILED', error, { command, deviceA, deviceB });
         }
     }
     
@@ -1264,7 +1256,7 @@ class NetworkWatch {
         let url;
         
         if (diffType === 'history') {
-            const originMode = exportControls.dataset.originMode || this.getHistoryDiffMode(command, device);
+            const originMode = exportControls.dataset.originMode || 'previous';
             url = `/api/export/diff?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}&origin_mode=${originMode}`;
         } else if (diffType === 'device') {
             const deviceA = exportControls.dataset.deviceA;
@@ -1376,7 +1368,6 @@ class NetworkWatch {
                     type: diffType,
                     content: diffOutputElement.innerHTML,
                     isHtml: diffOutputElement.classList.contains('diff-output-html'),
-                    originMode: exportControlsElement.dataset.originMode,
                     otherDevice: otherDevice,
                     command: command,
                     device: device
@@ -1417,11 +1408,6 @@ class NetworkWatch {
             exportControlsElement.dataset.diffType = state.type;
             exportControlsElement.dataset.command = state.command;
             exportControlsElement.dataset.device = state.device;
-            if (state.originMode) {
-                exportControlsElement.dataset.originMode = state.originMode;
-                this.historyDiffModes[stateKey] = state.originMode;
-                this.updateHistoryModeControls(command, device);
-            }
             if (state.otherDevice) {
                 exportControlsElement.dataset.deviceB = state.otherDevice;
             }
@@ -1463,6 +1449,7 @@ class NetworkWatch {
                 <div><strong>Samples:</strong> ${status.successful_samples}/${status.total_samples}</div>
                 ${status.avg_rtt_ms ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
                 ${status.last_check_ts ? `<div><strong>Last Check:</strong> ${this.formatTimestampJST(status.last_check_ts)}</div>` : ''}
+                ${status.last_error_message ? `<div><strong>Last Error:</strong> ${this.escapeHtml(status.last_error_message)}</div>` : ''}
             `;
             
             tile.appendChild(stats);
@@ -1513,11 +1500,8 @@ class NetworkWatch {
     }
 
     formatPingStatus(status) {
-        if (status.last_error_message) {
-            return this.escapeHtml(status.last_error_message);
-        }
         if (status.status === 'down') {
-            return 'Not Responding';
+            return status.last_error_message ? this.escapeHtml(status.last_error_message) : 'Not Responding';
         }
         if (status.status === 'unknown') {
             return 'No Data';

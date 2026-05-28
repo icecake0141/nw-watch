@@ -51,7 +51,7 @@ class TestDockerConfiguration:
         dockerfile = Path(__file__).parent.parent / "Dockerfile"
         content = dockerfile.read_text()
         assert "FROM python:" in content, "Dockerfile should use Python base image"
-        assert "3.14" in content, "Dockerfile should use Python 3.14"
+        assert "3.12" in content, "Dockerfile should use Python 3.12"
 
     def test_dockerfile_exposes_port(self):
         """Test that Dockerfile exposes port 8000."""
@@ -76,10 +76,7 @@ class TestDockerConfiguration:
         """Test that docker-compose.yml defines required services."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert (
-            "collector:" in content
-        ), "docker-compose.yml should have collector service"
-        assert "webapp:" in content, "docker-compose.yml should have webapp service"
+        assert "nw-watch:" in content, "docker-compose.yml should have nw-watch service"
 
     def test_docker_compose_has_volumes(self):
         """Test that docker-compose.yml defines volumes."""
@@ -217,22 +214,19 @@ class TestDockerBuildProcess:
 class TestDockerComposeConfiguration:
     """Test docker-compose configuration details."""
 
-    def test_docker_compose_collector_command(self):
-        """Test that collector service has correct command."""
+    def test_docker_compose_runtime_command(self):
+        """Test that Docker service uses the managed runtime command."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
         assert (
-            "python -m nw_watch.collector.main" in content
-        ), "Collector should run nw_watch.collector.main"
+            "python -m nw_watch.runtime" in content
+        ), "Service should run the managed runtime wrapper"
         assert "--config" in content, "Collector should use config file"
 
-    def test_docker_compose_webapp_command(self):
-        """Test that webapp service has correct in-container command."""
+    def test_docker_compose_webapp_bind(self):
+        """Test that web app binds to container interfaces."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert (
-            "uvicorn nw_watch.webapp.main:app" in content
-        ), "Webapp should run via uvicorn"
         assert (
             "--host 0.0.0.0" in content
         ), "Webapp should listen on container interfaces for Docker port forwarding"
@@ -243,11 +237,13 @@ class TestDockerComposeConfiguration:
         content = compose_file.read_text()
         assert "restart:" in content, "Services should have restart policy"
 
-    def test_docker_compose_webapp_depends_on_collector(self):
-        """Test that webapp depends on collector."""
+    def test_docker_compose_uses_single_runtime_service(self):
+        """Test that compose uses one service for coordinated start/stop."""
         compose_file = Path(__file__).parent.parent / "docker-compose.yml"
         content = compose_file.read_text()
-        assert "depends_on:" in content, "Webapp should depend on collector"
+        assert (
+            "depends_on:" not in content
+        ), "Single runtime service should not use depends_on"
 
     def test_docker_compose_has_network(self):
         """Test that docker-compose defines a network."""

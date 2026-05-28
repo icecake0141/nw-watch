@@ -9,7 +9,7 @@ This guide provides visual documentation of the Network Watch web interface with
 The Network Watch web interface is a single-page application that displays real-time network device monitoring data. The interface is divided into several key sections:
 
 1. **Header with Auto-Refresh Controls**
-2. **Device Connectivity Panel**
+2. **Monitoring Row (Ping Connectivity)**
 3. **Command Output Tabs**
 4. **Run History Displays**
 5. **Diff Viewers**
@@ -36,9 +36,9 @@ Click "Pause Auto-Refresh" during troubleshooting to freeze the display, then us
 
 ---
 
-## 2. Device Connectivity Panel
+## 2. Monitoring Row (Ping Connectivity)
 
-This panel provides real-time ping monitoring for all configured devices, showing connectivity status over a 60-second window.
+This row is placed at the top of the Command Outputs container, one level above the Device rows. It provides real-time ping monitoring for all configured devices over a 60-second window.
 
 ### Displayed Information:
 
@@ -118,21 +118,14 @@ Each run entry displays:
 
 The interface provides two types of diff comparisons to identify changes in network device states.
 
-### 5.1 Historical Diff (Previous or Snapshot vs Latest)
+### 5.1 Historical Diff (Previous vs Latest)
 
-Compares the latest run for the same device and command against a selectable origin.
-The default origin is the previous run. Users can also capture a fixed origin
-snapshot and keep comparing newer data against that snapshot.
+Compares the latest run for the same device and command against the previous run.
 
 **Features**:
 - **Button**: "Show History Diff" (appears in each device output panel)
-- **Origin Mode Toggle**:
-  - "Previous": compares the latest run with the immediately preceding run
-  - "Snapshot": compares the latest run with the captured origin snapshot
-- **Snapshot Capture**: "Capture Origin Snapshot" stores the current latest run as the fixed origin
-- **Origin Status**: shows the active mode, snapshot capture time, origin data time, and latest data time
 - **Comparison Labels**: 
-  - Left column: "Previous" or "Snapshot" (origin run)
+  - Left column: "Previous" (previous run)
   - Right column: "Latest" (newer run with timestamp)
 - **Color Coding**:
   - 🟩 Green background: Lines added in latest run
@@ -161,6 +154,15 @@ Compares outputs between two different devices for the same command.
 - Identify discrepancies in redundant setups
 - Compare active/standby device states
 - Audit configuration standards compliance
+
+### 5.3 Command Output Snapshot
+
+Snapshot controls are located at the top of the Side-by-Side Command Output container.
+
+**Features**:
+- **Capture Snapshot**: stores the currently displayed latest command output
+- **Latest / Snapshot**: switches the Side-by-Side Command Output target between latest data and the saved snapshot
+- Snapshot affects the Command Output comparison target, not the Diff View controls
 
 ### Diff Display Format:
 

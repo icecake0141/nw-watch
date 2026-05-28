@@ -15,7 +15,7 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,9 @@ class Database:
                     raise
                 time.sleep(min(5, delay))
                 delay = min(5, delay * 2)
-        raise RuntimeError(f"Unable to connect to SQLite database: {self.db_path}")
+        raise sqlite3.OperationalError(
+            f"Could not connect to SQLite database: {self.db_path}"
+        )
 
     def _init_schema(self):
         """Create database schema."""
@@ -129,7 +131,9 @@ class Database:
             return row[0]
         cursor.execute("INSERT INTO devices (name) VALUES (?)", (normalized_name,))
         self.conn.commit()
-        return cast(int, cursor.lastrowid)
+        if cursor.lastrowid is None:
+            raise sqlite3.OperationalError("Could not determine inserted device id")
+        return cursor.lastrowid
 
     def get_or_create_command(self, command_text: str) -> int:
         """Get or create command, return command ID."""
@@ -144,7 +148,9 @@ class Database:
             "INSERT INTO commands (command_text) VALUES (?)", (command_text,)
         )
         self.conn.commit()
-        return cast(int, cursor.lastrowid)
+        if cursor.lastrowid is None:
+            raise sqlite3.OperationalError("Could not determine inserted command id")
+        return cursor.lastrowid
 
     def insert_run(
         self,

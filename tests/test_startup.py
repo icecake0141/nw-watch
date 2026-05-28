@@ -48,6 +48,7 @@ class TestModuleImport:
             "nw_watch",
             "nw_watch.collector",
             "nw_watch.collector.main",
+            "nw_watch.runtime",
             "nw_watch.webapp",
             "nw_watch.webapp.main",
             "nw_watch.shared",
@@ -96,6 +97,18 @@ class TestModuleExecution:
             timeout=5,
         )
         assert result.returncode == 0, f"Collector --help failed: {result.stderr}"
+        assert "usage:" in result.stdout.lower(), "Help message should contain usage"
+        assert "--config" in result.stdout, "Help should mention --config option"
+
+    def test_runtime_can_run_with_help(self):
+        """Test that managed runtime can be run with --help flag."""
+        result = subprocess.run(
+            [sys.executable, "-m", "nw_watch.runtime", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert result.returncode == 0, f"Runtime --help failed: {result.stderr}"
         assert "usage:" in result.stdout.lower(), "Help message should contain usage"
         assert "--config" in result.stdout, "Help should mention --config option"
 

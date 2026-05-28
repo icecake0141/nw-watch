@@ -14,6 +14,7 @@
 import argparse
 import asyncio
 import logging
+import os
 import re
 import shutil
 import signal
@@ -44,23 +45,38 @@ logger = logging.getLogger(__name__)
 PING_HOST_PATTERN = re.compile(r"^[a-zA-Z0-9._:-]+$")
 
 
-def classify_command_error(error: Exception) -> str:
-    """Return a user-facing command error message."""
+def classify_command_error_detail(error: Exception) -> tuple[str, str]:
+    """Return a troubleshooting category and user-facing command error message."""
     error_text = str(error).strip()
     error_text_lower = error_text.lower()
 
-    if isinstance(error, NetmikoTimeoutException) or any(
-        marker in error_text_lower
-        for marker in (
-            "timed out",
-            "timeout",
-            "no route to host",
-            "host is unreachable",
-            "network is unreachable",
-            "connection refused",
-        )
+    if isinstance(error, NetmikoAuthenticationException):
+        return "ssh_authentication_failed", "Authentication Failed"
+
+    if (
+        "no route to host" in error_text_lower
+        or "network is unreachable" in error_text_lower
     ):
-        return "Not Responding"
+        return "network_unreachable", "Network Unreachable"
+
+    if "host is unreachable" in error_text_lower:
+        return "host_unreachable", "Host Unreachable"
+
+    if "connection refused" in error_text_lower:
+        return "ssh_connection_refused", "Connection Refused"
+
+    if (
+        "name or service not known" in error_text_lower
+        or "temporary failure in name resolution" in error_text_lower
+    ):
+        return "dns_resolution_failed", "DNS Resolution Failed"
+
+    if (
+        isinstance(error, NetmikoTimeoutException)
+        or "timed out" in error_text_lower
+        or "timeout" in error_text_lower
+    ):
+        return "ssh_timeout", "Connection Timed Out"
 
     if any(
         marker in error_text_lower
@@ -75,12 +91,30 @@ def classify_command_error(error: Exception) -> str:
             "disconnect",
         )
     ):
-        return "Disconnected"
+        return "ssh_disconnected", "Disconnected"
 
-    if isinstance(error, NetmikoAuthenticationException):
-        return "Authentication Failed"
+    return "command_failed", error_text or "Command Failed"
 
-    return error_text or "Command Failed"
+
+def classify_command_error(error: Exception) -> str:
+    """Return a user-facing command error message."""
+    return classify_command_error_detail(error)[1]
+
+
+def classify_ping_error(returncode: int, stdout: str, stderr: str) -> str:
+    """Return a granular ping failure message for UI and logs."""
+    detail = f"{stderr}\n{stdout}".strip().lower()
+    if "unknown host" in detail or "name or service not known" in detail:
+        return "DNS Resolution Failed"
+    if "network is unreachable" in detail:
+        return "Network Unreachable"
+    if "no route to host" in detail:
+        return "No Route to Host"
+    if "host is down" in detail or "host unreachable" in detail:
+        return "Host Unreachable"
+    if "100% packet loss" in detail or "request timeout" in detail:
+        return "No Ping Reply"
+    return f"Ping Failed (exit={returncode})"
 
 
 def ping_target(db: Database, target_name: str, ping_host: str) -> None:
@@ -88,7 +122,11 @@ def ping_target(db: Database, target_name: str, ping_host: str) -> None:
     ts_epoch = int(time.time())
 
     if not PING_HOST_PATTERN.match(ping_host):
-        logger.error("Invalid ping host format for %s: %s", target_name, ping_host)
+        logger.error(
+            "Ping validation failed | target=%s ping_host=%s category=invalid_ping_host",
+            target_name,
+            ping_host,
+        )
         db.insert_ping_sample(
             device_name=target_name,
             ts_epoch=ts_epoch,
@@ -126,24 +164,38 @@ def ping_target(db: Database, target_name: str, ping_host: str) -> None:
             stderr = result.stderr.strip()
             stdout = result.stdout.strip()
             detail = stderr or stdout
-            if detail:
-                logger.debug(
-                    "Ping failed for %s (%s): %s", target_name, ping_host, detail
-                )
+            error_message = classify_ping_error(result.returncode, stdout, stderr)
+            logger.warning(
+                "Ping failed | target=%s ping_host=%s category=ping_failed "
+                "message=%s exit_code=%s detail=%s",
+                target_name,
+                ping_host,
+                error_message,
+                result.returncode,
+                detail,
+            )
             db.insert_ping_sample(
                 device_name=target_name,
                 ts_epoch=ts_epoch,
                 ok=False,
-                error_message="Not Responding",
+                error_message=error_message,
             )
 
     except Exception as e:
-        logger.debug("Ping check failed for %s: %s", target_name, e)
+        logger.warning(
+            "Ping command error | target=%s ping_host=%s category=ping_exception "
+            "message=%s raw_error=%s",
+            target_name,
+            ping_host,
+            classify_command_error(e),
+            str(e).strip(),
+            exc_info=logger.isEnabledFor(logging.DEBUG),
+        )
         db.insert_ping_sample(
             device_name=target_name,
             ts_epoch=ts_epoch,
             ok=False,
-            error_message="Not Responding",
+            error_message=classify_command_error(e),
         )
 
 
@@ -337,7 +389,7 @@ class DeviceCollector:
 
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
-            error_msg = classify_command_error(e)
+            error_code, error_msg = classify_command_error_detail(e)
 
             db.insert_run(
                 device_name=self.device_name,
@@ -351,7 +403,16 @@ class DeviceCollector:
             )
 
             logger.error(
-                f"Error executing '{command}' on {self.device_name}: {error_msg}"
+                "Command execution failed | device=%s host=%s command=%r "
+                "category=%s message=%s duration_ms=%.2f raw_error=%s",
+                self.device_name,
+                self.device_config.get("host"),
+                command,
+                error_code,
+                error_msg,
+                duration_ms,
+                str(e).strip(),
+                exc_info=logger.isEnabledFor(logging.DEBUG),
             )
 
     def close(self) -> None:
@@ -380,12 +441,12 @@ class DeviceCollector:
 class Collector:
     """Main collector orchestrator."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, data_dir: str | Path | None = None):
         """Initialize collector."""
         self.config = config
         self.devices = config.get_devices()
         self.ping_targets = config.get_ping_targets()
-        self.data_dir = Path("data")
+        self.data_dir = Path(data_dir or os.environ.get("NW_WATCH_DATA_DIR", "data"))
         self.data_dir.mkdir(exist_ok=True)
 
         # Create session database
@@ -674,13 +735,13 @@ class Collector:
         self.db.close()
 
 
-async def async_main(config_path: str):
+async def async_main(config_path: str, data_dir: str | None = None):
     """Async main function with proper signal handling."""
     collector = None
 
     try:
         config = Config(config_path)
-        collector = Collector(config)
+        collector = Collector(config, data_dir=data_dir)
 
         # Set up signal handlers in the event loop
         loop = asyncio.get_running_loop()
@@ -719,10 +780,15 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Network device data collector")
     parser.add_argument("--config", required=True, help="Path to config YAML file")
+    parser.add_argument(
+        "--data-dir",
+        default=None,
+        help="Directory for SQLite data files (default: NW_WATCH_DATA_DIR or data)",
+    )
     args = parser.parse_args()
 
     try:
-        asyncio.run(async_main(args.config))
+        asyncio.run(async_main(args.config, data_dir=args.data_dir))
     except KeyboardInterrupt:
         logger.info("Collector stopped by user")
         sys.exit(0)

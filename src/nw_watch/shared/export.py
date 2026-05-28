@@ -86,7 +86,7 @@ def export_run_as_json(run: Dict[str, Any], device: str, command: str) -> str:
     Returns:
         JSON string with metadata and output
     """
-    export_data = {
+    export_data: Dict[str, Any] = {
         "device": device,
         "command": command,
         "timestamp": format_timestamp_jst(run["ts_epoch"]),

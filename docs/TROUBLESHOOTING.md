@@ -478,8 +478,7 @@ This guide provides solutions to common issues you may encounter when using nw-w
 
 1. **Check logs:**
    ```bash
-   docker-compose logs collector
-   docker-compose logs webapp
+   docker-compose logs nw-watch
    ```
 
 2. **Verify configuration exists:**
@@ -513,15 +512,15 @@ This guide provides solutions to common issues you may encounter when using nw-w
 1. **Check network connectivity:**
    ```bash
    # From inside container
-   docker-compose exec collector ping <device_ip>
+   docker-compose exec nw-watch ping <device_ip>
    ```
 
 2. **Use host network mode (if needed):**
    ```yaml
-   # In docker-compose.yml
-   services:
-     collector:
-       network_mode: "host"
+  # In docker-compose.yml
+  services:
+    nw-watch:
+      network_mode: "host"
    ```
 
 3. **Use host.docker.internal for local devices:**
@@ -552,11 +551,39 @@ This guide provides solutions to common issues you may encounter when using nw-w
 
 2. **Change port in docker-compose.yml:**
    ```yaml
-   services:
-     webapp:
-       ports:
+  services:
+    nw-watch:
+      ports:
          - "127.0.0.1:8080:8000"  # Use port 8080 on host loopback only
    ```
+
+### Container keeps restarting
+
+**Symptoms:**
+- `docker-compose ps` shows repeated restarts
+- UI is unavailable or only briefly available
+
+**Solutions:**
+
+1. **Check managed runtime logs:**
+   ```bash
+   docker-compose logs nw-watch
+   ```
+   Look for `runtime_startup_failed`, `Config file not found`, `Configuration validation failed`, or `Managed process exited`.
+
+2. **Verify required files and secrets:**
+   ```bash
+   test -f config.yaml
+   test -f .env
+   docker-compose config
+   ```
+
+3. **Rebuild the stable Python image:**
+   ```bash
+   docker-compose build --no-cache
+   ```
+
+The Docker image uses Python 3.12 and the runtime wrapper starts collector and Uvicorn together. If either child process exits unexpectedly, the wrapper logs which process ended and stops the other one.
 
 ## Web Interface Issues
 
@@ -590,10 +617,22 @@ This guide provides solutions to common issues you may encounter when using nw-w
 
 4. **Check collector logs for errors:**
    ```bash
-   docker-compose logs collector
+   docker-compose logs nw-watch
    # or
    # Check collector terminal output
    ```
+
+## Reading Logs
+
+Collector logs include a `category=` field for troubleshooting. Common categories:
+
+- `ssh_timeout`: SSH connection timed out
+- `network_unreachable` / `host_unreachable`: route or host reachability problem
+- `ssh_connection_refused`: TCP connection refused
+- `ssh_authentication_failed`: authentication failed
+- `ssh_disconnected`: SSH session disconnected
+- `ping_failed` / `ping_exception`: ping failed or ping command failed
+- `invalid_ping_host`: invalid `ping_host` format
 
 ### WebSocket connection fails
 

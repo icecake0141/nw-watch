@@ -161,6 +161,7 @@ This design choice provides:
 - Collector uses proper locking for persistent SSH connections
 - Safe to click buttons multiple times
 - Safe to run multiple webapp instances (all read/write same file)
+- When started through `python -m nw_watch.runtime`, a collector exit also stops Uvicorn and the wrapper logs the child process exit code.
 
 ### 📝 Logging
 

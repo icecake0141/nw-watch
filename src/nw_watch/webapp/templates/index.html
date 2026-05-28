@@ -30,22 +30,21 @@ Review required for correctness, security, and licensing.
             </div>
             <div class="collector-controls">
                 <span id="collectorStatus" class="collector-status status-unknown">Collector: Unknown</span>
-                <button id="toggleCollectorMode" class="btn">Manual Mode: Off</button>
+                <button id="toggleCollectorMode" class="btn mode-toggle mode-off" aria-pressed="false">Manual Mode OFF</button>
                 <button id="runCollectorOnce" class="btn btn-warning collector-manual-run">▶ Run Commands Now</button>
                 <button id="toggleCollectorCommands" class="btn btn-warning">⏸ Pause Commands</button>
                 <button id="stopCollector" class="btn btn-danger">⏹ Stop Collector</button>
             </div>
         </header>
 
-        <section class="ping-status">
-            <h2>Device Connectivity</h2>
-            <div id="pingTiles" class="ping-tiles">
-                <!-- Ping tiles will be inserted here -->
-            </div>
-        </section>
-
         <section class="command-tabs">
             <h2>Command Outputs</h2>
+            <div class="ping-status command-monitoring-row">
+                <h2>Monitoring</h2>
+                <div id="pingTiles" class="ping-tiles">
+                    <!-- Ping tiles will be inserted here -->
+                </div>
+            </div>
             <div id="commandTabs" class="tabs">
                 <!-- Command tabs will be inserted here -->
             </div>

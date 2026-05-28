@@ -30,9 +30,9 @@ def test_classify_command_error_not_responding():
     """Test timeout and reachability failures are user-facing."""
     assert (
         classify_command_error(NetmikoTimeoutException("TCP connection timeout"))
-        == "Not Responding"
+        == "Connection Timed Out"
     )
-    assert classify_command_error(OSError("No route to host")) == "Not Responding"
+    assert classify_command_error(OSError("No route to host")) == "Network Unreachable"
 
 
 def test_classify_command_error_disconnected():
