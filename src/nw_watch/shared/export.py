@@ -114,16 +114,17 @@ def export_bulk_runs_as_json(
     Returns:
         JSON string with all device outputs
     """
+    devices_data: Dict[str, List[Dict[str, Any]]] = {}
     export_data: Dict[str, Any] = {
         "command": command,
         "export_timestamp": datetime.now(timezone.utc).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         ),
-        "devices": {},
+        "devices": devices_data,
     }
 
     for device, runs in runs_by_device.items():
-        export_data["devices"][device] = [
+        devices_data[device] = [
             {
                 "timestamp": format_timestamp_jst(run["ts_epoch"]),
                 "timestamp_epoch": run["ts_epoch"],

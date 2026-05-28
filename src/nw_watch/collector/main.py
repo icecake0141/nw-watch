@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -23,7 +24,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from netmiko import ConnectHandler
 from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
@@ -41,6 +42,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+PING_HOST_PATTERN = re.compile(r"^[a-zA-Z0-9._:-]+$")
 
 
 def classify_command_error_detail(error: Exception) -> tuple[str, str]:
@@ -113,6 +115,88 @@ def classify_ping_error(returncode: int, stdout: str, stderr: str) -> str:
     if "100% packet loss" in detail or "request timeout" in detail:
         return "No Ping Reply"
     return f"Ping Failed (exit={returncode})"
+
+
+def ping_target(db: Database, target_name: str, ping_host: str) -> None:
+    """Ping a host and store the result under the target name."""
+    ts_epoch = int(time.time())
+
+    if not PING_HOST_PATTERN.match(ping_host):
+        logger.error(
+            "Ping validation failed | target=%s ping_host=%s category=invalid_ping_host",
+            target_name,
+            ping_host,
+        )
+        db.insert_ping_sample(
+            device_name=target_name,
+            ts_epoch=ts_epoch,
+            ok=False,
+            error_message="Invalid ping_host format",
+        )
+        return
+
+    try:
+        result = subprocess.run(
+            ["ping", "-c", "1", "-W", "1", ping_host],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+
+        if result.returncode == 0:
+            rtt_ms = None
+            for line in result.stdout.splitlines():
+                if "time=" in line:
+                    try:
+                        parts = line.split("time=")[1].split()[0]
+                        rtt_ms = float(parts)
+                        break
+                    except (IndexError, ValueError):
+                        pass
+
+            db.insert_ping_sample(
+                device_name=target_name,
+                ts_epoch=ts_epoch,
+                ok=True,
+                rtt_ms=rtt_ms,
+            )
+        else:
+            stderr = result.stderr.strip()
+            stdout = result.stdout.strip()
+            detail = stderr or stdout
+            error_message = classify_ping_error(result.returncode, stdout, stderr)
+            logger.warning(
+                "Ping failed | target=%s ping_host=%s category=ping_failed "
+                "message=%s exit_code=%s detail=%s",
+                target_name,
+                ping_host,
+                error_message,
+                result.returncode,
+                detail,
+            )
+            db.insert_ping_sample(
+                device_name=target_name,
+                ts_epoch=ts_epoch,
+                ok=False,
+                error_message=error_message,
+            )
+
+    except Exception as e:
+        logger.warning(
+            "Ping command error | target=%s ping_host=%s category=ping_exception "
+            "message=%s raw_error=%s",
+            target_name,
+            ping_host,
+            classify_command_error(e),
+            str(e).strip(),
+            exc_info=logger.isEnabledFor(logging.DEBUG),
+        )
+        db.insert_ping_sample(
+            device_name=target_name,
+            ts_epoch=ts_epoch,
+            ok=False,
+            error_message=classify_command_error(e),
+        )
 
 
 class DeviceCollector:
@@ -350,91 +434,8 @@ class DeviceCollector:
 
     def ping_device(self, db: Database) -> None:
         """Ping the device and store result."""
-        ts_epoch = int(time.time())
         ping_host = self.device_config.get("ping_host", self.device_config["host"])
-
-        # Validate ping_host to prevent command injection
-        # Allow only valid hostnames/IPs (alphanumeric, dots, hyphens, colons for IPv6)
-        import re
-
-        if not re.match(r"^[a-zA-Z0-9.\-:]+$", ping_host):
-            logger.error(
-                "Ping validation failed | device=%s ping_host=%s category=invalid_ping_host",
-                self.device_name,
-                ping_host,
-            )
-            db.insert_ping_sample(
-                device_name=self.device_name,
-                ts_epoch=ts_epoch,
-                ok=False,
-                error_message="Invalid ping_host format",
-            )
-            return
-
-        try:
-            # Use subprocess to ping with validated host
-            result = subprocess.run(
-                ["ping", "-c", "1", "-W", "1", ping_host],
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-
-            if result.returncode == 0:
-                # Extract RTT from ping output
-                rtt_ms = None
-                for line in result.stdout.splitlines():
-                    if "time=" in line:
-                        try:
-                            parts = line.split("time=")[1].split()[0]
-                            rtt_ms = float(parts)
-                            break
-                        except (IndexError, ValueError):
-                            pass
-
-                db.insert_ping_sample(
-                    device_name=self.device_name,
-                    ts_epoch=ts_epoch,
-                    ok=True,
-                    rtt_ms=rtt_ms,
-                )
-            else:
-                stderr = result.stderr.strip()
-                stdout = result.stdout.strip()
-                detail = stderr or stdout
-                error_message = classify_ping_error(result.returncode, stdout, stderr)
-                logger.warning(
-                    "Ping failed | device=%s ping_host=%s category=ping_failed "
-                    "message=%s exit_code=%s detail=%s",
-                    self.device_name,
-                    ping_host,
-                    error_message,
-                    result.returncode,
-                    detail,
-                )
-                db.insert_ping_sample(
-                    device_name=self.device_name,
-                    ts_epoch=ts_epoch,
-                    ok=False,
-                    error_message=error_message,
-                )
-
-        except Exception as e:
-            logger.warning(
-                "Ping command error | device=%s ping_host=%s category=ping_exception "
-                "message=%s raw_error=%s",
-                self.device_name,
-                ping_host,
-                classify_command_error(e),
-                str(e).strip(),
-                exc_info=logger.isEnabledFor(logging.DEBUG),
-            )
-            db.insert_ping_sample(
-                device_name=self.device_name,
-                ts_epoch=ts_epoch,
-                ok=False,
-                error_message=classify_command_error(e),
-            )
+        ping_target(db, self.device_name, ping_host)
 
 
 class Collector:
@@ -444,6 +445,7 @@ class Collector:
         """Initialize collector."""
         self.config = config
         self.devices = config.get_devices()
+        self.ping_targets = config.get_ping_targets()
         self.data_dir = Path(data_dir or os.environ.get("NW_WATCH_DATA_DIR", "data"))
         self.data_dir.mkdir(exist_ok=True)
 
@@ -534,11 +536,12 @@ class Collector:
         configured_commands = self.config.get_commands()
         if configured_commands:
             # Use global command list
-            return [
-                str(cmd["command_text"])
-                for cmd in configured_commands
-                if cmd.get("command_text")
-            ]
+            command_texts = []
+            for cmd in configured_commands:
+                command_text = cmd.get("command_text")
+                if isinstance(command_text, str):
+                    command_texts.append(command_text)
+            return command_texts
         # Legacy per-device commands; assume all devices share same list
         all_cmds: List[str] = []
         for dev in self.devices:
@@ -546,10 +549,10 @@ class Collector:
         # Preserve order, remove duplicates
         seen = set()
         ordered: List[str] = []
-        for cmd in all_cmds:
-            if cmd not in seen:
-                ordered.append(cmd)
-                seen.add(cmd)
+        for legacy_cmd in all_cmds:
+            if legacy_cmd not in seen:
+                ordered.append(legacy_cmd)
+                seen.add(legacy_cmd)
         return ordered
 
     async def collect_commands(self, force: bool = False):
@@ -594,6 +597,16 @@ class Collector:
 
         for device_name, collector in self.device_collectors.items():
             future = loop.run_in_executor(self.executor, collector.ping_device, self.db)
+            futures.append(future)
+
+        for target in self.ping_targets:
+            future = loop.run_in_executor(
+                self.executor,
+                ping_target,
+                self.db,
+                target["name"],
+                target["host"],
+            )
             futures.append(future)
 
         if futures:
@@ -746,13 +759,10 @@ async def async_main(config_path: str, data_dir: str | None = None):
                     if task != current_task:
                         task.cancel()
 
-        def make_signal_callback(sig: signal.Signals):
-            def callback() -> None:
-                signal_handler(sig.name)
-
-            return callback
-
         # Register signal handlers for SIGTERM, SIGINT, and SIGHUP
+        def make_signal_callback(sig: signal.Signals) -> Callable[[], None]:
+            return lambda: signal_handler(sig.name)
+
         for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
             loop.add_signal_handler(sig, make_signal_callback(sig))
 

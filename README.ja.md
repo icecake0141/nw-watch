@@ -16,6 +16,7 @@ Review required for correctness, security, and licensing.
 English: [README.md](README.md)
 
 nw-watch は、ネットワーク機器に SSH で接続して CLI 出力と ping 結果を収集し、SQLite に保存、FastAPI 製 Web UI でリアルタイム表示と差分比較を行うツールです。
+SSH コマンド実行対象とは別に、最大 3 件の独立した IP/ホストも ping 監視できます。
 
 ## インストール
 

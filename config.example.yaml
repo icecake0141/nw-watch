@@ -18,6 +18,11 @@ ping_window_seconds: 60          # Window (seconds) for ping tiles
 history_size: 10                 # Max runs per device/command to keep
 max_output_lines: 500            # Truncate outputs after filtering
 
+# Standalone ping targets independent of SSH command devices (optional, max: 3)
+ping_targets:
+  - name: "GatewayVIP"
+    host: "192.168.1.254"
+
 # Collector settings (optional)
 collector:
   max_workers: 20                # Max ThreadPoolExecutor workers (default: 20)

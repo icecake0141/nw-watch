@@ -16,7 +16,6 @@ import json
 import logging
 import time
 from typing import Any, Optional, Set
-
 from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)

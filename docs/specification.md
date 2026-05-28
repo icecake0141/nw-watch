@@ -27,6 +27,7 @@ Japanese: [specification.ja.md](specification.ja.md)
 - Global command interval: `interval_seconds`.
 - Per-command override: `commands[].interval_seconds` (validated range: 5-60 seconds).
 - Ping interval: `ping_interval_seconds`.
+- Standalone ping targets: `ping_targets[]` (optional, max 3 entries).
 - Command history retention: `history_size` latest runs per device/command.
 - Filtering:
 - `global_filters.line_exclude_substrings` removes matching lines.
@@ -43,6 +44,8 @@ Main required blocks in `config.yaml`:
 Main optional blocks:
 
 - `collector.max_workers`
+- `ping_targets[].name`
+- `ping_targets[].host`
 - `websocket.enabled`
 - `websocket.ping_interval`
 - `ssh.persistent_connections`

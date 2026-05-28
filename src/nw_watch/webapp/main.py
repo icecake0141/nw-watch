@@ -188,6 +188,23 @@ def get_db(history_size: int) -> Optional[Database]:
     return Database(str(DATABASE_PATH), history_size=history_size)
 
 
+def get_command_device_names(db: Database) -> list[str]:
+    """Return database device names that have command run records."""
+    all_devices = db.get_all_devices()
+    commands = db.get_all_commands()
+    if not commands:
+        return all_devices
+
+    command_devices = []
+    for device in all_devices:
+        if any(
+            db.get_latest_runs(device, command, limit=1, include_filtered=True)
+            for command in commands
+        ):
+            command_devices.append(device)
+    return command_devices
+
+
 def get_history_snapshot_key(command: str, device: str) -> Tuple[str, str]:
     """Return the stable key for a history diff snapshot."""
     return command, device.strip()
@@ -279,7 +296,7 @@ async def get_devices():
         return JSONResponse({"devices": []})
 
     try:
-        devices = db.get_all_devices()
+        devices = get_command_device_names(db)
         return JSONResponse({"devices": devices})
     finally:
         db.close()
@@ -303,7 +320,7 @@ async def get_runs(
         return JSONResponse({"runs": {}})
 
     try:
-        devices = [device] if device else db.get_all_devices()
+        devices = [device] if device else get_command_device_names(db)
         result = {}
 
         for dev in devices:
@@ -327,7 +344,7 @@ async def get_runs_side_by_side(command: str):
         return JSONResponse({"devices": []})
 
     try:
-        devices = db.get_all_devices()
+        devices = get_command_device_names(db)
 
         if len(devices) < 2:
             # Need at least 2 devices for comparison
@@ -856,7 +873,7 @@ async def export_bulk(command: str, format: str = "json"):
         return JSONResponse({"error": "Database not available"}, status_code=503)
 
     try:
-        devices = db.get_all_devices()
+        devices = get_command_device_names(db)
         runs_by_device = {}
 
         for device in devices:
@@ -958,10 +975,10 @@ async def export_diff(  # noqa: C901
             )
             label_a = device_a
             label_b = device_b
-            sanitized_command = sanitize_filename(command.replace(" ", "_"))
+            command_name = sanitize_filename(command.replace(" ", "_"))
             filename_prefix = (
                 f"device_diff_{sanitize_filename(device_a)}_vs_"
-                f"{sanitize_filename(device_b)}_{sanitized_command}"
+                f"{sanitize_filename(device_b)}_{command_name}"
             )
         else:
             return JSONResponse({"error": "Invalid parameters"}, status_code=400)

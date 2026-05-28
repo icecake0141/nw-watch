@@ -131,6 +131,21 @@ def test_get_devices(client):
     assert "DeviceB" in data["devices"]
 
 
+def test_get_devices_excludes_ping_only_targets(client):
+    """Test ping-only targets do not appear as command devices."""
+    db = Database("data/current.sqlite3")
+    db.insert_ping_sample(
+        device_name="GatewayVIP", ts_epoch=1000002, ok=True, rtt_ms=1.0
+    )
+    db.close()
+
+    response = client.get("/api/devices")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "GatewayVIP" not in data["devices"]
+
+
 def test_get_runs(client):
     """Test getting command runs."""
     response = client.get("/api/runs/show%20version")

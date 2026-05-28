@@ -354,3 +354,57 @@ devices:
 
     with pytest.raises(ValueError, match="Invalid configuration"):
         Config(str(cfg_path))
+
+
+def test_valid_standalone_ping_targets(tmp_path):
+    """Test standalone ping target configuration."""
+    cfg_path = Path(tmp_path) / "config.yaml"
+    cfg_path.write_text("""
+ping_targets:
+  - name: "GatewayVIP"
+    host: "192.0.2.254"
+  - name: "DNS"
+    host: "example.com"
+commands:
+  - command_text: "show version"
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+""")
+
+    config = Config(str(cfg_path))
+
+    assert config.get_ping_targets() == [
+        {"name": "GatewayVIP", "host": "192.0.2.254"},
+        {"name": "DNS", "host": "example.com"},
+    ]
+
+
+def test_too_many_standalone_ping_targets(tmp_path):
+    """Test standalone ping targets are limited to three."""
+    cfg_path = Path(tmp_path) / "config.yaml"
+    cfg_path.write_text("""
+ping_targets:
+  - name: "Target1"
+    host: "192.0.2.1"
+  - name: "Target2"
+    host: "192.0.2.2"
+  - name: "Target3"
+    host: "192.0.2.3"
+  - name: "Target4"
+    host: "192.0.2.4"
+commands:
+  - command_text: "show version"
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+""")
+
+    with pytest.raises(ValueError, match="Invalid configuration"):
+        Config(str(cfg_path))

@@ -17,6 +17,7 @@ Review required for correctness, security, and licensing.
 Japanese: [README.ja.md](README.ja.md)
 
 nw-watch collects CLI outputs and ping health from network devices over SSH, stores data in SQLite, and serves real-time monitoring and diff views through a FastAPI web UI.
+It can also monitor up to three standalone IPs/hosts independently of SSH command devices.
 
 ## Installation
 

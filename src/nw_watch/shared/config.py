@@ -167,6 +167,10 @@ class Config:
         """Configured devices."""
         return self.data.get("devices", [])
 
+    def get_ping_targets(self) -> List[Dict[str, str]]:
+        """Configured standalone ping targets."""
+        return self.data.get("ping_targets", [])
+
     def get_commands(self) -> List[Dict[str, Any]]:
         """Configured commands (global list)."""
         return self.data.get("commands", [])
