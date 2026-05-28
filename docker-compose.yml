@@ -12,37 +12,24 @@
 version: '3.8'
 
 services:
-  # Data collector service
-  collector:
+  nw-watch:
     build: .
-    container_name: nw-watch-collector
+    container_name: nw-watch
+    ports:
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
       - ./control:/app/control
-    command: python -m nw_watch.collector.main --config /app/config.yaml
+    command: >
+      python -m nw_watch.runtime
+      --config /app/config.yaml
+      --host 0.0.0.0
+      --port 8000
+      --data-dir /app/data
     environment:
-      # Add your device passwords here or use .env file
       - DEVICEA_PASSWORD=${DEVICEA_PASSWORD:-}
       - DEVICEB_PASSWORD=${DEVICEB_PASSWORD:-}
-    restart: unless-stopped
-    networks:
-      - nw-watch-network
-
-  # Web application service
-  webapp:
-    build: .
-    container_name: nw-watch-webapp
-    ports:
-      - "127.0.0.1:8000:8000"
-    volumes:
-      # Data directory mounted read-only - webapp only reads from database
-      - ./data:/app/data:ro
-      - ./config.yaml:/app/config.yaml:ro
-      - ./control:/app/control
-    command: uvicorn nw_watch.webapp.main:app --host 0.0.0.0 --port 8000
-    depends_on:
-      - collector
     restart: unless-stopped
     networks:
       - nw-watch-network

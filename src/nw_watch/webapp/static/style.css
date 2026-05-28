@@ -160,6 +160,34 @@ header h1 {
     cursor: not-allowed;
 }
 
+.mode-toggle {
+    min-width: 150px;
+    font-weight: 700;
+    letter-spacing: 0;
+    border-width: 2px;
+}
+
+.mode-toggle.mode-on {
+    background-color: #0f766e;
+    border-color: #5eead4;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.mode-toggle.mode-off {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.58);
+    color: #ffffff;
+}
+
+.mode-toggle.mode-on:hover {
+    background-color: #115e59;
+}
+
+.mode-toggle.mode-off:hover {
+    background-color: rgba(255, 255, 255, 0.28);
+}
+
 .collector-controls {
     display: flex;
     gap: 10px;
@@ -219,6 +247,15 @@ header h1 {
     font-size: 18px;
 }
 
+.command-monitoring-row {
+    padding: 0 0 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
 .ping-tiles {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -245,7 +282,6 @@ header h1 {
 .ping-tile.unknown {
     background-color: var(--status-unknown-bg);
     border-color: var(--status-unknown);
-}
 }
 
 .ping-tile h3 {
@@ -490,21 +526,6 @@ header h1 {
     background-color: #5568d3;
 }
 
-.diff-controls .diff-mode-btn {
-    background-color: var(--tab-bg);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-}
-
-.diff-controls .diff-mode-btn:hover {
-    background-color: var(--tab-hover-bg);
-}
-
-.diff-controls .diff-mode-btn.active {
-    background-color: var(--tab-active-bg);
-    color: white;
-}
-
 .diff-controls select {
     padding: 8px;
     border: 1px solid var(--border-color);
@@ -735,11 +756,60 @@ header h1 {
 
 /* Side-by-Side Comparison Styles */
 .side-by-side-section {
-    background: white;
+    background: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.side-by-side-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.side-by-side-header h2 {
+    margin: 0;
+}
+
+.output-snapshot-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.snapshot-mode-btn,
+.capture-snapshot-btn {
+    padding: 7px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--tab-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.snapshot-mode-btn.active,
+.capture-snapshot-btn {
+    background-color: var(--gradient-start);
+    border-color: var(--gradient-start);
+    color: #ffffff;
+}
+
+.snapshot-mode-btn:disabled,
+.capture-snapshot-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.snapshot-status {
+    color: var(--text-secondary);
+    font-size: 12px;
 }
 
 .comparison-container {

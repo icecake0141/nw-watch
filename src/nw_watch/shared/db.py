@@ -48,6 +48,9 @@ class Database:
                     raise
                 time.sleep(min(5, delay))
                 delay = min(5, delay * 2)
+        raise sqlite3.OperationalError(
+            f"Could not connect to SQLite database: {self.db_path}"
+        )
 
     def _init_schema(self):
         """Create database schema."""
@@ -128,6 +131,8 @@ class Database:
             return row[0]
         cursor.execute("INSERT INTO devices (name) VALUES (?)", (normalized_name,))
         self.conn.commit()
+        if cursor.lastrowid is None:
+            raise sqlite3.OperationalError("Could not determine inserted device id")
         return cursor.lastrowid
 
     def get_or_create_command(self, command_text: str) -> int:
@@ -143,6 +148,8 @@ class Database:
             "INSERT INTO commands (command_text) VALUES (?)", (command_text,)
         )
         self.conn.commit()
+        if cursor.lastrowid is None:
+            raise sqlite3.OperationalError("Could not determine inserted command id")
         return cursor.lastrowid
 
     def insert_run(

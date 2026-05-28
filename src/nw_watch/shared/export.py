@@ -1,3 +1,14 @@
+# Copyright 2026 icecake0141
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# This file was created or modified with the assistance of an AI (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Export utilities for network device monitoring data."""
 
 import csv
@@ -38,7 +49,7 @@ def export_run_as_text(run: Dict[str, Any], device: str, command: str) -> str:
     """
     lines = []
     lines.append("=" * 80)
-    lines.append(f"Network Watch - Command Output Export")
+    lines.append("Network Watch - Command Output Export")
     lines.append("=" * 80)
     lines.append(f"Device: {device}")
     lines.append(f"Command: {command}")
@@ -75,7 +86,7 @@ def export_run_as_json(run: Dict[str, Any], device: str, command: str) -> str:
     Returns:
         JSON string with metadata and output
     """
-    export_data = {
+    export_data: Dict[str, Any] = {
         "device": device,
         "command": command,
         "timestamp": format_timestamp_jst(run["ts_epoch"]),
@@ -103,7 +114,7 @@ def export_bulk_runs_as_json(
     Returns:
         JSON string with all device outputs
     """
-    export_data = {
+    export_data: Dict[str, Any] = {
         "command": command,
         "export_timestamp": datetime.now(timezone.utc).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
@@ -208,7 +219,7 @@ def export_diff_as_text(diff_html: str, label_a: str, label_b: str) -> str:
     """
     lines = []
     lines.append("=" * 80)
-    lines.append(f"Network Watch - Diff Export")
+    lines.append("Network Watch - Diff Export")
     lines.append("=" * 80)
     lines.append(f"Comparing: {label_a} vs {label_b}")
     lines.append(

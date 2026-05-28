@@ -45,6 +45,7 @@ Web UI には collector を制御する 3 つのボタンがあります。
 - ボタン反応と collector 側反映に最大約 2 秒の差がある
 - Pause 中も ping 監視は継続する
 - Stop 実行後は `shutdown_requested: true` となり、collector は終了処理へ移行する
+- `python -m nw_watch.runtime` で起動している場合、collector が終了すると Uvicorn も停止し、wrapper が子プロセスの終了コードをログに出力する
 
 ## 確認ポイント
 

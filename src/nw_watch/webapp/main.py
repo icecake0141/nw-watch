@@ -14,6 +14,7 @@
 import asyncio
 import logging
 import math
+import os
 import re
 import time
 from contextlib import asynccontextmanager
@@ -162,13 +163,13 @@ templates = Jinja2Templates(directory=str(_webapp_dir / "templates"))
 app.mount("/static", StaticFiles(directory=str(_webapp_dir / "static")), name="static")
 
 DEFAULT_HISTORY_SIZE = 10
-DATABASE_PATH = Path("data/current.sqlite3")
+DATABASE_PATH = Path(os.environ.get("NW_WATCH_DATA_DIR", "data")) / "current.sqlite3"
 
 
 @lru_cache(maxsize=1)
 def load_config() -> Config:
     """Load config once (cached)."""
-    return Config("config.yaml")
+    return Config(os.environ.get("NW_WATCH_CONFIG", "config.yaml"))
 
 
 def resolve_history_size() -> int:
@@ -879,7 +880,7 @@ async def export_bulk(command: str, format: str = "json"):
 
 
 @app.get("/api/export/diff")
-async def export_diff(
+async def export_diff(  # noqa: C901
     command: str,
     device: Optional[str] = None,
     device_a: Optional[str] = None,
@@ -957,7 +958,11 @@ async def export_diff(
             )
             label_a = device_a
             label_b = device_b
-            filename_prefix = f"device_diff_{sanitize_filename(device_a)}_vs_{sanitize_filename(device_b)}_{sanitize_filename(command.replace(' ', '_'))}"
+            sanitized_command = sanitize_filename(command.replace(" ", "_"))
+            filename_prefix = (
+                f"device_diff_{sanitize_filename(device_a)}_vs_"
+                f"{sanitize_filename(device_b)}_{sanitized_command}"
+            )
         else:
             return JSONResponse({"error": "Invalid parameters"}, status_code=400)
 

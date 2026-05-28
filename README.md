@@ -39,9 +39,13 @@ Open `http://127.0.0.1:8000`.
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml
 # set DEVICE*_PASSWORD environment variables
-PYTHONPATH=src python -m nw_watch.collector.main --config config.yaml
-PYTHONPATH=src uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000
+PYTHONPATH=src python -m nw_watch.runtime --config config.yaml --host 127.0.0.1 --port 8000
 ```
+
+The runtime wrapper starts and stops both the collector and Uvicorn together. For
+separate debugging, the collector and web app can still be run individually with
+`python -m nw_watch.collector.main --config config.yaml` and
+`uvicorn nw_watch.webapp.main:app --host 127.0.0.1 --port 8000`.
 
 ## Documentation
 

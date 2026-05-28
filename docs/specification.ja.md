@@ -20,6 +20,7 @@ English: [specification.md](specification.md)
 - Collector: 設定済みデバイスに対して SSH コマンド実行と ping 監視を行う。
 - Database: コマンド実行結果と ping サンプルを `data/current.sqlite3` に保存する。
 - Web App: データ表示、差分比較、エクスポート API を提供する。
+- Runtime Wrapper: Collector と Web App を一括起動し、終了シグナル時に両方を停止する。
 
 ## データ収集仕様
 
@@ -79,6 +80,12 @@ English: [specification.md](specification.md)
 - `GET /api/export/diff`
 - `GET /api/export/ping`
 - `GET /ws`（WebSocket エンドポイント）
+
+## 起動方式
+
+- 一括起動: `python -m nw_watch.runtime --config config.yaml --host 127.0.0.1 --port 8000`
+- Docker: `docker-compose up -d` は runtime wrapper を使って collector と Uvicorn を同一コンテナ内で管理する。
+- `NW_WATCH_CONFIG` と `NW_WATCH_DATA_DIR` 環境変数で Web App の設定ファイルとデータディレクトリを指定できる。
 
 ## 補足（不整合解消）
 
