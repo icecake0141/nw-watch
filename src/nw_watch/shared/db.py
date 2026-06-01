@@ -213,14 +213,14 @@ class Database:
                 LIMIT ?
             )
         """,
-            (
-                device_id,
-                command_id,
-                device_id,
-                command_id,
-                self.history_size,
-            ),
-        )
+                (
+                    device_id,
+                    command_id,
+                    device_id,
+                    command_id,
+                    self.history_size,
+                ),
+            )
             self.conn.commit()
 
     def insert_ping_sample(
