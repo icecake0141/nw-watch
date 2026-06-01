@@ -140,6 +140,9 @@ class TestModuleExecution:
                 timeout=5,
             )
             assert result.returncode != 0, "Should fail with non-existent config file"
+            assert "Configuration file not found" in (
+                result.stderr + result.stdout
+            ), "Error should clearly explain missing config.yaml"
 
     def test_webapp_main_can_be_run(self):
         """Test that webapp main module can be executed."""

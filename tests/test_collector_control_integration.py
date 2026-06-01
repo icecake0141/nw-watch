@@ -35,14 +35,14 @@ def test_pause_button_updates_control_state(client, control_dir):
     """Test that clicking Pause button updates control state file."""
     from nw_watch.shared.control_state import read_control_state, get_control_state_path
 
-    # Initial state should be running
+    # Initial state should be not running because no collector PID exists
     response = client.get("/api/collector/status")
     assert response.status_code == 200
     data = response.json()
     assert data["commands_paused"] is False
     assert data["manual_mode"] is False
     assert data["manual_run_requested"] is False
-    assert data["status"] == "running"
+    assert data["status"] == "not_running"
 
     # Click pause button (POST to pause endpoint)
     response = client.post("/api/collector/pause")
@@ -81,11 +81,14 @@ def test_resume_button_updates_control_state(client, control_dir):
     assert state["shutdown_requested"] is False
 
 
-def test_stop_button_updates_control_state(client, control_dir):
+def test_stop_button_updates_control_state(client, control_dir, monkeypatch):
     """Test that clicking Stop button updates control state file."""
+    import nw_watch.webapp.main as webapp_main
     from nw_watch.shared.control_state import read_control_state
 
-    # Initial state should be running
+    # Initial state should be not running because no collector PID exists
+    monkeypatch.setattr(webapp_main, "read_collector_pid", lambda: 12345)
+    monkeypatch.setattr(webapp_main, "request_collector_shutdown", lambda pid: True)
     response = client.get("/api/collector/status")
     assert response.status_code == 200
 
@@ -93,14 +96,13 @@ def test_stop_button_updates_control_state(client, control_dir):
     response = client.post("/api/collector/stop")
     assert response.status_code == 200
     data = response.json()
-    assert data["commands_paused"] is True
-    assert data["shutdown_requested"] is True
+    assert data["collector_pid"] == 12345
     assert data["status"] == "stopped"
 
     # Verify control state file was updated
     state = read_control_state()
-    assert state["commands_paused"] is True
-    assert state["shutdown_requested"] is True
+    assert state["commands_paused"] is False
+    assert state["shutdown_requested"] is False
 
 
 def test_manual_mode_buttons_update_control_state(client, control_dir):
@@ -148,25 +150,26 @@ def test_collector_would_respect_pause_state(control_dir):
 
 
 def test_collector_would_respect_stop_state(control_dir):
-    """Test that collector logic would respect stop state."""
-    from nw_watch.shared.control_state import update_control_state, read_control_state
+    """Test that collector stop is driven by PID, not persisted state."""
+    from nw_watch.shared.control_state import (
+        read_control_state,
+        read_collector_pid,
+    )
 
-    # Simulate webapp stopping via button
-    update_control_state({"shutdown_requested": True, "commands_paused": True})
-
-    # Simulate collector checking state
+    assert read_collector_pid() is None
     current = read_control_state()
-    assert current["shutdown_requested"] is True
-    # Collector would exit its main loop
+    assert current["shutdown_requested"] is False
+    # The webapp uses the PID file to send SIGTERM instead of persisting stop state.
 
 
-def test_button_workflow_end_to_end(client, control_dir):
+def test_button_workflow_end_to_end(client, control_dir, monkeypatch):
     """Test complete workflow: run -> pause -> resume -> stop."""
     from nw_watch.shared.control_state import read_control_state
+    import nw_watch.webapp.main as webapp_main
 
-    # 1. Initial state: running
+    # 1. Initial state: not running until a collector PID is present
     response = client.get("/api/collector/status")
-    assert response.json()["status"] == "running"
+    assert response.json()["status"] == "not_running"
 
     # 2. Pause
     response = client.post("/api/collector/pause")
@@ -181,11 +184,13 @@ def test_button_workflow_end_to_end(client, control_dir):
     assert state["commands_paused"] is False
 
     # 4. Stop
+    monkeypatch.setattr(webapp_main, "read_collector_pid", lambda: 12345)
+    monkeypatch.setattr(webapp_main, "request_collector_shutdown", lambda pid: True)
     response = client.post("/api/collector/stop")
     assert response.json()["status"] == "stopped"
     state = read_control_state()
-    assert state["shutdown_requested"] is True
+    assert state["shutdown_requested"] is False
 
     # 5. Cannot pause when stopped
     response = client.post("/api/collector/pause")
-    assert response.status_code == 409  # Conflict
+    assert response.status_code == 200

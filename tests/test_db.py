@@ -3,6 +3,7 @@
 import pytest
 import tempfile
 import os
+import sqlite3
 from pathlib import Path
 from nw_watch.shared.db import Database
 
@@ -237,6 +238,26 @@ def test_insert_ping_sample_failure(temp_db):
     assert sample["ok"] == 0
     assert sample["error_message"] == "Timeout"
     assert sample["rtt_ms"] is None
+
+
+def test_get_ping_samples_handles_invalid_utf8(temp_db):
+    """Test that ping sample reads survive malformed text rows."""
+    raw_conn = sqlite3.connect(str(temp_db.db_path))
+    cur = raw_conn.cursor()
+    device_id = temp_db.get_or_create_device("Device1")
+    cur.execute(
+        """
+        INSERT INTO ping_samples (device_id, ts_epoch, ok, rtt_ms, error_message)
+        VALUES (?, ?, ?, ?, CAST(X'80' AS TEXT))
+        """,
+        (device_id, 1000000, 0, None),
+    )
+    raw_conn.commit()
+    raw_conn.close()
+
+    samples = temp_db.get_ping_samples("Device1", since_ts=999999)
+    assert len(samples) == 1
+    assert "\ufffd" in samples[0]["error_message"]
 
 
 def test_get_ping_samples_time_filter(temp_db):

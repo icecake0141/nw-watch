@@ -206,7 +206,7 @@ class TestConfigurationErrorHandling:
 
     def test_missing_config_file(self):
         """Test handling of missing configuration file."""
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError, match="Configuration file not found"):
             Config("/nonexistent/config.yaml")
 
     def test_empty_config_file(self, tmp_path):

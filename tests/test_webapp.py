@@ -503,7 +503,8 @@ def test_collector_status_default(client):
     assert data["manual_mode"] is False
     assert data["manual_run_requested"] is False
     assert data["shutdown_requested"] is False
-    assert data["status"] == "running"
+    assert data["status"] == "not_running"
+    assert data["collector_pid"] is None
 
 
 def test_collector_pause_resume(client):
@@ -523,17 +524,20 @@ def test_collector_pause_resume(client):
     assert data["status"] == "running"
 
 
-def test_collector_stop(client):
+def test_collector_stop(client, monkeypatch):
     """Test stopping collector."""
+    import nw_watch.webapp.main as webapp_main
+
+    monkeypatch.setattr(webapp_main, "read_collector_pid", lambda: 12345)
+    monkeypatch.setattr(webapp_main, "request_collector_shutdown", lambda pid: True)
     response = client.post("/api/collector/stop")
     assert response.status_code == 200
     data = response.json()
-    assert data["commands_paused"] is True
-    assert data["shutdown_requested"] is True
+    assert data["collector_pid"] == 12345
     assert data["status"] == "stopped"
 
     response = client.post("/api/collector/pause")
-    assert response.status_code == 409
+    assert response.status_code == 200
 
 
 def test_collector_manual_mode_and_run_once(client):
@@ -557,7 +561,7 @@ def test_collector_manual_mode_and_run_once(client):
     data = response.json()
     assert data["manual_mode"] is False
     assert data["manual_run_requested"] is False
-    assert data["status"] == "running"
+    assert data["status"] == "not_running"
 
 
 def test_collector_run_once_requires_manual_mode(client):
@@ -568,24 +572,26 @@ def test_collector_run_once_requires_manual_mode(client):
 
 def test_api_without_database():
     """Test API endpoints when database doesn't exist."""
-    # Ensure no current.sqlite3 exists
-    current_db = Path("data/current.sqlite3")
-    if current_db.exists():
-        current_db.unlink()
-
+    from nw_watch import webapp
     from nw_watch.webapp.main import app
 
-    client = TestClient(app)
+    original_load_config = webapp.main.load_config
+    webapp.main.load_config = lambda: (_ for _ in ()).throw(FileNotFoundError())
 
-    response = client.get("/api/commands")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["commands"] == []
+    try:
+        client = TestClient(app)
 
-    response = client.get("/api/devices")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["devices"] == []
+        response = client.get("/api/commands")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["commands"] == []
+
+        response = client.get("/api/devices")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["devices"] == []
+    finally:
+        webapp.main.load_config = original_load_config
 
 
 def test_export_run_text(client):

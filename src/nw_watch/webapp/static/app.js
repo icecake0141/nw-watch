@@ -334,7 +334,7 @@ class NetworkWatch {
         const modeButton = document.getElementById('toggleCollectorMode');
         const runButton = document.getElementById('runCollectorOnce');
         const stopButton = document.getElementById('stopCollector');
-        statusElement.classList.remove('status-unknown', 'status-paused', 'status-running', 'status-stopped', 'status-manual');
+        statusElement.classList.remove('status-unknown', 'status-paused', 'status-running', 'status-stopped', 'status-manual', 'status-not-running');
 
         if (hasError) {
             statusElement.textContent = 'Collector: Unknown';
@@ -345,7 +345,19 @@ class NetworkWatch {
         }
         const status = this.collectorState.status || 'unknown';
 
-        if (status === 'stopped' || this.collectorState.shutdown_requested) {
+        if (status === 'not_running') {
+            statusElement.textContent = 'Collector: Not Running';
+            statusElement.classList.add('status-not-running');
+            toggleButton.disabled = true;
+            modeButton.disabled = true;
+            runButton.disabled = true;
+            runButton.style.display = 'none';
+            stopButton.disabled = true;
+            toggleButton.textContent = '⏸ Collector Not Running';
+            return;
+        }
+
+        if (status === 'stopped') {
             statusElement.textContent = 'Collector: Stopped';
             statusElement.classList.add('status-stopped');
             toggleButton.disabled = true;
@@ -392,7 +404,7 @@ class NetworkWatch {
 
         toggleButton.disabled = false;
         modeButton.disabled = false;
-        stopButton.disabled = false;
+        stopButton.disabled = !Boolean(this.collectorState.collector_pid);
     }
 
     connectWebSocket() {
