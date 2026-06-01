@@ -41,6 +41,13 @@ htmlcov/
 # Database files (except .gitkeep)
 data/*.sqlite3
 data/*.sqlite3.tmp
+data/*.sqlite3-journal
+data/*.sqlite3-wal
+data/*.sqlite3-shm
+
+# Runtime control state
+control/*.pid
+control/*.json
 
 # Config (keep example)
 config.yaml

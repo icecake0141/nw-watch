@@ -15,6 +15,7 @@ import asyncio
 import os
 import signal
 import tempfile
+import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from subprocess import CompletedProcess
@@ -302,6 +303,112 @@ devices:
 
             collector.stop()
 
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_update_current_db_uses_consistent_snapshot():
+    """Test that current.sqlite3 is a valid snapshot of the session database."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ping_interval_seconds: 1
+history_size: 10
+max_output_lines: 500
+
+commands:
+  - name: "show_version"
+    command_text: "show version"
+
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(tmp_dir)
+            config = Config(str(cfg_path))
+            collector = Collector(config)
+
+            collector.db.insert_run(
+                device_name="DeviceA",
+                command_text="show version",
+                ts_epoch=1000,
+                output_text="sample output",
+                ok=True,
+                original_line_count=1,
+            )
+
+            collector._update_current_db()
+
+            current_db_path = Path(tmp_dir) / "data" / "current.sqlite3"
+            assert current_db_path.exists()
+
+            conn = sqlite3.connect(str(current_db_path))
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT count(*) FROM runs")
+                assert cursor.fetchone()[0] == 1
+            finally:
+                conn.close()
+
+            collector.stop()
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_prune_session_databases_keeps_recent_files():
+    """Test that old session databases are pruned."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ping_interval_seconds: 1
+history_size: 10
+max_output_lines: 500
+
+commands:
+  - name: "show_version"
+    command_text: "show version"
+
+devices:
+  - name: "DeviceA"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "cisco_ios"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(tmp_dir)
+            config = Config(str(cfg_path))
+            collector = Collector(config)
+
+            # Create fake session databases with increasing timestamps.
+            for index in range(5):
+                path = Path(tmp_dir) / "data" / f"session_{1000 + index}.sqlite3"
+                path.write_bytes(b"test")
+                os.utime(path, (1000 + index, 1000 + index))
+
+            collector._prune_session_databases(keep=3)
+
+            remaining = sorted(
+                p.name for p in (Path(tmp_dir) / "data").glob("session_*.sqlite3")
+            )
+            assert len(remaining) == 3
+            assert "session_1004.sqlite3" in remaining
+            assert "session_1003.sqlite3" in remaining
+            assert collector.session_db_path.name in remaining
+
+            collector.stop()
         finally:
             os.chdir(original_cwd)
             if "TEST_PASSWORD" in os.environ:

@@ -16,12 +16,12 @@ import asyncio
 import logging
 import os
 import re
-import shutil
 import signal
 import subprocess
 import sys
 import threading
 import time
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -32,7 +32,9 @@ from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationExc
 from nw_watch.shared.config import Config
 from nw_watch.shared.control_state import (
     DEFAULT_CONTROL_STATE,
+    clear_collector_pid,
     read_control_state,
+    write_collector_pid,
     update_control_state,
 )
 from nw_watch.shared.db import Database
@@ -453,6 +455,7 @@ class Collector:
         session_epoch = int(time.time())
         self.session_db_path = self.data_dir / f"session_{session_epoch}.sqlite3"
         self.current_db_path = self.data_dir / "current.sqlite3"
+        self.pid_path = None
 
         self.db = Database(
             str(self.session_db_path), history_size=self.config.get_history_size()
@@ -616,17 +619,23 @@ class Collector:
         self._update_current_db()
 
     def _update_current_db(self):
-        """Atomically replace current.sqlite3 with session database."""
+        """Atomically replace current.sqlite3 with a consistent SQLite snapshot."""
         delay = 1
         for attempt in range(5):
             try:
                 tmp_path = self.data_dir / "current.sqlite3.tmp"
-                shutil.copy2(self.session_db_path, tmp_path)
+                if tmp_path.exists():
+                    tmp_path.unlink()
 
-                if self.current_db_path.exists():
-                    self.current_db_path.unlink()
+                src_conn = self.db.conn
+                dest_conn = sqlite3.connect(str(tmp_path))
+                try:
+                    src_conn.backup(dest_conn)
+                finally:
+                    dest_conn.close()
 
-                tmp_path.rename(self.current_db_path)
+                tmp_path.replace(self.current_db_path)
+                self._prune_session_databases()
                 return
             except Exception as e:
                 logger.error(
@@ -637,6 +646,27 @@ class Collector:
                 time.sleep(min(5, delay))
                 delay = min(5, delay * 2)
 
+    def _prune_session_databases(self, keep: int = 3) -> None:
+        """Keep only the most recent session databases to avoid unbounded growth."""
+        try:
+            session_files = sorted(
+                self.data_dir.glob("session_*.sqlite3"),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+        except Exception as exc:
+            logger.warning("Failed to enumerate session databases: %s", exc)
+            return
+
+        for old_path in session_files[keep:]:
+            try:
+                old_path.unlink()
+                logger.info("Pruned old session database: %s", old_path.name)
+            except FileNotFoundError:
+                continue
+            except Exception as exc:
+                logger.warning("Failed to prune %s: %s", old_path, exc)
+
     async def run(self):  # noqa: C901
         """Main collection loop."""
         ping_interval_seconds = self.config.get_ping_interval_seconds()
@@ -646,11 +676,6 @@ class Collector:
             try:
                 while self.running:
                     control_state = self._load_control_state()
-                    if control_state.get("shutdown_requested"):
-                        logger.info("Shutdown requested via control state.")
-                        self.running = False
-                        break
-
                     self._apply_control_state(control_state)
                     if self.commands_paused:
                         await asyncio.sleep(self.control_poll_interval)
@@ -699,11 +724,6 @@ class Collector:
             try:
                 while self.running:
                     control_state = self._load_control_state()
-                    if control_state.get("shutdown_requested"):
-                        logger.info("Shutdown requested via control state.")
-                        self.running = False
-                        break
-
                     await self.collect_pings()
                     await asyncio.sleep(ping_interval_seconds)
             except asyncio.CancelledError:
@@ -742,6 +762,7 @@ async def async_main(config_path: str, data_dir: str | None = None):
     try:
         config = Config(config_path)
         collector = Collector(config, data_dir=data_dir)
+        write_collector_pid(os.getpid())
 
         # Set up signal handlers in the event loop
         loop = asyncio.get_running_loop()
@@ -771,9 +792,13 @@ async def async_main(config_path: str, data_dir: str | None = None):
 
     except asyncio.CancelledError:
         logger.info("Collector stopped by signal")
+    except FileNotFoundError as exc:
+        logger.error("%s", exc)
+        raise
     finally:
         if collector:
             collector.stop()
+        clear_collector_pid()
 
 
 def main():
@@ -792,6 +817,8 @@ def main():
     except KeyboardInterrupt:
         logger.info("Collector stopped by user")
         sys.exit(0)
+    except FileNotFoundError:
+        sys.exit(1)
     except Exception as e:
         logger.error(f"Collector error: {e}", exc_info=True)
         sys.exit(1)

@@ -30,6 +30,11 @@ class Config:
     def __init__(self, config_path: str):
         """Load configuration from YAML file."""
         self.config_path = Path(config_path)
+        if not self.config_path.exists():
+            raise FileNotFoundError(
+                f"Configuration file not found: {self.config_path}. "
+                "Create it from config.example.yaml and pass it via --config."
+            )
         with open(self.config_path, "r") as f:
             # Ensure we always have a dictionary to read from
             raw_data = yaml.safe_load(f) or {}

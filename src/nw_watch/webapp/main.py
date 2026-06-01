@@ -30,7 +30,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from nw_watch.shared.config import Config
-from nw_watch.shared.control_state import read_control_state, update_control_state
+from nw_watch.shared.control_state import (
+    is_process_running,
+    read_collector_pid,
+    read_control_state,
+    request_collector_shutdown,
+    update_control_state,
+)
 from nw_watch.shared.db import Database
 from nw_watch.shared.diff import generate_side_by_side_diff, generate_inline_char_diff
 from nw_watch.shared.export import (
@@ -245,14 +251,20 @@ def build_history_diff_response(
 def build_collector_status() -> Dict[str, object]:
     """Build a collector control status payload."""
     state = read_control_state()
-    status = "running"
-    if state.get("shutdown_requested"):
+    pid = read_collector_pid()
+    if pid is None:
+        status = "not_running"
+    elif not is_process_running(pid):
         status = "stopped"
     elif state.get("commands_paused"):
         status = "paused"
     elif state.get("manual_mode"):
         status = "manual"
+    else:
+        status = "running"
     state["status"] = status
+    state["collector_pid"] = pid
+    state["shutdown_requested"] = False
     return state
 
 
@@ -762,11 +774,16 @@ async def resume_collector_commands():
 async def stop_collector():
     """Request collector shutdown."""
     try:
-        updated = update_control_state(
-            {"commands_paused": True, "shutdown_requested": True}
-        )
-        updated["status"] = "stopped"
-        return JSONResponse(updated)
+        pid = read_collector_pid()
+        if pid is None:
+            return JSONResponse({"error": "Collector PID not found."}, status_code=409)
+        if not request_collector_shutdown(pid):
+            return JSONResponse({"error": "Collector is not running."}, status_code=409)
+        state = read_control_state()
+        state["status"] = "stopped"
+        state["collector_pid"] = pid
+        state["shutdown_requested"] = False
+        return JSONResponse(state)
     except Exception as exc:
         logger.error("Failed to stop collector: %s", exc)
         return JSONResponse({"error": "Failed to stop collector."}, status_code=500)
@@ -787,7 +804,9 @@ async def set_collector_mode(request: Request):
         updated = update_control_state(
             {"manual_mode": manual_mode, "manual_run_requested": False}
         )
-        updated["status"] = build_collector_status()["status"]
+        updated["status"] = (
+            "manual" if manual_mode else build_collector_status()["status"]
+        )
         return JSONResponse(updated)
     except Exception as exc:
         logger.error("Failed to set collector mode: %s", exc)

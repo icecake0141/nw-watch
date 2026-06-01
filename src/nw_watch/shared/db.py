@@ -14,8 +14,9 @@
 import logging
 import sqlite3
 import time
+import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,9 @@ class Database:
         """Initialize database connection."""
         self.db_path = Path(db_path)
         self.history_size = history_size
+        self._lock = threading.RLock()
         self.conn = self._connect_with_retry(retry_attempts)
+        self.conn.text_factory = lambda value: value.decode("utf-8", errors="replace")
         self.conn.row_factory = sqlite3.Row
         self._init_schema()
 
@@ -54,26 +57,27 @@ class Database:
 
     def _init_schema(self):
         """Create database schema."""
-        cursor = self.conn.cursor()
+        with self._lock:
+            cursor = self.conn.cursor()
 
-        # Devices table
-        cursor.execute("""
+            # Devices table
+            cursor.execute("""
             CREATE TABLE IF NOT EXISTS devices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL
             )
         """)
 
-        # Commands table
-        cursor.execute("""
+            # Commands table
+            cursor.execute("""
             CREATE TABLE IF NOT EXISTS commands (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 command_text TEXT UNIQUE NOT NULL
             )
         """)
 
-        # Runs table
-        cursor.execute("""
+            # Runs table
+            cursor.execute("""
             CREATE TABLE IF NOT EXISTS runs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 device_id INTEGER NOT NULL,
@@ -91,8 +95,8 @@ class Database:
             )
         """)
 
-        # Ping samples table
-        cursor.execute("""
+            # Ping samples table
+            cursor.execute("""
             CREATE TABLE IF NOT EXISTS ping_samples (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 device_id INTEGER NOT NULL,
@@ -104,16 +108,16 @@ class Database:
             )
         """)
 
-        # Create indexes
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_device_command ON runs(device_id, command_id)"
-        )
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_runs_ts ON runs(ts_epoch)")
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ping_device_ts ON ping_samples(device_id, ts_epoch)"
-        )
+            # Create indexes
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_runs_device_command ON runs(device_id, command_id)"
+            )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_runs_ts ON runs(ts_epoch)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ping_device_ts ON ping_samples(device_id, ts_epoch)"
+            )
 
-        self.conn.commit()
+            self.conn.commit()
 
     def get_or_create_device(self, name: str) -> int:
         """Get or create device, return device ID.
@@ -124,33 +128,31 @@ class Database:
         # Normalize device name by stripping whitespace
         normalized_name = name.strip()
 
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT id FROM devices WHERE name = ?", (normalized_name,))
-        row = cursor.fetchone()
-        if row:
-            return row[0]
-        cursor.execute("INSERT INTO devices (name) VALUES (?)", (normalized_name,))
-        self.conn.commit()
-        if cursor.lastrowid is None:
-            raise sqlite3.OperationalError("Could not determine inserted device id")
-        return cursor.lastrowid
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT id FROM devices WHERE name = ?", (normalized_name,))
+            row = cursor.fetchone()
+            if row:
+                return row[0]
+            cursor.execute("INSERT INTO devices (name) VALUES (?)", (normalized_name,))
+            self.conn.commit()
+            return cast(int, cursor.lastrowid)
 
     def get_or_create_command(self, command_text: str) -> int:
         """Get or create command, return command ID."""
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT id FROM commands WHERE command_text = ?", (command_text,)
-        )
-        row = cursor.fetchone()
-        if row:
-            return row[0]
-        cursor.execute(
-            "INSERT INTO commands (command_text) VALUES (?)", (command_text,)
-        )
-        self.conn.commit()
-        if cursor.lastrowid is None:
-            raise sqlite3.OperationalError("Could not determine inserted command id")
-        return cursor.lastrowid
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "SELECT id FROM commands WHERE command_text = ?", (command_text,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return row[0]
+            cursor.execute(
+                "INSERT INTO commands (command_text) VALUES (?)", (command_text,)
+            )
+            self.conn.commit()
+            return cast(int, cursor.lastrowid)
 
     def insert_run(
         self,
@@ -169,37 +171,39 @@ class Database:
         device_id = self.get_or_create_device(device_name)
         command_id = self.get_or_create_command(command_text)
 
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
             INSERT INTO runs (device_id, command_id, ts_epoch, output_text, ok,
                             error_message, duration_ms, is_filtered, is_truncated,
                             original_line_count)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-            (
-                device_id,
-                command_id,
-                ts_epoch,
-                output_text,
-                1 if ok else 0,
-                error_message,
-                duration_ms,
-                1 if is_filtered else 0,
-                1 if is_truncated else 0,
-                original_line_count,
-            ),
-        )
-        self.conn.commit()
+                (
+                    device_id,
+                    command_id,
+                    ts_epoch,
+                    output_text,
+                    1 if ok else 0,
+                    error_message,
+                    duration_ms,
+                    1 if is_filtered else 0,
+                    1 if is_truncated else 0,
+                    original_line_count,
+                ),
+            )
+            self.conn.commit()
 
-        # Clean up old runs, keep only configured history_size
-        self._cleanup_old_runs(device_id, command_id)
+            # Clean up old runs, keep only configured history_size
+            self._cleanup_old_runs(device_id, command_id)
 
     def _cleanup_old_runs(self, device_id: int, command_id: int):
         """Remove old runs, keeping only the most recent history_size."""
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
             DELETE FROM runs
             WHERE device_id = ? AND command_id = ?
             AND id NOT IN (
@@ -209,15 +213,15 @@ class Database:
                 LIMIT ?
             )
         """,
-            (
-                device_id,
-                command_id,
-                device_id,
-                command_id,
-                self.history_size,
-            ),
-        )
-        self.conn.commit()
+                (
+                    device_id,
+                    command_id,
+                    device_id,
+                    command_id,
+                    self.history_size,
+                ),
+            )
+            self.conn.commit()
 
     def insert_ping_sample(
         self,
@@ -230,15 +234,16 @@ class Database:
         """Insert a ping sample."""
         device_id = self.get_or_create_device(device_name)
 
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
             INSERT INTO ping_samples (device_id, ts_epoch, ok, rtt_ms, error_message)
             VALUES (?, ?, ?, ?, ?)
         """,
-            (device_id, ts_epoch, 1 if ok else 0, rtt_ms, error_message),
-        )
-        self.conn.commit()
+                (device_id, ts_epoch, 1 if ok else 0, rtt_ms, error_message),
+            )
+            self.conn.commit()
 
     def get_latest_runs(
         self,
@@ -254,23 +259,24 @@ class Database:
         # Normalize device name by stripping whitespace
         normalized_name = device_name.strip()
 
-        cursor = self.conn.cursor()
-        sql = """
+        with self._lock:
+            cursor = self.conn.cursor()
+            sql = """
             SELECT r.* FROM runs r
             JOIN devices d ON r.device_id = d.id
             JOIN commands c ON r.command_id = c.id
             WHERE d.name = ? AND c.command_text = ?
         """
-        params: List[Any] = [normalized_name, command_text]
-        if not include_filtered:
-            sql += " AND r.is_filtered = 0"
-        sql += " ORDER BY r.ts_epoch DESC LIMIT ?"
-        params.append(limit)
+            params: List[Any] = [normalized_name, command_text]
+            if not include_filtered:
+                sql += " AND r.is_filtered = 0"
+            sql += " ORDER BY r.ts_epoch DESC LIMIT ?"
+            params.append(limit)
 
-        cursor.execute(sql, params)
+            cursor.execute(sql, params)
 
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
 
     def get_latest_run(
         self, device_name: str, command_text: str, include_filtered: bool = False
@@ -283,15 +289,17 @@ class Database:
 
     def get_all_commands(self) -> List[str]:
         """Get all unique commands."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT command_text FROM commands ORDER BY command_text")
-        return [row[0] for row in cursor.fetchall()]
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT command_text FROM commands ORDER BY command_text")
+            return [row[0] for row in cursor.fetchall()]
 
     def get_all_devices(self) -> List[str]:
         """Get all unique devices."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT name FROM devices ORDER BY name")
-        return [row[0] for row in cursor.fetchall()]
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT name FROM devices ORDER BY name")
+            return [row[0] for row in cursor.fetchall()]
 
     def get_ping_samples(self, device_name: str, since_ts: int) -> List[Dict[str, Any]]:
         """Get ping samples for a device since a given timestamp.
@@ -301,20 +309,22 @@ class Database:
         # Normalize device name by stripping whitespace
         normalized_name = device_name.strip()
 
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
             SELECT p.* FROM ping_samples p
             JOIN devices d ON p.device_id = d.id
             WHERE d.name = ? AND p.ts_epoch >= ?
             ORDER BY p.ts_epoch DESC
         """,
-            (normalized_name, since_ts),
-        )
+                (normalized_name, since_ts),
+            )
 
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
 
     def close(self):
         """Close database connection."""
-        self.conn.close()
+        with self._lock:
+            self.conn.close()
