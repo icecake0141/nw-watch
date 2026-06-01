@@ -776,13 +776,9 @@ async def stop_collector():
     try:
         pid = read_collector_pid()
         if pid is None:
-            return JSONResponse(
-                {"error": "Collector PID not found."}, status_code=409
-            )
+            return JSONResponse({"error": "Collector PID not found."}, status_code=409)
         if not request_collector_shutdown(pid):
-            return JSONResponse(
-                {"error": "Collector is not running."}, status_code=409
-            )
+            return JSONResponse({"error": "Collector is not running."}, status_code=409)
         state = read_control_state()
         state["status"] = "stopped"
         state["collector_pid"] = pid
@@ -808,7 +804,9 @@ async def set_collector_mode(request: Request):
         updated = update_control_state(
             {"manual_mode": manual_mode, "manual_run_requested": False}
         )
-        updated["status"] = "manual" if manual_mode else build_collector_status()["status"]
+        updated["status"] = (
+            "manual" if manual_mode else build_collector_status()["status"]
+        )
         return JSONResponse(updated)
     except Exception as exc:
         logger.error("Failed to set collector mode: %s", exc)
