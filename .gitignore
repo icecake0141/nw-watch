@@ -44,6 +44,7 @@ data/*.sqlite3.tmp
 data/*.sqlite3-journal
 data/*.sqlite3-wal
 data/*.sqlite3-shm
+data/logs/*.log
 
 # Runtime control state
 control/*.pid

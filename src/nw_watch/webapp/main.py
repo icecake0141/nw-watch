@@ -12,6 +12,7 @@
 """Web application for network device monitoring."""
 
 import asyncio
+import json
 import logging
 import math
 import os
@@ -25,7 +26,13 @@ from typing import Any, Dict, Optional, Tuple
 from yaml import YAMLError
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -38,6 +45,12 @@ from nw_watch.shared.control_state import (
     update_control_state,
 )
 from nw_watch.shared.db import Database
+from nw_watch.shared.debug import (
+    get_app_log_path,
+    get_ssh_log_path,
+    mask_sensitive_config,
+    setup_debug_file_logging,
+)
 from nw_watch.shared.diff import generate_side_by_side_diff, generate_inline_char_diff
 from nw_watch.shared.export import (
     export_run_as_text,
@@ -51,6 +64,7 @@ from nw_watch.shared.export import (
 from nw_watch.webapp.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
+setup_debug_file_logging()
 
 # Background task state
 _background_task = None
@@ -272,6 +286,12 @@ def build_collector_status() -> Dict[str, object]:
 async def index(request: Request):
     """Render main page."""
     return templates.TemplateResponse(request, "index.html")
+
+
+@app.get("/debug", response_class=HTMLResponse)
+async def debug_page(request: Request):
+    """Render debug page."""
+    return templates.TemplateResponse(request, "debug.html")
 
 
 @app.get("/api/commands")
@@ -727,6 +747,81 @@ async def get_config():
                 "websocket_enabled": False,
             }
         )
+
+
+@app.get("/api/debug/config")
+async def get_debug_config():
+    """Get masked configuration details for the debug page."""
+    try:
+        config = load_config()
+        masked = mask_sensitive_config(config.data)
+        return JSONResponse({"config": masked})
+    except Exception as exc:
+        logger.error("Failed to load debug config: %s", exc)
+        return JSONResponse({"error": "Failed to load configuration."}, status_code=500)
+
+
+def resolve_ssh_log_device(line: str, current_device: Optional[str]) -> Optional[str]:
+    """Return the SSH log device for a line, preserving multiline output context."""
+    match = re.match(r"^\[([^\]]+)\]", line)
+    if match:
+        return match.group(1)
+    return current_device
+
+
+async def stream_log_file(request: Request, path: Path, device: Optional[str] = None):
+    """Yield file lines as server-sent events."""
+    offset = 0
+    current_device: Optional[str] = None
+    if path.exists():
+        offset = max(0, path.stat().st_size - 16000)
+
+    yield "event: status\ndata: connected\n\n"
+
+    while True:
+        if await request.is_disconnected():
+            break
+
+        if not path.exists():
+            yield f"event: log\ndata: {json.dumps('log file not created yet')}\n\n"
+            await asyncio.sleep(1)
+            continue
+
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            handle.seek(offset)
+            lines = handle.readlines()
+            offset = handle.tell()
+
+        for raw_line in lines:
+            line = raw_line.rstrip("\n")
+            if device is not None:
+                current_device = resolve_ssh_log_device(line, current_device)
+                if current_device != device:
+                    continue
+            data = json.dumps(line)
+            yield f"event: log\ndata: {data}\n\n"
+
+        await asyncio.sleep(1)
+
+
+@app.get("/api/debug/logs/{log_name}")
+async def stream_debug_log(
+    request: Request, log_name: str, device: Optional[str] = None
+):
+    """Stream debug log lines."""
+    log_paths = {
+        "app": get_app_log_path(),
+        "ssh": get_ssh_log_path(),
+    }
+    path = log_paths.get(log_name)
+    if path is None:
+        return JSONResponse({"error": "Unknown log stream."}, status_code=404)
+
+    return StreamingResponse(
+        stream_log_file(request, path, device=device if log_name == "ssh" else None),
+        media_type="text/event-stream",
+        headers={"Cache-Control": NO_CACHE_CONTROL},
+    )
 
 
 @app.get("/api/collector/status")

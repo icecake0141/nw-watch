@@ -110,6 +110,62 @@ def test_index_page(client):
     assert "Network Watch" in response.text
 
 
+def test_debug_page_loads(client):
+    """Test debug page loads."""
+    response = client.get("/debug")
+    assert response.status_code == 200
+    assert "Network Watch - Debug" in response.text
+    assert "sshDevicePanels" in response.text
+
+
+def test_debug_config_masks_sensitive_values(client, tmp_path, monkeypatch):
+    """Test debug configuration masks secrets."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """\
+interval_seconds: 5
+commands:
+  - name: version
+    command_text: show version
+devices:
+  - name: DeviceA
+    host: 192.0.2.1
+    username: admin
+    password: super-secret
+    password_env_key: DEVICE_PASSWORD
+    device_type: cisco_ios
+""",
+        encoding="utf-8",
+    )
+
+    from nw_watch.webapp import main
+
+    monkeypatch.setenv("NW_WATCH_CONFIG", str(config_path))
+    main.load_config.cache_clear()
+
+    try:
+        response = client.get("/api/debug/config")
+        assert response.status_code == 200
+        data = response.json()["config"]
+        assert data["devices"][0]["password"] == "********"
+        assert data["devices"][0]["password_env_key"] == "DEVICE_PASSWORD"
+        assert "super-secret" not in response.text
+    finally:
+        main.load_config.cache_clear()
+
+
+def test_resolve_ssh_log_device_tracks_multiline_output():
+    """Test SSH stream device filtering can keep multiline command output context."""
+    from nw_watch.webapp.main import resolve_ssh_log_device
+
+    current = resolve_ssh_log_device("[DeviceA] command> show version", None)
+    assert current == "DeviceA"
+    assert resolve_ssh_log_device("Cisco IOS XE Software", current) == "DeviceA"
+    assert (
+        resolve_ssh_log_device("[DeviceB] command> show version", current) == "DeviceB"
+    )
+
+
 def test_get_commands(client):
     """Test getting list of commands."""
     response = client.get("/api/commands")

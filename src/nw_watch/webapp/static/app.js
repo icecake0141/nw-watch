@@ -42,13 +42,13 @@ class NetworkWatch {
             updated_at: 0
         };
         this.collectorPollIntervalMs = 5000;
-        
+
         // WebSocket reconnection settings
         this.maxWebSocketReconnectAttempts = 5;
         this.baseReconnectDelay = 1000;  // 1 second base delay
         this.maxReconnectDelay = 30000;  // 30 seconds max delay
         this.reconnectBackoffMultiplier = 2;  // Exponential backoff multiplier
-        
+
         // Diff state preservation
         // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
         this.diffStates = {};
@@ -58,23 +58,23 @@ class NetworkWatch {
         this.latestSideBySideData = {};
         this.outputSnapshots = {};
         this.outputViewModes = {};
-        
+
         this.init();
     }
-    
+
     async init() {
         // Load configuration
         await this.loadConfig();
-        
+
         // Load initial data
         await this.loadDevices();
         await this.loadCommands();
         await this.loadCollectorStatus();
-        
+
         // Setup UI
         this.setupEventListeners();
         this.renderCommandTabs();
-        
+
         // Start WebSocket or polling based on config
         if (this.config.websocket_enabled) {
             this.connectWebSocket();
@@ -83,7 +83,7 @@ class NetworkWatch {
         }
 
         this.startCollectorStatusPolling();
-        
+
         // Initial data load
         await this.updatePingStatus();
         if (this.commands.length > 0) {
@@ -98,7 +98,7 @@ class NetworkWatch {
             context: context
         });
     }
-    
+
     async loadConfig() {
         try {
             const response = await fetch('/api/config');
@@ -108,7 +108,7 @@ class NetworkWatch {
             this.logClientError('CONFIG_LOAD_FAILED', error, { endpoint: '/api/config' });
         }
     }
-    
+
     async loadDevices() {
         try {
             const response = await fetch('/api/devices');
@@ -118,7 +118,7 @@ class NetworkWatch {
             this.logClientError('DEVICES_LOAD_FAILED', error, { endpoint: '/api/devices' });
         }
     }
-    
+
     async loadCommands() {
         try {
             const response = await fetch('/api/commands');
@@ -140,17 +140,17 @@ class NetworkWatch {
             this.updateCollectorControls(true);
         }
     }
-    
+
     setupEventListeners() {
         // Theme toggle
         document.getElementById('themeToggle').addEventListener('click', () => {
             this.toggleTheme();
         });
-        
+
         document.getElementById('toggleAutoRefresh').addEventListener('click', () => {
             this.toggleAutoRefresh();
         });
-        
+
         document.getElementById('manualRefresh').addEventListener('click', () => {
             this.manualRefresh();
         });
@@ -170,7 +170,7 @@ class NetworkWatch {
         document.getElementById('stopCollector').addEventListener('click', () => {
             this.stopCollector();
         });
-        
+
         // Load saved theme preference
         this.loadThemePreference();
     }
@@ -192,18 +192,18 @@ class NetworkWatch {
             output.style.height = `${this.sideBySideOutputHeight}px`;
         });
     }
-    
+
     toggleTheme() {
         const body = document.body;
         const isDark = body.classList.toggle('dark-theme');
-        
+
         // Save preference to localStorage
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }
-    
+
     loadThemePreference() {
         const savedTheme = localStorage.getItem('theme');
-        
+
         // Check system preference with fallback for older browsers
         let prefersDark = false;
         try {
@@ -212,17 +212,17 @@ class NetworkWatch {
             // Older browsers may not support matchMedia
             console.log('matchMedia not supported, using light theme');
         }
-        
+
         // Apply saved theme, or use system preference if no saved theme
         if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
             document.body.classList.add('dark-theme');
         }
     }
-    
+
     toggleAutoRefresh() {
         this.autoRefresh = !this.autoRefresh;
         const btn = document.getElementById('toggleAutoRefresh');
-        
+
         if (this.autoRefresh) {
             btn.textContent = '⏸ Pause Auto-Refresh';
             if (this.config.websocket_enabled) {
@@ -441,7 +441,7 @@ class NetworkWatch {
             this.websocket.onclose = () => {
                 console.log('WebSocket disconnected');
                 this.websocket = null;
-                
+
                 // Fallback to polling if WebSocket fails
                 if (this.autoRefresh && !this.isPolling) {
                     console.log('Falling back to polling');
@@ -452,7 +452,7 @@ class NetworkWatch {
                 if (this.websocketReconnectAttempts < this.maxWebSocketReconnectAttempts) {
                     this.websocketReconnectAttempts++;
                     const delay = Math.min(
-                        this.maxReconnectDelay, 
+                        this.maxReconnectDelay,
                         this.baseReconnectDelay * Math.pow(this.reconnectBackoffMultiplier, this.websocketReconnectAttempts - 1)
                     );
                     console.log(`Attempting to reconnect WebSocket in ${delay}ms (attempt ${this.websocketReconnectAttempts})`);
@@ -520,26 +520,26 @@ class NetworkWatch {
         }
         this.pauseBanner.style.display = show ? 'block' : 'none';
     }
-    
+
     async manualRefresh() {
         await this.updatePingStatus();
         if (this.currentCommand) {
             await this.updateCommandData(this.currentCommand);
         }
     }
-    
+
     startPolling() {
         if (!this.autoRefresh) return;
-        
+
         this.isPolling = true;
-        
+
         // Poll ping status
         this.pingPollTimer = setInterval(() => {
             if (this.autoRefresh) {
                 this.updatePingStatus();
             }
         }, this.config.ping_poll_interval_seconds * 1000);
-        
+
         // Poll run data
         this.runPollTimer = setInterval(() => {
             if (this.autoRefresh && this.currentCommand) {
@@ -547,10 +547,10 @@ class NetworkWatch {
             }
         }, this.config.run_poll_interval_seconds * 1000);
     }
-    
+
     stopPolling() {
         this.isPolling = false;
-        
+
         if (this.pingPollTimer) {
             clearInterval(this.pingPollTimer);
             this.pingPollTimer = null;
@@ -560,11 +560,11 @@ class NetworkWatch {
             this.runPollTimer = null;
         }
     }
-    
+
     renderCommandTabs() {
         const tabsContainer = document.getElementById('commandTabs');
         tabsContainer.innerHTML = '';
-        
+
         this.commands.forEach(command => {
             const tab = document.createElement('button');
             tab.className = 'tab';
@@ -573,10 +573,10 @@ class NetworkWatch {
             tabsContainer.appendChild(tab);
         });
     }
-    
+
     async switchToCommand(command) {
         this.currentCommand = command;
-        
+
         // Update active tab
         document.querySelectorAll('.tab').forEach(tab => {
             if (tab.textContent === command) {
@@ -585,70 +585,70 @@ class NetworkWatch {
                 tab.classList.remove('active');
             }
         });
-        
+
         // Load command data
         await this.updateCommandData(command);
     }
-    
+
     async updateCommandData(command) {
         try {
             // Fetch side-by-side data for character-level diff
             const sideBySideResponse = await fetch(`/api/runs/${encodeURIComponent(command)}/side_by_side`);
             const sideBySideData = await sideBySideResponse.json();
             this.latestSideBySideData[command] = sideBySideData;
-            
+
             // Also fetch regular run data for history
             const response = await fetch(`/api/runs/${encodeURIComponent(command)}`);
             const data = await response.json();
-            
+
             this.renderCommandContent(command, data.runs, sideBySideData);
         } catch (error) {
             this.logClientError('COMMAND_DATA_LOAD_FAILED', error, { command });
         }
     }
-    
+
     renderCommandContent(command, runsData, sideBySideData) {
         const contentContainer = document.getElementById('commandContent');
-        
+
         // Save current diff states before clearing
         this.saveDiffStates(command);
         this.saveSideBySideScrollStates(command);
-        
+
         contentContainer.innerHTML = '';
-        
+
         // Check if we have side-by-side data
         if (sideBySideData && sideBySideData.devices && sideBySideData.devices.length >= 2) {
             // Render side-by-side comparison view
             this.renderSideBySideView(command, this.getDisplayedSideBySideData(command, sideBySideData));
-            
+
             // Add separator
             const separator = document.createElement('hr');
             separator.style.margin = '30px 0';
             contentContainer.appendChild(separator);
         }
-        
+
         // Render traditional per-device run history
         for (const [device, runs] of Object.entries(runsData)) {
             const deviceSection = document.createElement('div');
             deviceSection.className = 'device-section';
-            
+
             const deviceHeader = document.createElement('div');
             deviceHeader.className = 'device-header-section';
             deviceHeader.innerHTML = `<h3>Device: ${device}</h3>`;
-            
+
             // Add bulk export button
             const bulkExportBtn = document.createElement('button');
             bulkExportBtn.className = 'bulk-export-btn';
             bulkExportBtn.textContent = '📦 Export All Outputs (JSON)';
             bulkExportBtn.addEventListener('click', () => this.exportBulk(command));
             deviceHeader.appendChild(bulkExportBtn);
-            
+
             deviceSection.appendChild(deviceHeader);
-            
+
             // Render run history
             const historyDiv = document.createElement('div');
             historyDiv.className = 'run-history';
-            
+
             if (runs.length === 0) {
                 historyDiv.innerHTML = '<p class="loading">No data available</p>';
             } else {
@@ -659,16 +659,16 @@ class NetworkWatch {
                     historyDiv.appendChild(runEntry);
                 });
             }
-            
+
             deviceSection.appendChild(historyDiv);
-            
+
             // Add diff section for this device
             const diffSection = this.createDiffSection(command, device);
             deviceSection.appendChild(diffSection);
-            
+
             contentContainer.appendChild(deviceSection);
         }
-        
+
         // Restore diff states after rendering
         this.restoreDiffStates(command);
         this.restoreSideBySideScrollStates(command);
@@ -798,14 +798,14 @@ class NetworkWatch {
         this.outputViewModes[command] = 'snapshot';
         this.updateCommandData(command);
     }
-    
+
     renderSideBySideView(command, sideBySideData) {
         const contentContainer = document.getElementById('commandContent');
-        
+
         // Create side-by-side section
         const sideBySideSection = document.createElement('div');
         sideBySideSection.className = 'side-by-side-section';
-        
+
         const sectionHeader = document.createElement('div');
         sectionHeader.className = 'side-by-side-header';
 
@@ -814,41 +814,41 @@ class NetworkWatch {
         sectionHeader.appendChild(title);
         sectionHeader.appendChild(this.createOutputSnapshotControls(command, sideBySideData));
         sideBySideSection.appendChild(sectionHeader);
-        
+
         // Container for the two device outputs
         const comparisonContainer = document.createElement('div');
         comparisonContainer.className = 'comparison-container';
-        
+
         // Render each device
         sideBySideData.devices.forEach(deviceData => {
             const devicePanel = document.createElement('div');
             devicePanel.className = 'device-panel';
             devicePanel.dataset.deviceName = deviceData.name;
-            
+
             // Device header
             const header = document.createElement('div');
             header.className = 'device-panel-header';
-            
+
             const deviceName = document.createElement('h3');
             deviceName.textContent = deviceData.name;
             header.appendChild(deviceName);
-            
+
             // Metadata
             const meta = document.createElement('div');
             meta.className = 'device-panel-meta';
             const timestamp = this.formatTimestampJST(deviceData.run.ts_epoch);
             const duration = deviceData.run.duration_ms ? `${deviceData.run.duration_ms.toFixed(2)}ms` : 'N/A';
             meta.innerHTML = `
-                <span>${timestamp}</span> | 
+                <span>${timestamp}</span> |
                 Duration: ${duration}
                 ${deviceData.run.original_line_count ? ` | Lines: ${deviceData.run.original_line_count}` : ''}
             `;
             header.appendChild(meta);
-            
+
             // Badges
             const badges = document.createElement('div');
             badges.className = 'run-badges';
-            
+
             if (deviceData.run.ok) {
                 const badge = document.createElement('span');
                 badge.className = 'badge success';
@@ -860,30 +860,30 @@ class NetworkWatch {
                 badge.textContent = 'Error';
                 badges.appendChild(badge);
             }
-            
+
             if (deviceData.run.is_filtered) {
                 const badge = document.createElement('span');
                 badge.className = 'badge filtered';
                 badge.textContent = 'Filtered';
                 badges.appendChild(badge);
             }
-            
+
             if (deviceData.run.is_truncated) {
                 const badge = document.createElement('span');
                 badge.className = 'badge truncated';
                 badge.textContent = 'Truncated';
                 badges.appendChild(badge);
             }
-            
+
             header.appendChild(badges);
             devicePanel.appendChild(header);
-            
+
             // Output with character-level diff highlighting
             const outputContainer = document.createElement('div');
             outputContainer.className = 'device-panel-output';
             outputContainer.style.maxHeight = `${this.sideBySideOutputHeight}px`;
             outputContainer.style.height = `${this.sideBySideOutputHeight}px`;
-            
+
             if (deviceData.run.ok) {
                 const outputPre = document.createElement('pre');
                 outputPre.className = 'output-text-char-diff';
@@ -895,11 +895,11 @@ class NetworkWatch {
                 errorMsg.textContent = `Error: ${this.formatRunError(deviceData.run)}`;
                 outputContainer.appendChild(errorMsg);
             }
-            
+
             devicePanel.appendChild(outputContainer);
             comparisonContainer.appendChild(devicePanel);
         });
-        
+
         sideBySideSection.appendChild(comparisonContainer);
 
         const resizeHandle = document.createElement('div');
@@ -949,30 +949,30 @@ class NetworkWatch {
             this.setSideBySideOutputHeight(this.sideBySideOutputHeight + (step * direction));
         });
     }
-    
+
     createRunEntry(run, command, index) {
         const entry = document.createElement('div');
         entry.className = 'run-entry';
-        
+
         // Header
         const header = document.createElement('div');
         header.className = 'run-header';
-        
+
         const meta = document.createElement('div');
         meta.className = 'run-meta';
-        
+
         const timestamp = this.formatTimestampJST(run.ts_epoch);
         const duration = run.duration_ms ? `${run.duration_ms.toFixed(2)}ms` : 'N/A';
-        
+
         meta.innerHTML = `
-            <span class="timestamp">${timestamp}</span> | 
+            <span class="timestamp">${timestamp}</span> |
             Duration: ${duration}
             ${run.original_line_count ? ` | Lines: ${run.original_line_count}` : ''}
         `;
-        
+
         const badges = document.createElement('div');
         badges.className = 'run-badges';
-        
+
         if (run.ok) {
             const badge = document.createElement('span');
             badge.className = 'badge success';
@@ -984,28 +984,28 @@ class NetworkWatch {
             badge.textContent = 'Error';
             badges.appendChild(badge);
         }
-        
+
         if (run.is_filtered) {
             const badge = document.createElement('span');
             badge.className = 'badge filtered';
             badge.textContent = 'Filtered';
             badges.appendChild(badge);
         }
-        
+
         if (run.is_truncated) {
             const badge = document.createElement('span');
             badge.className = 'badge truncated';
             badge.textContent = 'Truncated';
             badges.appendChild(badge);
         }
-        
+
         header.appendChild(meta);
         header.appendChild(badges);
-        
+
         // Output (initially hidden)
         const output = document.createElement('div');
         output.className = 'run-output';
-        
+
         if (run.ok) {
             const outputText = document.createElement('pre');
             outputText.className = 'output-text';
@@ -1017,36 +1017,36 @@ class NetworkWatch {
             errorMsg.textContent = `Error: ${this.formatRunError(run)}`;
             output.appendChild(errorMsg);
         }
-        
+
         // Toggle visibility on header click
         header.addEventListener('click', () => {
             output.classList.toggle('visible');
         });
-        
+
         // Auto-expand first entry
         if (index === 0) {
             output.classList.add('visible');
         }
-        
+
         entry.appendChild(header);
         entry.appendChild(output);
-        
+
         // Add export buttons
         if (run.ok) {
             const exportControls = this.createExportControls(run, command, index);
             entry.appendChild(exportControls);
         }
-        
+
         return entry;
     }
-    
+
     createExportControls(run, command, index) {
         const controls = document.createElement('div');
         controls.className = 'export-controls';
-        
+
         // Get device name from the DOM context (will be set by parent)
         const deviceName = run._device || '';
-        
+
         const exportTextBtn = document.createElement('button');
         exportTextBtn.className = 'export-btn';
         exportTextBtn.textContent = '📄 Export as Text';
@@ -1054,7 +1054,7 @@ class NetworkWatch {
             e.stopPropagation();
             this.exportRun(command, deviceName, 'text');
         });
-        
+
         const exportJsonBtn = document.createElement('button');
         exportJsonBtn.className = 'export-btn';
         exportJsonBtn.textContent = '📋 Export as JSON';
@@ -1062,13 +1062,13 @@ class NetworkWatch {
             e.stopPropagation();
             this.exportRun(command, deviceName, 'json');
         });
-        
+
         controls.appendChild(exportTextBtn);
         controls.appendChild(exportJsonBtn);
-        
+
         return controls;
     }
-    
+
     exportRun(command, device, format) {
         try {
             const url = `/api/export/run?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}`;
@@ -1078,7 +1078,7 @@ class NetworkWatch {
             alert('Failed to export data');
         }
     }
-    
+
     exportBulk(command) {
         try {
             const url = `/api/export/bulk?command=${encodeURIComponent(command)}&format=json`;
@@ -1088,30 +1088,30 @@ class NetworkWatch {
             alert('Failed to export bulk data');
         }
     }
-    
+
     createDiffSection(command, device) {
         const section = document.createElement('div');
         section.className = 'diff-section';
-        
+
         const header = document.createElement('h3');
         header.textContent = 'Diff Views';
         section.appendChild(header);
-        
+
         const controls = document.createElement('div');
         controls.className = 'diff-controls';
-        
+
         // History diff button
         const historyBtn = document.createElement('button');
         historyBtn.textContent = 'Show History Diff';
         historyBtn.addEventListener('click', () => this.showHistoryDiff(command, device));
         controls.appendChild(historyBtn);
-        
+
         // Device diff controls (if multiple devices)
         if (this.devices.length > 1) {
             const label = document.createElement('label');
             label.textContent = 'Compare with: ';
             controls.appendChild(label);
-            
+
             const select = document.createElement('select');
             this.devices.forEach(dev => {
                 if (dev !== device) {
@@ -1122,7 +1122,7 @@ class NetworkWatch {
                 }
             });
             controls.appendChild(select);
-            
+
             const deviceDiffBtn = document.createElement('button');
             deviceDiffBtn.textContent = 'Show Device Diff';
             deviceDiffBtn.addEventListener('click', () => {
@@ -1131,7 +1131,7 @@ class NetworkWatch {
             });
             controls.appendChild(deviceDiffBtn);
         }
-        
+
         section.appendChild(controls);
 
         // Diff output
@@ -1140,37 +1140,37 @@ class NetworkWatch {
         diffOutput.id = `diff-${device}`;
         diffOutput.textContent = this.DIFF_PLACEHOLDER_TEXT;
         section.appendChild(diffOutput);
-        
+
         // Diff export controls
         const exportControls = document.createElement('div');
         exportControls.className = 'diff-export-controls';
         exportControls.style.display = 'none';  // Hidden until diff is shown
         exportControls.id = `diff-export-${device}`;
-        
+
         const exportHtmlBtn = document.createElement('button');
         exportHtmlBtn.className = 'export-btn';
         exportHtmlBtn.textContent = '📄 Export Diff (HTML)';
         exportHtmlBtn.addEventListener('click', () => this.exportDiff(command, device, 'html'));
-        
+
         const exportTextBtn = document.createElement('button');
         exportTextBtn.className = 'export-btn';
         exportTextBtn.textContent = '📋 Export Diff (Text)';
         exportTextBtn.addEventListener('click', () => this.exportDiff(command, device, 'text'));
-        
+
         exportControls.appendChild(exportHtmlBtn);
         exportControls.appendChild(exportTextBtn);
         section.appendChild(exportControls);
-        
+
         return section;
     }
-    
+
     async showHistoryDiff(command, device) {
         try {
             const response = await fetch(
                 `/api/diff/history?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&origin_mode=previous`
             );
             const data = await response.json();
-            
+
             const diffOutput = document.getElementById(`diff-${device}`);
             this.renderDiff(
                 diffOutput,
@@ -1187,7 +1187,7 @@ class NetworkWatch {
                 exportControls.dataset.device = device;
                 exportControls.dataset.originMode = 'previous';
             }
-            
+
             // Save the diff state immediately
             const stateKey = `${command}:${device}`;
             this.diffStates[stateKey] = {
@@ -1208,7 +1208,7 @@ class NetworkWatch {
                 `/api/diff/devices?command=${encodeURIComponent(command)}&device_a=${encodeURIComponent(deviceA)}&device_b=${encodeURIComponent(deviceB)}`
             );
             const data = await response.json();
-            
+
             const diffOutputs = [
                 document.getElementById(`diff-${deviceA}`),
                 document.getElementById(`diff-${deviceB}`)
@@ -1222,7 +1222,7 @@ class NetworkWatch {
                     data.diff_format === 'html'
                 );
             });
-            
+
             // Show export controls and store diff context
             const exportControlTargets = [
                 document.getElementById(`diff-export-${deviceA}`),
@@ -1236,13 +1236,13 @@ class NetworkWatch {
                 exportControls.dataset.deviceA = deviceA;
                 exportControls.dataset.deviceB = deviceB;
             });
-            
+
             // Save the diff state for both devices
             // Only save if we have valid diff output
             if (diffOutputs && diffOutputs.length > 0 && diffOutputs[0]) {
                 const isHtml = diffOutputs[0].classList.contains('diff-output-html');
                 const content = diffOutputs[0].innerHTML;
-                
+
                 [deviceA, deviceB].forEach(device => {
                     const stateKey = `${command}:${device}`;
                     this.diffStates[stateKey] = {
@@ -1259,14 +1259,14 @@ class NetworkWatch {
             this.logClientError('DEVICE_DIFF_LOAD_FAILED', error, { command, deviceA, deviceB });
         }
     }
-    
+
     exportDiff(command, device, format) {
         const exportControls = document.getElementById(`diff-export-${device}`);
         if (!exportControls) return;
-        
+
         const diffType = exportControls.dataset.diffType;
         let url;
-        
+
         if (diffType === 'history') {
             const originMode = exportControls.dataset.originMode || 'previous';
             url = `/api/export/diff?command=${encodeURIComponent(command)}&device=${encodeURIComponent(device)}&format=${format}&origin_mode=${originMode}`;
@@ -1278,7 +1278,7 @@ class NetworkWatch {
             console.error('Unknown diff type');
             return;
         }
-        
+
         try {
             window.location.href = url;
         } catch (error) {
@@ -1350,31 +1350,31 @@ class NetworkWatch {
 
         element.innerHTML = html;
     }
-    
+
     saveDiffStates(command) {
         // Save the state of all visible diffs for the current command
         this.devices.forEach(device => {
             const diffOutputElement = document.getElementById(`diff-${device}`);
             const exportControlsElement = document.getElementById(`diff-export-${device}`);
-            
+
             if (!diffOutputElement || !exportControlsElement) {
                 return;
             }
-            
+
             // Check if there's actual diff content (not just the placeholder text)
             const hasContent = diffOutputElement.textContent !== this.DIFF_PLACEHOLDER_TEXT &&
                                diffOutputElement.innerHTML.trim().length > 0;
-            
+
             // Check if export controls are visible (more robust check)
             const isVisible = exportControlsElement.style.display === 'block' ||
-                            (exportControlsElement.style.display !== 'none' && 
+                            (exportControlsElement.style.display !== 'none' &&
                              exportControlsElement.offsetParent !== null);
-            
+
             if (hasContent && isVisible) {
                 const stateKey = `${command}:${device}`;
                 const diffType = exportControlsElement.dataset.diffType;
                 const otherDevice = exportControlsElement.dataset.deviceB;
-                
+
                 // Store the diff state
                 this.diffStates[stateKey] = {
                     type: diffType,
@@ -1391,30 +1391,30 @@ class NetworkWatch {
             }
         });
     }
-    
+
     restoreDiffStates(command) {
         // Restore previously visible diffs for the current command
         this.devices.forEach(device => {
             const stateKey = `${command}:${device}`;
             const state = this.diffStates[stateKey];
-            
+
             if (!state) {
                 return;
             }
-            
+
             const diffOutputElement = document.getElementById(`diff-${device}`);
             const exportControlsElement = document.getElementById(`diff-export-${device}`);
-            
+
             if (!diffOutputElement || !exportControlsElement) {
                 return;
             }
-            
+
             // Restore the diff content
             diffOutputElement.innerHTML = state.content;
             if (state.isHtml) {
                 diffOutputElement.classList.add('diff-output-html');
             }
-            
+
             // Restore export controls visibility and metadata
             exportControlsElement.style.display = 'block';
             exportControlsElement.dataset.diffType = state.type;
@@ -1425,90 +1425,114 @@ class NetworkWatch {
             }
         });
     }
-    
+
     async updatePingStatus() {
         try {
             const response = await fetch(
                 `/api/ping?window_seconds=${this.config.ping_window_seconds}`
             );
             const data = await response.json();
-            
+
             this.renderPingStatus(data.ping_status);
         } catch (error) {
             console.error('Error loading ping status:', error);
         }
     }
-    
+
     renderPingStatus(pingStatus) {
-        const container = document.getElementById('pingTiles');
-        container.innerHTML = '';
-        
+        const monitorContainer = document.getElementById('monitorPingTiles');
+        const deviceContainer = document.getElementById('devicePingTiles');
+        monitorContainer.innerHTML = '';
+        deviceContainer.innerHTML = '';
+
+        const deviceNames = new Set(this.devices);
+        let monitorCount = 0;
+        let deviceCount = 0;
+
         for (const [device, status] of Object.entries(pingStatus)) {
-            const tile = document.createElement('div');
-            tile.className = `ping-tile ${status.status}`;
-            
-            const header = document.createElement('h3');
-            header.textContent = device;
-            tile.appendChild(header);
-            
-            const stats = document.createElement('div');
-            stats.className = 'stats';
-            
-            const statusText = this.formatPingStatus(status);
-            stats.innerHTML = `
-                <div><strong>Status:</strong> ${statusText}</div>
-                <div><strong>Success Rate:</strong> ${status.success_rate.toFixed(1)}%</div>
-                <div><strong>Samples:</strong> ${status.successful_samples}/${status.total_samples}</div>
-                ${status.avg_rtt_ms ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
-                ${status.last_check_ts ? `<div><strong>Last Check:</strong> ${this.formatTimestampJST(status.last_check_ts)}</div>` : ''}
-                ${status.last_error_message ? `<div><strong>Last Error:</strong> ${this.escapeHtml(status.last_error_message)}</div>` : ''}
-            `;
-            
-            tile.appendChild(stats);
-
-            // Timeline tiles (oldest -> newest)
-            const timelineWrapper = document.createElement('div');
-            timelineWrapper.className = 'ping-timeline';
-
-            (status.timeline || []).forEach(result => {
-                const cell = document.createElement('div');
-                cell.className = 'ping-cell';
-                if (result === true) {
-                    cell.classList.add('ok');
-                } else if (result === false) {
-                    cell.classList.add('fail');
-                } else {
-                    cell.classList.add('unknown');
-                }
-                timelineWrapper.appendChild(cell);
-            });
-
-            tile.appendChild(timelineWrapper);
-            
-            // Add ping export buttons
-            const pingExportControls = document.createElement('div');
-            pingExportControls.className = 'ping-export-controls';
-            
-            const exportCsvBtn = document.createElement('button');
-            exportCsvBtn.className = 'export-btn-small';
-            exportCsvBtn.textContent = '📊 Export CSV';
-            exportCsvBtn.addEventListener('click', () => this.exportPing(device, 'csv'));
-            
-            const exportJsonBtn = document.createElement('button');
-            exportJsonBtn.className = 'export-btn-small';
-            exportJsonBtn.textContent = '📋 Export JSON';
-            exportJsonBtn.addEventListener('click', () => this.exportPing(device, 'json'));
-            
-            pingExportControls.appendChild(exportCsvBtn);
-            pingExportControls.appendChild(exportJsonBtn);
-            tile.appendChild(pingExportControls);
-            
-            container.appendChild(tile);
+            const tile = this.createPingTile(device, status);
+            if (deviceNames.has(device)) {
+                deviceContainer.appendChild(tile);
+                deviceCount += 1;
+            } else {
+                tile.classList.add('monitor-ping-tile');
+                monitorContainer.appendChild(tile);
+                monitorCount += 1;
+            }
         }
-        
+
         if (Object.keys(pingStatus).length === 0) {
-            container.innerHTML = '<p class="loading">No ping data available</p>';
+            monitorContainer.innerHTML = '<p class="loading">No ping data available</p>';
+        } else if (monitorCount === 0) {
+            monitorContainer.innerHTML = '<p class="loading">No standalone monitor data available</p>';
         }
+
+        if (deviceCount === 0 && Object.keys(pingStatus).length > 0) {
+            deviceContainer.innerHTML = '<p class="loading">No device ping data available</p>';
+        }
+    }
+
+    createPingTile(device, status) {
+        const tile = document.createElement('div');
+        tile.className = `ping-tile ${status.status}`;
+
+        const header = document.createElement('h3');
+        header.textContent = device;
+        tile.appendChild(header);
+
+        const stats = document.createElement('div');
+        stats.className = 'stats';
+
+        const statusText = this.formatPingStatus(status);
+        stats.innerHTML = `
+            <div><strong>Status:</strong> ${statusText}</div>
+            <div><strong>Success Rate:</strong> ${status.success_rate.toFixed(1)}%</div>
+            <div><strong>Samples:</strong> ${status.successful_samples}/${status.total_samples}</div>
+            ${status.avg_rtt_ms ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
+            ${status.last_check_ts ? `<div><strong>Last Check:</strong> ${this.formatTimestampJST(status.last_check_ts)}</div>` : ''}
+            ${status.last_error_message ? `<div><strong>Last Error:</strong> ${this.escapeHtml(status.last_error_message)}</div>` : ''}
+        `;
+
+        tile.appendChild(stats);
+
+        // Timeline tiles (oldest -> newest)
+        const timelineWrapper = document.createElement('div');
+        timelineWrapper.className = 'ping-timeline';
+
+        (status.timeline || []).forEach(result => {
+            const cell = document.createElement('div');
+            cell.className = 'ping-cell';
+            if (result === true) {
+                cell.classList.add('ok');
+            } else if (result === false) {
+                cell.classList.add('fail');
+            } else {
+                cell.classList.add('unknown');
+            }
+            timelineWrapper.appendChild(cell);
+        });
+
+        tile.appendChild(timelineWrapper);
+
+        // Add ping export buttons
+        const pingExportControls = document.createElement('div');
+        pingExportControls.className = 'ping-export-controls';
+
+        const exportCsvBtn = document.createElement('button');
+        exportCsvBtn.className = 'export-btn-small';
+        exportCsvBtn.textContent = '📊 Export CSV';
+        exportCsvBtn.addEventListener('click', () => this.exportPing(device, 'csv'));
+
+        const exportJsonBtn = document.createElement('button');
+        exportJsonBtn.className = 'export-btn-small';
+        exportJsonBtn.textContent = '📋 Export JSON';
+        exportJsonBtn.addEventListener('click', () => this.exportPing(device, 'json'));
+
+        pingExportControls.appendChild(exportCsvBtn);
+        pingExportControls.appendChild(exportJsonBtn);
+        tile.appendChild(pingExportControls);
+
+        return tile;
     }
 
     formatPingStatus(status) {
@@ -1524,7 +1548,7 @@ class NetworkWatch {
     formatRunError(run) {
         return run.error_message || 'Disconnected';
     }
-    
+
     exportPing(device, format) {
         try {
             const url = `/api/export/ping?device=${encodeURIComponent(device)}&format=${format}&window_seconds=3600`;
@@ -1534,22 +1558,22 @@ class NetworkWatch {
             alert('Failed to export ping data');
         }
     }
-    
+
     formatTimestampJST(epoch) {
         // Convert UTC epoch to JST
         const date = new Date(epoch * 1000);
-        
+
         // JST is UTC+9
         const jstOffset = 9 * 60; // minutes
         const jstDate = new Date(date.getTime() + jstOffset * 60 * 1000);
-        
+
         const year = jstDate.getUTCFullYear();
         const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
         const day = String(jstDate.getUTCDate()).padStart(2, '0');
         const hours = String(jstDate.getUTCHours()).padStart(2, '0');
         const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
         const seconds = String(jstDate.getUTCSeconds()).padStart(2, '0');
-        
+
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} JST`;
     }
 }

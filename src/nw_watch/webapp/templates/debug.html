@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!--
+Copyright 2026 icecake0141
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This file was created or modified with the assistance of an AI (Large Language Model).
+Review required for correctness, security, and licensing.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Watch Debug</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Network Watch - Debug</h1>
+            <div class="controls">
+                <a class="btn" href="/">← Monitor</a>
+                <button id="clearDebugLogs" class="btn">Clear Logs</button>
+            </div>
+        </header>
+
+        <section class="debug-grid">
+            <div id="sshDevicePanels" class="debug-device-panels">
+                <!-- Device-specific SSH log panels will be inserted here -->
+            </div>
+
+            <div class="debug-panel">
+                <div class="debug-panel-header">
+                    <h2>Application Log</h2>
+                    <span id="appStreamStatus" class="debug-stream-status">Connecting</span>
+                </div>
+                <pre id="appLogStream" class="debug-log-stream">Waiting for application logs...</pre>
+            </div>
+
+            <div class="debug-panel debug-config-panel">
+                <div class="debug-panel-header">
+                    <h2>Configuration</h2>
+                    <button id="refreshDebugConfig" class="btn btn-small">Refresh</button>
+                </div>
+                <pre id="debugConfig" class="debug-config">Loading configuration...</pre>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/debug.js"></script>
+</body>
+</html>

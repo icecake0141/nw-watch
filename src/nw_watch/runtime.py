@@ -21,9 +21,12 @@ import time
 from pathlib import Path
 from typing import Sequence
 
+from nw_watch.shared.debug import setup_debug_file_logging
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+setup_debug_file_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -72,6 +75,7 @@ def run(args: argparse.Namespace) -> int:
     env = os.environ.copy()
     env["NW_WATCH_CONFIG"] = str(config_path)
     env["NW_WATCH_DATA_DIR"] = str(data_dir)
+    env.setdefault("NW_WATCH_LOG_DIR", str(data_dir / "logs"))
 
     collector_command = [
         sys.executable,

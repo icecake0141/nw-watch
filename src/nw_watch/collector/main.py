@@ -38,11 +38,13 @@ from nw_watch.shared.control_state import (
     update_control_state,
 )
 from nw_watch.shared.db import Database
+from nw_watch.shared.debug import log_ssh_session, setup_debug_file_logging
 from nw_watch.shared.filters import process_output
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+setup_debug_file_logging()
 logger = logging.getLogger(__name__)
 PING_HOST_PATTERN = re.compile(r"^[a-zA-Z0-9._:-]+$")
 
@@ -255,6 +257,10 @@ class DeviceCollector:
         """Establish a new connection to the device."""
         params = self._get_connection_params()
         logger.info(f"Establishing SSH connection to {self.device_name}")
+        log_ssh_session(
+            f"[{self.device_name}] connect host={params['host']} port={params['port']} "
+            f"username={params['username']}"
+        )
         connection = ConnectHandler(**params)
         try:
             self._run_initial_commands(connection)
@@ -274,7 +280,10 @@ class DeviceCollector:
                 self.device_name,
                 initial_command,
             )
-            connection.send_command(initial_command)
+            log_ssh_session(f"[{self.device_name}] initial-command> {initial_command}")
+            output = connection.send_command(initial_command)
+            if output:
+                log_ssh_session(f"[{self.device_name}] initial-output\n{output}")
 
     def _is_connection_alive(self) -> bool:
         """Check if the current connection is alive."""
@@ -353,12 +362,15 @@ class DeviceCollector:
                 # Use persistent connection with lock
                 with self._connection_lock:
                     connection = self._ensure_connected()
+                    log_ssh_session(f"[{self.device_name}] command> {command}")
                     output = connection.send_command(command)
             else:
                 # Legacy mode: create new connection for each command.
                 connection = self._connect()
+                log_ssh_session(f"[{self.device_name}] command> {command}")
                 output = connection.send_command(command)
                 connection.disconnect()
+                log_ssh_session(f"[{self.device_name}] disconnect")
 
             duration_ms = (time.time() - start_time) * 1000
 
@@ -388,6 +400,10 @@ class DeviceCollector:
             logger.info(
                 f"Executed '{command}' on {self.device_name} in {duration_ms:.2f}ms"
             )
+            log_ssh_session(
+                f"[{self.device_name}] output command={command!r} "
+                f"duration_ms={duration_ms:.2f}\n{output}"
+            )
 
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
@@ -415,6 +431,10 @@ class DeviceCollector:
                 duration_ms,
                 str(e).strip(),
                 exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
+            log_ssh_session(
+                f"[{self.device_name}] error command={command!r} "
+                f"category={error_code} message={error_msg}"
             )
 
     def close(self) -> None:
@@ -639,7 +659,7 @@ class Collector:
                 return
             except Exception as e:
                 logger.error(
-                    f"Error updating current database (attempt {attempt+1}): {e}"
+                    f"Error updating current database (attempt {attempt + 1}): {e}"
                 )
                 if attempt == 4:
                     return
@@ -723,7 +743,6 @@ class Collector:
         async def ping_loop():
             try:
                 while self.running:
-                    control_state = self._load_control_state()
                     await self.collect_pings()
                     await asyncio.sleep(ping_interval_seconds)
             except asyncio.CancelledError:
