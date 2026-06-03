@@ -24,6 +24,7 @@ Review required for correctness, security, and licensing.
         <header>
             <h1>Network Watch - Dual Device Monitor</h1>
             <div class="controls">
+                <a class="btn" href="/debug">Debug</a>
                 <button id="themeToggle" class="btn" title="Toggle dark mode">🌓 Theme</button>
                 <button id="toggleAutoRefresh" class="btn">⏸ Pause Auto-Refresh</button>
                 <button id="manualRefresh" class="btn">🔄 Refresh Now</button>
@@ -41,8 +42,11 @@ Review required for correctness, security, and licensing.
             <h2>Command Outputs</h2>
             <div class="ping-status command-monitoring-row">
                 <h2>Monitoring</h2>
-                <div id="pingTiles" class="ping-tiles">
-                    <!-- Ping tiles will be inserted here -->
+                <div id="monitorPingTiles" class="ping-tiles monitor-ping-tiles">
+                    <!-- Standalone monitor ping tiles will be inserted here -->
+                </div>
+                <div id="devicePingTiles" class="ping-tiles device-ping-tiles">
+                    <!-- Device ping tiles will be inserted here -->
                 </div>
             </div>
             <div id="commandTabs" class="tabs">
