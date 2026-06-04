@@ -489,6 +489,54 @@ devices:
         db.close()
 
 
+def test_structured_initial_command_expect_string_is_used():
+    """Test structured initial commands pass expect_string to Netmiko."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cfg_path = Path(tmp_dir) / "config.yaml"
+        cfg_path.write_text("""
+interval_seconds: 5
+ssh:
+  initial_commands:
+    - command_text: "config global"
+      expect_string: '\\(global\\) #'
+commands:
+  - name: "test"
+    command_text: "show system admin"
+devices:
+  - name: "TestDevice"
+    host: "192.168.1.1"
+    username: "admin"
+    password_env_key: "TEST_PASSWORD"
+    device_type: "fortinet"
+""")
+
+        os.environ["TEST_PASSWORD"] = "test"
+        config = Config(str(cfg_path))
+        db_path = Path(tmp_dir) / "test.db"
+        db = Database(str(db_path))
+
+        device_config = config.get_devices()[0]
+        collector = DeviceCollector(device_config, config)
+
+        with patch("nw_watch.collector.main.ConnectHandler") as mock_handler:
+            mock_connection = MagicMock()
+            mock_connection.send_command.return_value = "Command output"
+            mock_connection.find_prompt.return_value = "FGT (global) #"
+            mock_handler.return_value = mock_connection
+
+            collector.execute_command("show system admin", db)
+
+            mock_connection.send_command.assert_has_calls(
+                [
+                    call("config global", expect_string="\\(global\\) #"),
+                    call("show system admin"),
+                ]
+            )
+            assert mock_handler.call_count == 1
+
+        db.close()
+
+
 def test_initial_command_failure_disconnects_new_connection():
     """Test failed initialization closes the newly-created connection."""
     with tempfile.TemporaryDirectory() as tmp_dir:

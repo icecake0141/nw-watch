@@ -59,6 +59,9 @@ English: [specification.md](specification.md)
 `devices[].initial_commands` は対象デバイスで追加実行されます。永続 SSH 接続では
 接続ごと、および再接続後に一度実行されます。永続接続を無効にした場合は、
 各コマンド用の短期セッション開始時に実行されます。
+各 initial command は文字列、または `command_text` と任意の Netmiko
+`expect_string` を持つオブジェクトで指定できます。これは FortiGate の
+`config global` のようにプロンプトが変わるコマンドで利用します。
 
 設定例: [`config.example.yaml`](../config.example.yaml)
 
