@@ -76,3 +76,38 @@ devices:
         "terminal length 0",
         "enable",
     ]
+
+
+def test_config_structured_initial_commands(tmp_path, monkeypatch):
+    """Ensure structured initial commands with expect_string are preserved."""
+    cfg_path = Path(tmp_path) / "config.yaml"
+    cfg_path.write_text("""
+commands:
+  - name: "cmd1"
+    command_text: "show run"
+ssh:
+  initial_commands:
+    - command_text: "config global"
+      expect_string: '\\(global\\) #'
+devices:
+  - name: "DeviceA"
+    host: "1.1.1.1"
+    username: "admin"
+    password_env_key: "PW_A"
+    device_type: "fortinet"
+    initial_commands:
+      - command_text: "diagnose debug cli 8"
+        expect_string: "#"
+""")
+
+    monkeypatch.setenv("PW_A", "secret")
+
+    config = Config(str(cfg_path))
+
+    assert config.get_global_initial_commands() == [
+        {"command_text": "config global", "expect_string": "\\(global\\) #"}
+    ]
+    assert config.get_device_initial_commands(config.get_devices()[0]) == [
+        {"command_text": "config global", "expect_string": "\\(global\\) #"},
+        {"command_text": "diagnose debug cli 8", "expect_string": "#"},
+    ]

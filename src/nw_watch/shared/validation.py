@@ -12,7 +12,7 @@
 """Configuration validation using Pydantic models."""
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -82,6 +82,32 @@ class CommandConfig(BaseModel):
         return v
 
 
+class InitialCommandConfig(BaseModel):
+    """SSH command to run once after login, with optional expected prompt."""
+
+    command_text: str
+    expect_string: Optional[str] = None
+
+    @field_validator("command_text")
+    @classmethod
+    def validate_command_text(cls, v: str) -> str:
+        """Validate initial command text is not empty."""
+        if not v or not v.strip():
+            raise ValueError("initial command_text must not be empty")
+        return v
+
+    @field_validator("expect_string")
+    @classmethod
+    def validate_expect_string(cls, v: Optional[str]) -> Optional[str]:
+        """Validate expect_string is not empty when provided."""
+        if v is not None and not v.strip():
+            raise ValueError("initial command expect_string must not be empty")
+        return v
+
+
+InitialCommand = Union[str, InitialCommandConfig]
+
+
 class DeviceConfig(BaseModel):
     """Device configuration."""
 
@@ -93,7 +119,7 @@ class DeviceConfig(BaseModel):
     password: Optional[str] = None
     device_type: str
     ping_host: Optional[str] = None
-    initial_commands: List[str] = Field(default_factory=list)
+    initial_commands: List[InitialCommand] = Field(default_factory=list)
 
     @field_validator("name")
     @classmethod
@@ -163,10 +189,10 @@ class DeviceConfig(BaseModel):
 
     @field_validator("initial_commands")
     @classmethod
-    def validate_initial_commands(cls, v: List[str]) -> List[str]:
-        """Validate initial commands are non-empty strings."""
+    def validate_initial_commands(cls, v: List[InitialCommand]) -> List[InitialCommand]:
+        """Validate initial commands are non-empty strings or command objects."""
         for command in v:
-            if not command or not command.strip():
+            if isinstance(command, str) and (not command or not command.strip()):
                 raise ValueError("initial_commands must not contain empty commands")
         return v
 
@@ -230,7 +256,7 @@ class SSHConfig(BaseModel):
     connection_timeout: int = Field(default=100, gt=0)
     max_reconnect_attempts: int = Field(default=3, ge=0)
     reconnect_backoff_base: float = Field(default=1.0, gt=0)
-    initial_commands: List[str] = Field(default_factory=list)
+    initial_commands: List[InitialCommand] = Field(default_factory=list)
 
     @field_validator("connection_timeout")
     @classmethod
@@ -260,10 +286,10 @@ class SSHConfig(BaseModel):
 
     @field_validator("initial_commands")
     @classmethod
-    def validate_initial_commands(cls, v: List[str]) -> List[str]:
-        """Validate initial commands are non-empty strings."""
+    def validate_initial_commands(cls, v: List[InitialCommand]) -> List[InitialCommand]:
+        """Validate initial commands are non-empty strings or command objects."""
         for command in v:
-            if not command or not command.strip():
+            if isinstance(command, str) and (not command or not command.strip()):
                 raise ValueError("SSH initial_commands must not contain empty commands")
         return v
 

@@ -41,6 +41,10 @@ ssh:
   # Commands to run once immediately after every SSH login, before monitored commands
   # initial_commands:
   #   - "terminal length 0"
+  # Structured form can set a Netmiko expect_string for commands that change prompt:
+  # initial_commands:
+  #   - command_text: "config global"
+  #     expect_string: "\\(global\\) #"
 
 # Global filters applied to every command (unless command override exists)
 global_filters:
@@ -82,6 +86,8 @@ devices:
     # Device-specific commands appended after ssh.initial_commands on every SSH login
     # initial_commands:
     #   - "enable"
+    #   - command_text: "config global"
+    #     expect_string: "\\(global\\) #"
 
   - name: "DeviceB"
     host: "192.168.1.2"

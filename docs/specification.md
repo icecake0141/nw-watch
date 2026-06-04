@@ -59,6 +59,9 @@ Main optional blocks:
 `devices[].initial_commands` are appended for that device. With persistent SSH
 connections they run once per connection, and after reconnects. Without persistent
 connections they run at the start of each short-lived command session.
+Each initial command can be a string or an object with `command_text` and optional
+Netmiko `expect_string`, which is useful for commands that change the prompt such
+as FortiGate `config global`.
 
 Reference example: [`config.example.yaml`](../config.example.yaml)
 

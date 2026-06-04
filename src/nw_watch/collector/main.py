@@ -47,6 +47,30 @@ logging.basicConfig(
 setup_debug_file_logging()
 logger = logging.getLogger(__name__)
 PING_HOST_PATTERN = re.compile(r"^[a-zA-Z0-9._:-]+$")
+InitialCommand = Dict[str, Optional[str]]
+
+
+def normalize_initial_command(command: Any) -> InitialCommand:
+    """Normalize legacy and structured initial command config."""
+    if isinstance(command, str):
+        if not command.strip():
+            raise ValueError("initial_commands must not contain empty commands")
+        return {"command_text": command, "expect_string": None}
+
+    if isinstance(command, dict):
+        command_text = command.get("command_text")
+        expect_string = command.get("expect_string")
+        if not isinstance(command_text, str) or not command_text.strip():
+            raise ValueError("initial command command_text must not be empty")
+        if expect_string is not None and (
+            not isinstance(expect_string, str) or not expect_string.strip()
+        ):
+            raise ValueError("initial command expect_string must be a non-empty string")
+        return {"command_text": command_text, "expect_string": expect_string}
+
+    raise ValueError(
+        "initial_commands entries must be strings or objects with command_text"
+    )
 
 
 def classify_command_error_detail(error: Exception) -> tuple[str, str]:
@@ -220,9 +244,12 @@ class DeviceCollector:
         self.connection_timeout = self.config.get_connection_timeout()
         self.max_reconnect_attempts = self.config.get_max_reconnect_attempts()
         self.reconnect_backoff_base = self.config.get_reconnect_backoff_base()
-        self.initial_commands = self.config.get_device_initial_commands(
-            self.device_config
-        )
+        self.initial_commands = [
+            normalize_initial_command(initial_command)
+            for initial_command in self.config.get_device_initial_commands(
+                self.device_config
+            )
+        ]
 
         # Connection state (only used if persistent_connections_enabled)
         self._connection: Optional[ConnectHandler] = None
@@ -275,13 +302,18 @@ class DeviceCollector:
     def _run_initial_commands(self, connection: ConnectHandler) -> None:
         """Run device login initialization commands for this SSH session."""
         for initial_command in self.initial_commands:
+            command_text = initial_command["command_text"]
+            expect_string = initial_command.get("expect_string")
             logger.info(
                 "Executing initial SSH command for %s: %s",
                 self.device_name,
-                initial_command,
+                command_text,
             )
-            log_ssh_session(f"[{self.device_name}] initial-command> {initial_command}")
-            output = connection.send_command(initial_command)
+            log_ssh_session(f"[{self.device_name}] initial-command> {command_text}")
+            send_kwargs = {}
+            if expect_string:
+                send_kwargs["expect_string"] = expect_string
+            output = connection.send_command(command_text, **send_kwargs)
             if output:
                 log_ssh_session(f"[{self.device_name}] initial-output\n{output}")
 
