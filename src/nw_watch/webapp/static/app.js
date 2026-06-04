@@ -634,7 +634,10 @@ class NetworkWatch {
 
             const deviceHeader = document.createElement('div');
             deviceHeader.className = 'device-header-section';
-            deviceHeader.innerHTML = `<h3>Device: ${device}</h3>`;
+
+            const deviceTitle = document.createElement('h3');
+            deviceTitle.textContent = `Device: ${device}`;
+            deviceHeader.appendChild(deviceTitle);
 
             // Add bulk export button
             const bulkExportBtn = document.createElement('button');

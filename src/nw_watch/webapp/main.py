@@ -431,6 +431,7 @@ async def get_runs_side_by_side(command: str):
                         "original_line_count": run_a.get("original_line_count"),
                         "output_text": text_a,
                         "output_html": highlighted_a,
+                        "error_message": run_a.get("error_message"),
                     },
                 },
                 {
@@ -444,6 +445,7 @@ async def get_runs_side_by_side(command: str):
                         "original_line_count": run_b.get("original_line_count"),
                         "output_text": text_b,
                         "output_html": highlighted_b,
+                        "error_message": run_b.get("error_message"),
                     },
                 },
             ],
