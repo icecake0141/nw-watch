@@ -499,6 +499,31 @@ def test_get_runs_side_by_side(client):
     assert data["has_diff"] is True
 
 
+def test_get_runs_side_by_side_includes_error_message(client):
+    """Failed side-by-side runs should include the stored error message."""
+    db = Database("data/current.sqlite3")
+    db.insert_run(
+        device_name="DeviceB",
+        command_text="show version",
+        ts_epoch=1000003,
+        output_text="",
+        ok=False,
+        error_message="Failed to connect to DeviceB after 3 attempts",
+        duration_ms=3000.0,
+        original_line_count=0,
+    )
+    db.close()
+
+    response = client.get("/api/runs/show%20version/side_by_side")
+    assert response.status_code == 200
+
+    data = response.json()
+    device_b = next(device for device in data["devices"] if device["name"] == "DeviceB")
+    expected_error = "Failed to connect to DeviceB after 3 attempts"
+    assert device_b["run"]["ok"] == 0
+    assert device_b["run"]["error_message"] == expected_error
+
+
 def test_get_ping_status(client):
     """Test getting ping status."""
     response = client.get("/api/ping?window_seconds=60")
