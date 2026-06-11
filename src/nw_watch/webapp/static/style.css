@@ -922,6 +922,43 @@ header h1 {
     margin: 0;
 }
 
+.side-by-side-header-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.side-by-side-diff-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--tab-bg);
+}
+
+.diff-mode-btn {
+    min-width: 74px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 3px;
+    background-color: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.diff-mode-btn:hover {
+    background-color: rgba(102, 126, 234, 0.12);
+}
+
+.diff-mode-btn.active {
+    background-color: var(--gradient-start);
+    color: #ffffff;
+}
+
 .output-snapshot-controls {
     display: flex;
     align-items: center;
@@ -1013,6 +1050,64 @@ header h1 {
     min-height: 100%;
 }
 
+.output-text-line-diff {
+    min-height: 100%;
+    padding: 10px;
+    border-radius: 4px;
+    background: white;
+    color: #212529;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.side-diff-line {
+    display: flex;
+    min-height: 19px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.side-diff-line-context {
+    color: #212529;
+}
+
+.side-diff-line-remove {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.side-diff-line-add {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.side-diff-line-empty {
+    background-color: #f1f3f5;
+    color: transparent;
+}
+
+.output-text-line-diff-git .side-diff-line-remove {
+    background-color: #ffeef0;
+    color: #86181d;
+}
+
+.output-text-line-diff-git .side-diff-line-add {
+    background-color: #e6ffed;
+    color: #116329;
+}
+
+.side-diff-prefix {
+    flex: 0 0 18px;
+    width: 18px;
+    text-align: center;
+    user-select: none;
+}
+
+.side-diff-content {
+    min-width: 0;
+}
+
 .comparison-resize-handle {
     display: flex;
     align-items: center;
@@ -1060,5 +1155,15 @@ body.comparison-resizing {
 @media (max-width: 1200px) {
     .comparison-container {
         grid-template-columns: 1fr;
+    }
+
+    .side-by-side-header-controls {
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .side-by-side-diff-controls,
+    .output-snapshot-controls {
+        justify-content: flex-start;
     }
 }
