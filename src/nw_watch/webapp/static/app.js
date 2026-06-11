@@ -56,6 +56,7 @@ class NetworkWatch {
         this.sideBySideOutputMinHeight = 240;
         this.sideBySideOutputMaxHeight = 2400;
         this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
+        this.sideBySideDiffMode = this.loadSideBySideDiffMode();
         this.sideBySideScrollStates = {};
         this.latestSideBySideData = {};
         this.outputSnapshots = {};
@@ -183,6 +184,25 @@ class NetworkWatch {
             return Math.max(this.sideBySideOutputMinHeight, Math.min(savedHeight, this.sideBySideOutputMaxHeight));
         }
         return 600;
+    }
+
+    loadSideBySideDiffMode() {
+        const savedMode = localStorage.getItem('sideBySideDiffMode');
+        if (['char', 'line', 'git'].includes(savedMode)) {
+            return savedMode;
+        }
+        return 'char';
+    }
+
+    setSideBySideDiffMode(mode, command) {
+        if (!['char', 'line', 'git'].includes(mode)) {
+            return;
+        }
+        this.sideBySideDiffMode = mode;
+        localStorage.setItem('sideBySideDiffMode', mode);
+        if (command) {
+            this.updateCommandData(command);
+        }
     }
 
     setSideBySideOutputHeight(height) {
@@ -792,6 +812,30 @@ class NetworkWatch {
         return toolbar;
     }
 
+    createSideBySideDiffModeControls(command) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'side-by-side-diff-controls';
+        toolbar.setAttribute('role', 'group');
+        toolbar.setAttribute('aria-label', 'Side-by-side diff display mode');
+
+        [
+            { value: 'char', label: 'Character' },
+            { value: 'line', label: 'Line' },
+            { value: 'git', label: 'Git' }
+        ].forEach(option => {
+            const button = document.createElement('button');
+            button.className = 'diff-mode-btn';
+            button.type = 'button';
+            button.textContent = option.label;
+            button.setAttribute('aria-pressed', this.sideBySideDiffMode === option.value ? 'true' : 'false');
+            button.classList.toggle('active', this.sideBySideDiffMode === option.value);
+            button.addEventListener('click', () => this.setSideBySideDiffMode(option.value, command));
+            toolbar.appendChild(button);
+        });
+
+        return toolbar;
+    }
+
     captureOutputSnapshot(command) {
         const latestData = this.latestSideBySideData[command];
         if (!latestData || !latestData.devices || latestData.devices.length === 0) {
@@ -820,15 +864,20 @@ class NetworkWatch {
         const title = document.createElement('h2');
         title.textContent = 'Side-by-Side Command Output';
         sectionHeader.appendChild(title);
-        sectionHeader.appendChild(this.createOutputSnapshotControls(command, sideBySideData));
+        const headerControls = document.createElement('div');
+        headerControls.className = 'side-by-side-header-controls';
+        headerControls.appendChild(this.createSideBySideDiffModeControls(command));
+        headerControls.appendChild(this.createOutputSnapshotControls(command, sideBySideData));
+        sectionHeader.appendChild(headerControls);
         sideBySideSection.appendChild(sectionHeader);
 
         // Container for the two device outputs
         const comparisonContainer = document.createElement('div');
         comparisonContainer.className = 'comparison-container';
+        const sideBySideDiffRows = this.buildSideBySideDiffRows(sideBySideData.devices);
 
         // Render each device
-        sideBySideData.devices.forEach(deviceData => {
+        sideBySideData.devices.forEach((deviceData, index) => {
             const devicePanel = document.createElement('div');
             devicePanel.className = 'device-panel';
             devicePanel.dataset.deviceName = deviceData.name;
@@ -893,10 +942,7 @@ class NetworkWatch {
             outputContainer.style.height = `${this.sideBySideOutputHeight}px`;
 
             if (deviceData.run.ok) {
-                const outputPre = document.createElement('pre');
-                outputPre.className = 'output-text-char-diff';
-                outputPre.innerHTML = deviceData.run.output_html || this.escapeHtml(deviceData.run.output_text);
-                outputContainer.appendChild(outputPre);
+                outputContainer.appendChild(this.renderSideBySideOutput(deviceData, index, sideBySideDiffRows));
             } else {
                 const errorMsg = document.createElement('div');
                 errorMsg.className = 'error-message';
@@ -921,6 +967,100 @@ class NetworkWatch {
         sideBySideSection.appendChild(resizeHandle);
 
         contentContainer.appendChild(sideBySideSection);
+    }
+
+    renderSideBySideOutput(deviceData, deviceIndex, diffRows) {
+        if (this.sideBySideDiffMode === 'line' || this.sideBySideDiffMode === 'git') {
+            return this.renderLineBasedSideBySideOutput(diffRows, deviceIndex, this.sideBySideDiffMode);
+        }
+
+        const outputPre = document.createElement('pre');
+        outputPre.className = 'output-text-char-diff';
+        outputPre.innerHTML = deviceData.run.output_html || this.escapeHtml(deviceData.run.output_text);
+        return outputPre;
+    }
+
+    buildSideBySideDiffRows(devices) {
+        if (!devices || devices.length < 2) {
+            return [];
+        }
+
+        const oldLines = (devices[0].run.output_text || '').split('\n');
+        const newLines = (devices[1].run.output_text || '').split('\n');
+        const table = Array.from({ length: oldLines.length + 1 }, () => (
+            Array(newLines.length + 1).fill(0)
+        ));
+
+        for (let i = oldLines.length - 1; i >= 0; i -= 1) {
+            for (let j = newLines.length - 1; j >= 0; j -= 1) {
+                if (oldLines[i] === newLines[j]) {
+                    table[i][j] = table[i + 1][j + 1] + 1;
+                } else {
+                    table[i][j] = Math.max(table[i + 1][j], table[i][j + 1]);
+                }
+            }
+        }
+
+        const rows = [];
+        let i = 0;
+        let j = 0;
+        while (i < oldLines.length && j < newLines.length) {
+            if (oldLines[i] === newLines[j]) {
+                rows.push({ left: oldLines[i], right: newLines[j], leftType: 'context', rightType: 'context' });
+                i += 1;
+                j += 1;
+            } else if (table[i + 1][j] >= table[i][j + 1]) {
+                rows.push({ left: oldLines[i], right: '', leftType: 'remove', rightType: 'empty' });
+                i += 1;
+            } else {
+                rows.push({ left: '', right: newLines[j], leftType: 'empty', rightType: 'add' });
+                j += 1;
+            }
+        }
+
+        while (i < oldLines.length) {
+            rows.push({ left: oldLines[i], right: '', leftType: 'remove', rightType: 'empty' });
+            i += 1;
+        }
+        while (j < newLines.length) {
+            rows.push({ left: '', right: newLines[j], leftType: 'empty', rightType: 'add' });
+            j += 1;
+        }
+
+        return rows;
+    }
+
+    renderLineBasedSideBySideOutput(diffRows, deviceIndex, mode) {
+        const output = document.createElement('div');
+        output.className = `output-text-line-diff output-text-line-diff-${mode}`;
+
+        diffRows.forEach(row => {
+            const line = document.createElement('div');
+            const type = deviceIndex === 0 ? row.leftType : row.rightType;
+            const text = deviceIndex === 0 ? row.left : row.right;
+            line.className = `side-diff-line side-diff-line-${type}`;
+
+            if (mode === 'git') {
+                const prefix = document.createElement('span');
+                prefix.className = 'side-diff-prefix';
+                if (type === 'remove') {
+                    prefix.textContent = '-';
+                } else if (type === 'add') {
+                    prefix.textContent = '+';
+                } else {
+                    prefix.textContent = ' ';
+                }
+                line.appendChild(prefix);
+            }
+
+            const content = document.createElement('span');
+            content.className = 'side-diff-content';
+            content.textContent = text || ' ';
+            line.appendChild(content);
+            output.appendChild(line);
+        });
+
+        return output;
     }
 
     setupComparisonResizeHandle(handle) {
