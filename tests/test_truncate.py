@@ -1,6 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for output truncation."""
 
-import pytest
 from nw_watch.shared.filters import truncate_output
 
 
@@ -54,7 +57,9 @@ def test_truncate_output_preserves_first_lines():
     result_lines = result.split("\n")
     # Remove the truncation message lines to check actual content
     content_lines = [
-        l for l in result_lines if "truncated" not in l.lower() and l.strip()
+        line
+        for line in result_lines
+        if "truncated" not in line.lower() and line.strip()
     ]
     assert len(content_lines) == 10
 

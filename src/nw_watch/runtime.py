@@ -34,7 +34,8 @@ def validate_startup_paths(config_path: Path, data_dir: Path) -> None:
     """Validate required runtime paths before spawning child processes."""
     if not config_path.exists():
         raise FileNotFoundError(
-            f"Config file not found: {config_path}. Copy config.example.yaml to config.yaml first."
+            f"Config file not found: {config_path}. "
+            "Copy config.example.yaml to config.yaml first."
         )
     if not config_path.is_file():
         raise IsADirectoryError(f"Config path is not a file: {config_path}")

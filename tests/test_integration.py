@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Integration tests for end-to-end functionality.
 
 These tests verify the complete flow from collector to database to webapp.
@@ -5,10 +9,7 @@ They test component interactions rather than isolated units.
 """
 
 import os
-import sqlite3
-import tempfile
 import time
-from pathlib import Path
 
 import pytest
 
@@ -95,8 +96,8 @@ class TestCollectorDatabaseIntegration:
     def test_collector_stores_device_command_data(self, integration_db):
         """Test that collector can store device and command data."""
         # Simulate collector storing data
-        device_id = integration_db.get_or_create_device("TestDevice1")
-        command_id = integration_db.get_or_create_command("show version")
+        integration_db.get_or_create_device("TestDevice1")
+        integration_db.get_or_create_command("show version")
 
         # Store a run
         integration_db.insert_run(
@@ -188,7 +189,10 @@ class TestEndToEndFlow:
                     device_name=device["name"],
                     command_text=command["command_text"],
                     ts_epoch=int(time.time()),
-                    output_text=f"Output from {device['name']} for {command['command_text']}",
+                    output_text=(
+                        f"Output from {device['name']} "
+                        f"for {command['command_text']}"
+                    ),
                     ok=True,
                     duration_ms=100.0,
                     original_line_count=10,
@@ -226,7 +230,7 @@ uptime is 5 days, 3 hours
 Interface GigabitEthernet0/1
 """
 
-        # process_output returns tuple: (output_text, is_filtered, is_truncated, original_line_count)
+        # process_output returns text, filter state, truncation state, and count.
         output_text, is_filtered, is_truncated, original_line_count = process_output(
             test_output, line_filters, output_filters, max_lines
         )

@@ -1,7 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for command scheduling functionality."""
 
 import pytest
-import time
 from pathlib import Path
 
 from nw_watch.shared.config import Config
@@ -120,7 +123,7 @@ devices:
 
 
 def test_backward_compatibility(tmp_path, monkeypatch):
-    """Test that commands without interval_seconds still work with global interval_seconds."""
+    """Test commands without interval_seconds use the global interval_seconds."""
     cfg_path = Path(tmp_path) / "config.yaml"
     cfg_path.write_text("""
 interval_seconds: 10

@@ -1,13 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Comprehensive logging tests.
 
 Tests for logging functionality, format consistency, and proper error logging.
 """
 
 import logging
-import re
-from io import StringIO
 
-import pytest
 
 from nw_watch.shared.config import Config
 from nw_watch.shared.db import Database
@@ -293,7 +294,7 @@ devices:
     device_type: "cisco_ios"
 """)
 
-        config = Config(str(config_path))
+        Config(str(config_path))
 
         # Check all log messages
         for record in caplog.records:
