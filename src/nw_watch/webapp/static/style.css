@@ -930,7 +930,8 @@ header h1 {
 }
 
 .snapshot-mode-btn,
-.capture-snapshot-btn {
+.capture-snapshot-btn,
+.scroll-sync-toggle {
     padding: 7px 12px;
     border-radius: 4px;
     border: 1px solid var(--border-color);
@@ -941,7 +942,8 @@ header h1 {
 }
 
 .snapshot-mode-btn.active,
-.capture-snapshot-btn {
+.capture-snapshot-btn,
+.scroll-sync-toggle.active {
     background-color: var(--gradient-start);
     border-color: var(--gradient-start);
     color: #ffffff;
@@ -951,6 +953,15 @@ header h1 {
 .capture-snapshot-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+}
+
+.scroll-sync-toggle {
+    min-width: 136px;
+    font-weight: 600;
+}
+
+.scroll-sync-toggle:not(.active) {
+    border-color: var(--code-border);
 }
 
 .snapshot-status {

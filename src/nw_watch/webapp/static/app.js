@@ -54,6 +54,8 @@ class NetworkWatch {
         this.diffStates = {};
         this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
         this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
+        this.sideBySideScrollSyncEnabled = this.loadSideBySideScrollSyncEnabled();
+        this.isSyncingSideBySideScroll = false;
         this.sideBySideScrollStates = {};
         this.latestSideBySideData = {};
         this.outputSnapshots = {};
@@ -181,6 +183,19 @@ class NetworkWatch {
             return Math.max(240, Math.min(savedHeight, 1200));
         }
         return 600;
+    }
+
+    loadSideBySideScrollSyncEnabled() {
+        const savedValue = localStorage.getItem('sideBySideScrollSyncEnabled');
+        return savedValue === null ? true : savedValue === 'true';
+    }
+
+    setSideBySideScrollSyncEnabled(enabled) {
+        this.sideBySideScrollSyncEnabled = enabled;
+        localStorage.setItem('sideBySideScrollSyncEnabled', String(enabled));
+        document.querySelectorAll('.scroll-sync-toggle').forEach(button => {
+            this.updateScrollSyncToggle(button);
+        });
     }
 
     setSideBySideOutputHeight(height) {
@@ -698,22 +713,129 @@ class NetworkWatch {
     }
 
     restoreSideBySideScrollStates(command) {
-        document.querySelectorAll('.device-panel').forEach(panel => {
-            const deviceName = panel.dataset.deviceName;
-            const output = panel.querySelector('.device-panel-output');
+        try {
+            this.isSyncingSideBySideScroll = true;
+            document.querySelectorAll('.device-panel').forEach(panel => {
+                const deviceName = panel.dataset.deviceName;
+                const output = panel.querySelector('.device-panel-output');
 
-            if (!deviceName || !output) {
-                return;
-            }
+                if (!deviceName || !output) {
+                    return;
+                }
 
-            const state = this.sideBySideScrollStates[this.getSideBySideScrollKey(command, deviceName)];
-            if (!state) {
-                return;
-            }
+                const state = this.sideBySideScrollStates[this.getSideBySideScrollKey(command, deviceName)];
+                if (!state) {
+                    return;
+                }
 
-            output.scrollTop = Math.max(0, Math.min(state.scrollTop, output.scrollHeight - output.clientHeight));
-            output.scrollLeft = Math.max(0, Math.min(state.scrollLeft, output.scrollWidth - output.clientWidth));
+                output.scrollTop = Math.max(0, Math.min(state.scrollTop, output.scrollHeight - output.clientHeight));
+                output.scrollLeft = Math.max(0, Math.min(state.scrollLeft, output.scrollWidth - output.clientWidth));
+            });
+        } finally {
+            this.isSyncingSideBySideScroll = false;
+        }
+    }
+
+    syncSideBySideScroll(sourceOutput) {
+        if (!this.sideBySideScrollSyncEnabled || this.isSyncingSideBySideScroll) {
+            return;
+        }
+
+        const sideBySideSection = sourceOutput.closest('.side-by-side-section');
+        if (!sideBySideSection) {
+            return;
+        }
+
+        try {
+            this.isSyncingSideBySideScroll = true;
+            sideBySideSection.querySelectorAll('.device-panel-output').forEach(output => {
+                if (output === sourceOutput) {
+                    return;
+                }
+
+                output.scrollTop = sourceOutput.scrollTop;
+                output.scrollLeft = sourceOutput.scrollLeft;
+            });
+        } finally {
+            this.isSyncingSideBySideScroll = false;
+        }
+    }
+
+    setupSideBySideScrollSync(outputContainer) {
+        outputContainer.addEventListener('scroll', () => {
+            this.syncSideBySideScroll(outputContainer);
         });
+    }
+
+    setupSideBySideScrollSyncDelegation(sideBySideSection) {
+        sideBySideSection.addEventListener('scroll', event => {
+            if (!event.target.classList || !event.target.classList.contains('device-panel-output')) {
+                return;
+            }
+
+            this.syncSideBySideScroll(event.target);
+        }, true);
+    }
+
+    setupSideBySideScrollSyncWatcher(sideBySideSection) {
+        const positions = new WeakMap();
+
+        const rememberPositions = () => {
+            sideBySideSection.querySelectorAll('.device-panel-output').forEach(output => {
+                positions.set(output, {
+                    scrollTop: output.scrollTop,
+                    scrollLeft: output.scrollLeft
+                });
+            });
+        };
+
+        const watch = () => {
+            if (!sideBySideSection.isConnected) {
+                return;
+            }
+
+            if (!this.isSyncingSideBySideScroll && this.sideBySideScrollSyncEnabled) {
+                const changedOutput = Array.from(
+                    sideBySideSection.querySelectorAll('.device-panel-output')
+                ).find(output => {
+                    const position = positions.get(output);
+                    return position && (
+                        position.scrollTop !== output.scrollTop ||
+                        position.scrollLeft !== output.scrollLeft
+                    );
+                });
+
+                if (changedOutput) {
+                    this.syncSideBySideScroll(changedOutput);
+                }
+            }
+
+            rememberPositions();
+            setTimeout(watch, 100);
+        };
+
+        rememberPositions();
+        setTimeout(watch, 100);
+    }
+
+    updateScrollSyncToggle(button) {
+        button.classList.toggle('active', this.sideBySideScrollSyncEnabled);
+        button.setAttribute('aria-pressed', String(this.sideBySideScrollSyncEnabled));
+        button.textContent = this.sideBySideScrollSyncEnabled ? 'Sync Scroll' : 'Independent Scroll';
+        button.title = this.sideBySideScrollSyncEnabled
+            ? 'Disable synchronized side-by-side scrolling'
+            : 'Enable synchronized side-by-side scrolling';
+    }
+
+    createScrollSyncToggle() {
+        const button = document.createElement('button');
+        button.className = 'scroll-sync-toggle';
+        button.type = 'button';
+        this.updateScrollSyncToggle(button);
+        button.addEventListener('click', () => {
+            this.setSideBySideScrollSyncEnabled(!this.sideBySideScrollSyncEnabled);
+        });
+        return button;
     }
 
     getDisplayedSideBySideData(command, latestData) {
@@ -783,6 +905,7 @@ class NetworkWatch {
         toolbar.appendChild(latestBtn);
         toolbar.appendChild(snapshotBtn);
         toolbar.appendChild(captureBtn);
+        toolbar.appendChild(this.createScrollSyncToggle());
         toolbar.appendChild(status);
         return toolbar;
     }
@@ -808,6 +931,8 @@ class NetworkWatch {
         // Create side-by-side section
         const sideBySideSection = document.createElement('div');
         sideBySideSection.className = 'side-by-side-section';
+        this.setupSideBySideScrollSyncDelegation(sideBySideSection);
+        this.setupSideBySideScrollSyncWatcher(sideBySideSection);
 
         const sectionHeader = document.createElement('div');
         sectionHeader.className = 'side-by-side-header';
@@ -886,6 +1011,7 @@ class NetworkWatch {
             outputContainer.className = 'device-panel-output';
             outputContainer.style.maxHeight = `${this.sideBySideOutputHeight}px`;
             outputContainer.style.height = `${this.sideBySideOutputHeight}px`;
+            this.setupSideBySideScrollSync(outputContainer);
 
             if (deviceData.run.ok) {
                 const outputPre = document.createElement('pre');
