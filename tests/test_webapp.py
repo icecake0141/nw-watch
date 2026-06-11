@@ -202,6 +202,52 @@ def test_get_devices_excludes_ping_only_targets(client):
     assert "GatewayVIP" not in data["devices"]
 
 
+def test_get_devices_prefers_config_before_command_runs(client, tmp_path, monkeypatch):
+    """Test configured devices are returned before command runs exist."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """\
+commands:
+  - name: version
+    command_text: show version
+ping_targets:
+  - name: GatewayVIP
+    host: 192.0.2.254
+devices:
+  - name: DeviceA
+    host: 192.0.2.1
+    username: admin
+    password: secret
+    device_type: cisco_ios
+  - name: DeviceB
+    host: 192.0.2.2
+    username: admin
+    password: secret
+    device_type: cisco_ios
+""",
+        encoding="utf-8",
+    )
+
+    db = Database("data/current.sqlite3")
+    db.insert_ping_sample(device_name="DeviceA", ts_epoch=1000002, ok=True, rtt_ms=1.0)
+    db.insert_ping_sample(
+        device_name="GatewayVIP", ts_epoch=1000002, ok=True, rtt_ms=1.0
+    )
+    db.close()
+
+    from nw_watch.webapp import main
+
+    monkeypatch.setenv("NW_WATCH_CONFIG", str(config_path))
+    main.load_config.cache_clear()
+
+    try:
+        response = client.get("/api/devices")
+        assert response.status_code == 200
+        assert response.json()["devices"] == ["DeviceA", "DeviceB"]
+    finally:
+        main.load_config.cache_clear()
+
+
 def test_get_runs(client):
     """Test getting command runs."""
     response = client.get("/api/runs/show%20version")
