@@ -53,7 +53,8 @@ def generate_side_by_side_diff(
         label_b: Label for second text
         context: Show contextual lines only (like unified diff). Defaults to False to
             include all lines.
-        numlines: Number of context lines when context=True. Ignored when context is False.
+        numlines: Number of context lines when context=True. Ignored when context
+            is False.
 
     Returns:
         HTML table representing side-by-side diff. Empty string when texts match.

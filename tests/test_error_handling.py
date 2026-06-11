@@ -1,17 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Comprehensive error handling and edge case tests.
 
 Tests for various error scenarios, edge cases, and failure recovery
 to ensure the application handles unexpected situations gracefully.
 """
 
-import os
 import sqlite3
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 import pytest
-from netmiko.exceptions import NetmikoTimeoutException, NetmikoAuthenticationException
 
 from nw_watch.shared.config import Config
 from nw_watch.shared.db import Database
@@ -158,7 +157,7 @@ class TestDatabaseErrorHandling:
 
         # Attempting to use it should fail gracefully
         with pytest.raises(sqlite3.DatabaseError):
-            db = Database(str(db_path), history_size=10)
+            Database(str(db_path), history_size=10)
 
     def test_concurrent_write_handling(self, tmp_path):
         """Test concurrent database write operations."""

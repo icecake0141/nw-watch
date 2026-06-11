@@ -110,11 +110,13 @@ class Database:
 
             # Create indexes
             cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_runs_device_command ON runs(device_id, command_id)"
+                "CREATE INDEX IF NOT EXISTS idx_runs_device_command "
+                "ON runs(device_id, command_id)"
             )
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_runs_ts ON runs(ts_epoch)")
             cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_ping_device_ts ON ping_samples(device_id, ts_epoch)"
+                "CREATE INDEX IF NOT EXISTS idx_ping_device_ts "
+                "ON ping_samples(device_id, ts_epoch)"
             )
 
             self.conn.commit()
