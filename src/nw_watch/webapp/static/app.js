@@ -39,10 +39,12 @@ class NetworkWatch {
             manual_mode: false,
             manual_run_requested: false,
             shutdown_requested: false,
+            command_schedule: {},
             status: 'unknown',
             updated_at: 0
         };
         this.collectorPollIntervalMs = 5000;
+        this.scheduleRenderTimer = null;
 
         // WebSocket reconnection settings
         this.maxWebSocketReconnectAttempts = 5;
@@ -139,9 +141,11 @@ class NetworkWatch {
             const data = await response.json();
             this.collectorState = data;
             this.updateCollectorControls();
+            this.updateScheduleProgressDisplays();
         } catch (error) {
             this.logClientError('COLLECTOR_STATUS_LOAD_FAILED', error, { endpoint: '/api/collector/status' });
             this.updateCollectorControls(true);
+            this.updateScheduleProgressDisplays();
         }
     }
 
@@ -275,6 +279,12 @@ class NetworkWatch {
         this.collectorPollTimer = setInterval(() => {
             this.loadCollectorStatus();
         }, this.collectorPollIntervalMs);
+
+        if (!this.scheduleRenderTimer) {
+            this.scheduleRenderTimer = setInterval(() => {
+                this.updateScheduleProgressDisplays();
+            }, 1000);
+        }
     }
 
     async toggleCollectorCommands() {
@@ -289,6 +299,7 @@ class NetworkWatch {
             }
             this.collectorState = data;
             this.updateCollectorControls();
+            this.updateScheduleProgressDisplays();
         } catch (error) {
             console.error('Error toggling collector commands:', error);
             alert('Failed to update collector state');
@@ -309,6 +320,7 @@ class NetworkWatch {
             }
             this.collectorState = data;
             this.updateCollectorControls();
+            this.updateScheduleProgressDisplays();
         } catch (error) {
             console.error('Error stopping collector:', error);
             alert('Failed to stop collector');
@@ -328,6 +340,7 @@ class NetworkWatch {
             }
             this.collectorState = data;
             this.updateCollectorControls();
+            this.updateScheduleProgressDisplays();
         } catch (error) {
             console.error('Error updating collector mode:', error);
             alert('Failed to update collector mode');
@@ -347,10 +360,12 @@ class NetworkWatch {
             }
             this.collectorState = data;
             this.updateCollectorControls();
+            this.updateScheduleProgressDisplays();
         } catch (error) {
             console.error('Error requesting manual command run:', error);
             alert('Failed to request manual command run');
             this.updateCollectorControls();
+            this.updateScheduleProgressDisplays();
         }
     }
 
@@ -614,6 +629,7 @@ class NetworkWatch {
 
         // Load command data
         await this.updateCommandData(command);
+        this.updateScheduleProgressDisplays();
     }
 
     async updateCommandData(command) {
@@ -628,9 +644,85 @@ class NetworkWatch {
             const data = await response.json();
 
             this.renderCommandContent(command, data.runs, sideBySideData);
+            this.updateScheduleProgressDisplays();
         } catch (error) {
             this.logClientError('COMMAND_DATA_LOAD_FAILED', error, { command });
         }
+    }
+
+    getCommandSchedule(command) {
+        const schedule = this.collectorState.command_schedule || {};
+        return schedule[command] || null;
+    }
+
+    getScheduleDisplayState(command) {
+        const status = this.collectorState.status || 'unknown';
+
+        if (this.collectorState.commands_paused || status === 'paused') {
+            return { label: 'Paused', percent: 0, unavailable: true };
+        }
+        if (this.collectorState.manual_mode || status === 'manual') {
+            return { label: 'Manual', percent: 0, unavailable: true };
+        }
+        if (status === 'not_running' || status === 'stopped' || status === 'unknown') {
+            return { label: 'Schedule unavailable', percent: 0, unavailable: true };
+        }
+
+        const schedule = this.getCommandSchedule(command);
+        if (!schedule || !schedule.interval_seconds || !schedule.next_run_epoch) {
+            return { label: 'Schedule unavailable', percent: 0, unavailable: true };
+        }
+
+        const interval = Math.max(1, Number(schedule.interval_seconds));
+        const nextRun = Number(schedule.next_run_epoch);
+        const remaining = Math.max(0, Math.ceil(nextRun - Date.now() / 1000));
+        const percent = Math.max(0, Math.min(100, (remaining / interval) * 100));
+
+        return {
+            label: remaining <= 0 ? 'Due now' : `Next run: ${remaining}s`,
+            percent,
+            unavailable: false
+        };
+    }
+
+    createScheduleProgress(command) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'command-schedule-progress';
+        wrapper.dataset.command = command;
+
+        const label = document.createElement('span');
+        label.className = 'command-schedule-label';
+        wrapper.appendChild(label);
+
+        const track = document.createElement('span');
+        track.className = 'command-schedule-track';
+
+        const fill = document.createElement('span');
+        fill.className = 'command-schedule-fill';
+        track.appendChild(fill);
+        wrapper.appendChild(track);
+
+        return wrapper;
+    }
+
+    updateScheduleProgressDisplays() {
+        document.querySelectorAll('.command-schedule-progress').forEach(progress => {
+            const command = progress.dataset.command || this.currentCommand;
+            if (!command) {
+                return;
+            }
+
+            const state = this.getScheduleDisplayState(command);
+            const label = progress.querySelector('.command-schedule-label');
+            const fill = progress.querySelector('.command-schedule-fill');
+            if (label) {
+                label.textContent = state.label;
+            }
+            if (fill) {
+                fill.style.width = `${state.percent}%`;
+            }
+            progress.classList.toggle('schedule-unavailable', state.unavailable);
+        });
     }
 
     renderCommandContent(command, runsData, sideBySideData) {
@@ -664,6 +756,7 @@ class NetworkWatch {
             const deviceTitle = document.createElement('h3');
             deviceTitle.textContent = `Device: ${device}`;
             deviceHeader.appendChild(deviceTitle);
+            deviceHeader.appendChild(this.createScheduleProgress(command));
 
             // Add bulk export button
             const bulkExportBtn = document.createElement('button');
@@ -890,6 +983,7 @@ class NetworkWatch {
             const deviceName = document.createElement('h3');
             deviceName.textContent = deviceData.name;
             header.appendChild(deviceName);
+            header.appendChild(this.createScheduleProgress(command));
 
             // Metadata
             const meta = document.createElement('div');

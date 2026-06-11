@@ -535,6 +535,7 @@ class Collector:
         self.command_next_run: Dict[str, float] = {}
         self.command_intervals: Dict[str, int] = {}  # Cache intervals
         self._initialize_command_intervals()
+        self._publish_command_schedule()
 
     def _initialize_command_intervals(self):
         """Initialize next run times for all commands and cache intervals."""
@@ -559,6 +560,27 @@ class Collector:
 
             # All commands run immediately on first iteration
             self.command_next_run[command] = now
+
+    def _build_command_schedule(self) -> Dict[str, Dict[str, int]]:
+        """Return command schedule details for web UI countdown display."""
+        updated_at = int(time.time())
+        return {
+            command: {
+                "interval_seconds": int(
+                    self.command_intervals.get(command, self.global_interval)
+                ),
+                "next_run_epoch": int(self.command_next_run.get(command, updated_at)),
+                "updated_at": updated_at,
+            }
+            for command in self.commands
+        }
+
+    def _publish_command_schedule(self) -> None:
+        """Publish current command schedule to the shared control state."""
+        try:
+            update_control_state({"command_schedule": self._build_command_schedule()})
+        except Exception as exc:
+            logger.warning("Failed to publish command schedule: %s", exc)
 
     def _load_control_state(self) -> Dict[str, Any]:
         """Load the collector control state from disk."""
@@ -640,6 +662,8 @@ class Collector:
         for command in commands_executed:
             interval = self.command_intervals.get(command, self.global_interval)
             self.command_next_run[command] = now + interval
+
+        self._publish_command_schedule()
 
         # Atomically update current.sqlite3
         if futures:  # Only update if we actually ran commands
@@ -730,11 +754,13 @@ class Collector:
                     control_state = self._load_control_state()
                     self._apply_control_state(control_state)
                     if self.commands_paused:
+                        self._publish_command_schedule()
                         await asyncio.sleep(self.control_poll_interval)
                         continue
 
                     if self.manual_mode:
                         if not control_state.get("manual_run_requested"):
+                            self._publish_command_schedule()
                             await asyncio.sleep(self.control_poll_interval)
                             continue
                         await self.collect_commands(force=True)

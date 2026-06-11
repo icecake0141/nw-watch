@@ -17,6 +17,7 @@ import tempfile
 import os
 from pathlib import Path
 from nw_watch.shared.db import Database
+from nw_watch.shared.control_state import update_control_state
 
 
 @pytest.fixture
@@ -632,6 +633,31 @@ def test_collector_status_default(client):
     assert data["shutdown_requested"] is False
     assert data["status"] == "not_running"
     assert data["collector_pid"] is None
+    assert data["command_schedule"] == {}
+
+
+def test_collector_status_includes_command_schedule(client):
+    """Test collector status includes published command schedule details."""
+    update_control_state(
+        {
+            "command_schedule": {
+                "show version": {
+                    "interval_seconds": 30,
+                    "next_run_epoch": 1781150000,
+                    "updated_at": 1781149988,
+                }
+            }
+        }
+    )
+
+    response = client.get("/api/collector/status")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["commands_paused"] is False
+    assert data["manual_mode"] is False
+    assert data["command_schedule"]["show version"]["interval_seconds"] == 30
+    assert data["command_schedule"]["show version"]["next_run_epoch"] == 1781150000
 
 
 def test_collector_pause_resume(client):

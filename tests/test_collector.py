@@ -16,12 +16,14 @@ import os
 import signal
 import tempfile
 import sqlite3
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from subprocess import CompletedProcess
 
 from nw_watch.collector.main import Collector
 from nw_watch.shared.config import Config
+from nw_watch.shared.control_state import read_control_state
 
 
 def test_collector_stop_method():
@@ -252,6 +254,7 @@ devices:
 """)
 
         os.environ["TEST_PASSWORD"] = "test"
+        os.environ["NW_WATCH_CONTROL_DIR"] = str(Path(tmp_dir) / "control")
 
         config = Config(str(cfg_path))
 
@@ -277,6 +280,8 @@ devices:
 
             # Run collect_commands once
             asyncio.run(collector.collect_commands())
+            control_state = read_control_state()
+            schedule = control_state["command_schedule"]
 
             # Verify that commands were executed for BOTH devices
             # Expected: 2 devices × 2 commands = 4 executions
@@ -300,11 +305,16 @@ devices:
             commands_executed = {e["command"] for e in execution_log}
             assert "show version" in commands_executed
             assert "show interfaces" in commands_executed
+            assert schedule["show version"]["interval_seconds"] == 5
+            assert schedule["show version"]["next_run_epoch"] >= int(time.time())
+            assert schedule["show interfaces"]["interval_seconds"] == 5
+            assert schedule["show interfaces"]["next_run_epoch"] >= int(time.time())
 
             collector.stop()
 
         finally:
             os.chdir(original_cwd)
+            os.environ.pop("NW_WATCH_CONTROL_DIR", None)
 
 
 def test_update_current_db_uses_consistent_snapshot():

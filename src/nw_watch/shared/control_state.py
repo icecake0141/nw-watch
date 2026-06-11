@@ -31,6 +31,7 @@ DEFAULT_CONTROL_STATE: Dict[str, Any] = {
     "manual_mode": False,
     "manual_run_requested": False,
     "shutdown_requested": False,
+    "command_schedule": {},
     "updated_at": 0,
 }
 
@@ -55,6 +56,8 @@ def normalize_control_state(state: Dict[str, Any]) -> Dict[str, Any]:
     normalized["manual_mode"] = bool(normalized.get("manual_mode"))
     normalized["manual_run_requested"] = bool(normalized.get("manual_run_requested"))
     normalized["shutdown_requested"] = bool(normalized.get("shutdown_requested"))
+    if not isinstance(normalized.get("command_schedule"), dict):
+        normalized["command_schedule"] = {}
     normalized["updated_at"] = int(normalized.get("updated_at") or 0)
     return normalized
 

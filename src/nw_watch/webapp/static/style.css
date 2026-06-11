@@ -856,11 +856,49 @@ header h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
     margin-bottom: 15px;
 }
 
 .device-header-section h3 {
     margin: 0;
+}
+
+.command-schedule-progress {
+    display: inline-grid;
+    grid-template-columns: auto minmax(72px, 120px);
+    align-items: center;
+    gap: 8px;
+    min-width: 190px;
+    max-width: 100%;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.command-schedule-label {
+    white-space: nowrap;
+}
+
+.command-schedule-track {
+    display: block;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--border-color);
+}
+
+.command-schedule-fill {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--status-success);
+    transition: width 0.3s linear;
+}
+
+.command-schedule-progress.schedule-unavailable .command-schedule-fill {
+    background: var(--status-unknown);
 }
 
 .diff-export-controls {
@@ -1075,6 +1113,19 @@ header h1 {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 15px;
+}
+
+.device-panel-header .command-schedule-progress {
+    color: rgba(255, 255, 255, 0.88);
+    margin-bottom: 8px;
+}
+
+.device-panel-header .command-schedule-track {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.device-panel-header .command-schedule-fill {
+    background: #ffffff;
 }
 
 .device-panel-header h3 {
