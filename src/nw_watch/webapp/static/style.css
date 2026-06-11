@@ -992,7 +992,7 @@ header h1 {
 .device-panel-output {
     padding: 15px;
     background: #f8f9fa;
-    max-height: 600px;
+    max-height: 2400px;
     min-height: 240px;
     min-width: 0;
     overflow-x: auto;
