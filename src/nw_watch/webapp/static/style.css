@@ -252,13 +252,13 @@ header h1 {
 }
 
 .ping-status h2 {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     font-size: 18px;
 }
 
 .command-monitoring-row {
-    padding: 0 0 18px;
-    margin-bottom: 18px;
+    padding: 0 0 12px;
+    margin-bottom: 14px;
     border-bottom: 1px solid var(--border-color);
     border-radius: 0;
     box-shadow: none;
@@ -267,60 +267,31 @@ header h1 {
 
 .ping-tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+    gap: 8px;
 }
 
 .monitor-ping-tiles {
-    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-    margin-bottom: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    margin-bottom: 8px;
 }
 
 .device-ping-tiles {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .ping-tile {
-    padding: 15px;
+    min-height: 42px;
+    padding: 8px 10px;
     border-radius: 6px;
     border-left: 4px solid;
+    overflow: hidden;
     transition: all 0.3s;
 }
 
 .monitor-ping-tile {
-    display: grid;
-    grid-template-columns: minmax(250px, 0.9fr) minmax(280px, 1.4fr);
-    grid-template-rows: auto auto;
-    gap: 8px 18px;
-    align-items: center;
-    border-left-width: 6px;
-}
-
-.monitor-ping-tile h3 {
-    grid-column: 1;
-    margin-bottom: 2px;
-}
-
-.monitor-ping-tile .stats {
-    grid-column: 1;
-    grid-row: 2;
-    align-self: start;
-}
-
-.monitor-ping-tile .ping-timeline,
-.monitor-ping-tile .ping-export-controls {
-    grid-column: 2;
-}
-
-.monitor-ping-tile .ping-timeline {
-    grid-row: 1;
-    margin-top: 0;
-}
-
-.monitor-ping-tile .ping-export-controls {
-    grid-row: 2;
-    align-self: start;
-    margin-top: 8px;
+    border-left-width: 4px;
 }
 
 .ping-tile.up {
@@ -338,10 +309,96 @@ header h1 {
     border-color: var(--status-unknown);
 }
 
+.ping-summary {
+    display: grid;
+    grid-template-columns: auto minmax(72px, 1fr) minmax(96px, auto) auto;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+}
+
+.ping-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--status-unknown);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
+}
+
+.ping-tile.up .ping-indicator {
+    background-color: var(--status-success);
+}
+
+.ping-tile.down .ping-indicator {
+    background-color: var(--status-error);
+}
+
+.ping-tile.unknown .ping-indicator {
+    background-color: var(--status-unknown);
+}
+
 .ping-tile h3 {
-    font-size: 16px;
-    margin-bottom: 8px;
+    min-width: 0;
+    overflow: hidden;
+    margin: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
     color: var(--text-primary);
+}
+
+.ping-compact-stats {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.ping-state {
+    overflow: hidden;
+    max-width: 140px;
+    text-overflow: ellipsis;
+}
+
+.ping-rate {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.ping-compact-detail {
+    overflow: hidden;
+    max-width: 150px;
+    text-overflow: ellipsis;
+}
+
+.ping-expand-toggle {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.45);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    padding: 5px 7px;
+}
+
+.ping-expand-toggle:hover {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.ping-details {
+    display: none;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.ping-tile.expanded .ping-details {
+    display: block;
 }
 
 .ping-tile .stats {
@@ -357,7 +414,7 @@ header h1 {
     display: grid;
     grid-template-columns: repeat(60, minmax(3px, 1fr));
     gap: 2px;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 .ping-cell {
@@ -721,6 +778,11 @@ header h1 {
     
     .ping-tiles {
         grid-template-columns: 1fr;
+    }
+
+    .ping-compact-stats {
+        flex-wrap: wrap;
+        row-gap: 3px;
     }
     
     .tabs {

@@ -32,6 +32,7 @@ class NetworkWatch {
         this.websocket = null;
         this.websocketReconnectTimer = null;
         this.websocketReconnectAttempts = 0;
+        this.expandedPingTiles = new Set();
         this.collectorPollTimer = null;
         this.collectorState = {
             commands_paused: false,
@@ -1478,25 +1479,83 @@ class NetworkWatch {
     createPingTile(device, status) {
         const tile = document.createElement('div');
         tile.className = `ping-tile ${status.status}`;
+        const isExpanded = this.expandedPingTiles.has(device);
+        if (isExpanded) {
+            tile.classList.add('expanded');
+        }
+        tile.setAttribute('aria-expanded', String(isExpanded));
 
-        const header = document.createElement('h3');
-        header.textContent = device;
-        tile.appendChild(header);
+        const statusText = this.formatPingStatus(status);
+        const successRate = `${status.success_rate.toFixed(1)}%`;
+        const tooltipText = this.formatPingTooltip(status, statusText);
+        tile.title = tooltipText;
+
+        const summary = document.createElement('div');
+        summary.className = 'ping-summary';
+
+        const indicator = document.createElement('span');
+        indicator.className = 'ping-indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        summary.appendChild(indicator);
+
+        const name = document.createElement('h3');
+        name.textContent = device;
+        summary.appendChild(name);
+
+        const compactStats = document.createElement('div');
+        compactStats.className = 'ping-compact-stats';
+
+        const state = document.createElement('span');
+        state.className = 'ping-state';
+        state.textContent = statusText;
+        compactStats.appendChild(state);
+
+        const rate = document.createElement('span');
+        rate.className = 'ping-rate';
+        rate.textContent = successRate;
+        compactStats.appendChild(rate);
+
+        const compactDetail = this.formatCompactPingDetail(status);
+        if (compactDetail) {
+            const detail = document.createElement('span');
+            detail.className = 'ping-compact-detail';
+            detail.textContent = compactDetail;
+            compactStats.appendChild(detail);
+        }
+        summary.appendChild(compactStats);
+
+        const expandButton = document.createElement('button');
+        expandButton.type = 'button';
+        expandButton.className = 'ping-expand-toggle';
+        expandButton.textContent = isExpanded ? 'Collapse' : 'Expand';
+        expandButton.setAttribute('aria-expanded', String(isExpanded));
+        expandButton.setAttribute('aria-label', `${isExpanded ? 'Collapse' : 'Expand'} ping details for ${device}`);
+        expandButton.addEventListener('click', event => {
+            event.stopPropagation();
+            if (this.expandedPingTiles.has(device)) {
+                this.expandedPingTiles.delete(device);
+            } else {
+                this.expandedPingTiles.add(device);
+            }
+            this.updatePingStatus();
+        });
+        summary.appendChild(expandButton);
+        tile.appendChild(summary);
+
+        const details = document.createElement('div');
+        details.className = 'ping-details';
 
         const stats = document.createElement('div');
         stats.className = 'stats';
-
-        const statusText = this.formatPingStatus(status);
         stats.innerHTML = `
-            <div><strong>Status:</strong> ${statusText}</div>
-            <div><strong>Success Rate:</strong> ${status.success_rate.toFixed(1)}%</div>
+            <div><strong>Status:</strong> ${this.escapeHtml(statusText)}</div>
+            <div><strong>Success Rate:</strong> ${successRate}</div>
             <div><strong>Samples:</strong> ${status.successful_samples}/${status.total_samples}</div>
-            ${status.avg_rtt_ms ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
+            ${status.avg_rtt_ms !== null && status.avg_rtt_ms !== undefined ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
             ${status.last_check_ts ? `<div><strong>Last Check:</strong> ${this.formatTimestampJST(status.last_check_ts)}</div>` : ''}
             ${status.last_error_message ? `<div><strong>Last Error:</strong> ${this.escapeHtml(status.last_error_message)}</div>` : ''}
         `;
-
-        tile.appendChild(stats);
+        details.appendChild(stats);
 
         // Timeline tiles (oldest -> newest)
         const timelineWrapper = document.createElement('div');
@@ -1515,7 +1574,7 @@ class NetworkWatch {
             timelineWrapper.appendChild(cell);
         });
 
-        tile.appendChild(timelineWrapper);
+        details.appendChild(timelineWrapper);
 
         // Add ping export buttons
         const pingExportControls = document.createElement('div');
@@ -1524,23 +1583,62 @@ class NetworkWatch {
         const exportCsvBtn = document.createElement('button');
         exportCsvBtn.className = 'export-btn-small';
         exportCsvBtn.textContent = '📊 Export CSV';
-        exportCsvBtn.addEventListener('click', () => this.exportPing(device, 'csv'));
+        exportCsvBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            this.exportPing(device, 'csv');
+        });
 
         const exportJsonBtn = document.createElement('button');
         exportJsonBtn.className = 'export-btn-small';
         exportJsonBtn.textContent = '📋 Export JSON';
-        exportJsonBtn.addEventListener('click', () => this.exportPing(device, 'json'));
+        exportJsonBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            this.exportPing(device, 'json');
+        });
 
         pingExportControls.appendChild(exportCsvBtn);
         pingExportControls.appendChild(exportJsonBtn);
-        tile.appendChild(pingExportControls);
+        details.appendChild(pingExportControls);
+        tile.appendChild(details);
 
         return tile;
     }
 
+    formatPingTooltip(status, statusText) {
+        const lines = [
+            `Status: ${statusText}`,
+            `Success Rate: ${status.success_rate.toFixed(1)}%`,
+            `Samples: ${status.successful_samples}/${status.total_samples}`
+        ];
+        if (status.avg_rtt_ms !== null && status.avg_rtt_ms !== undefined) {
+            lines.push(`Avg RTT: ${status.avg_rtt_ms.toFixed(2)}ms`);
+        }
+        if (status.last_check_ts) {
+            lines.push(`Last Check: ${this.formatTimestampJST(status.last_check_ts)}`);
+        }
+        if (status.last_error_message) {
+            lines.push(`Last Error: ${status.last_error_message}`);
+        }
+        return lines.join('\n');
+    }
+
+    formatCompactPingDetail(status) {
+        if (status.status === 'down' && status.last_error_message) {
+            const message = status.last_error_message;
+            return message.length > 40 ? `${message.slice(0, 37)}...` : message;
+        }
+        if (status.avg_rtt_ms !== null && status.avg_rtt_ms !== undefined) {
+            return `${status.avg_rtt_ms.toFixed(1)}ms`;
+        }
+        if (status.total_samples > 0) {
+            return `${status.successful_samples}/${status.total_samples}`;
+        }
+        return '';
+    }
+
     formatPingStatus(status) {
         if (status.status === 'down') {
-            return status.last_error_message ? this.escapeHtml(status.last_error_message) : 'Not Responding';
+            return status.last_error_message || 'Not Responding';
         }
         if (status.status === 'unknown') {
             return 'No Data';
