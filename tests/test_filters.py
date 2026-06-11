@@ -1,6 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Tests for filtering functionality."""
 
-import pytest
 from nw_watch.shared.filters import (
     apply_line_filters,
     check_output_filtered,

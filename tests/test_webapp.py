@@ -829,7 +829,8 @@ def test_export_diff_history(client):
 def test_export_diff_devices(client):
     """Test exporting device diff."""
     response = client.get(
-        "/api/export/diff?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html"
+        "/api/export/diff"
+        "?command=show%20version&device_a=DeviceA&device_b=DeviceB&format=html"
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"

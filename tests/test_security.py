@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# This file was created or modified with the assistance of an AI
+# (Large Language Model).
+# Review required for correctness, security, and licensing.
 """Comprehensive security tests.
 
 Tests for security vulnerabilities, input validation, injection prevention,
@@ -6,8 +10,6 @@ and secure handling of sensitive data.
 
 import os
 import re
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -266,9 +268,6 @@ devices:
 """)
 
         config = Config(str(config_path))
-
-        # Convert config to string representation
-        config_str = str(config)
 
         # Password should not appear in string representation
         # (This depends on implementation, but it's a good practice)

@@ -151,7 +151,8 @@ def ping_target(db: Database, target_name: str, ping_host: str) -> None:
 
     if not PING_HOST_PATTERN.match(ping_host):
         logger.error(
-            "Ping validation failed | target=%s ping_host=%s category=invalid_ping_host",
+            "Ping validation failed | target=%s ping_host=%s "
+            "category=invalid_ping_host",
             target_name,
             ping_host,
         )
@@ -265,10 +266,12 @@ class DeviceCollector:
             password_env_key = self.device_config.get("password_env_key")
             if password_env_key:
                 raise ValueError(
-                    f"Password not provided for device '{self.device_name}'; set environment variable '{password_env_key}'"
+                    f"Password not provided for device '{self.device_name}'; "
+                    f"set environment variable '{password_env_key}'"
                 )
             raise ValueError(
-                f"Password not provided for device '{self.device_name}' and no password_env_key set in config"
+                f"Password not provided for device '{self.device_name}' and no "
+                "password_env_key set in config"
             )
 
         return {
@@ -355,7 +358,9 @@ class DeviceCollector:
             try:
                 self._connection = self._connect()
                 logger.info(
-                    f"Successfully connected to {self.device_name} (attempt {attempt + 1})"
+                    "Successfully connected to %s (attempt %s)",
+                    self.device_name,
+                    attempt + 1,
                 )
                 return self._connection
             except (
@@ -377,7 +382,8 @@ class DeviceCollector:
 
         # All attempts failed
         raise Exception(
-            f"Failed to connect to {self.device_name} after {self.max_reconnect_attempts} attempts: {last_exception}"
+            f"Failed to connect to {self.device_name} after "
+            f"{self.max_reconnect_attempts} attempts: {last_exception}"
         )
 
     def execute_command(self, command: str, db: Database) -> None:
@@ -650,7 +656,7 @@ class Collector:
                     )
                     futures.append(future)
 
-                    # Track that this command was executed (will update schedule after all devices)
+                    # Track for schedule updates after all devices complete.
                     commands_executed.add(command)
 
         # Wait for all commands to complete
@@ -851,7 +857,7 @@ async def async_main(config_path: str, data_dir: str | None = None):
             )
             if collector:
                 collector.running = False
-                # Cancel all pending tasks except the current one to force immediate shutdown
+                # Cancel pending tasks except the current one for immediate shutdown.
                 current_task = asyncio.current_task(loop)
                 for task in asyncio.all_tasks(loop):
                     if task != current_task:

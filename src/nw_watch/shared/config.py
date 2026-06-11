@@ -189,7 +189,8 @@ class Config:
         fallback = device.get("password")
         if fallback is not None:
             logger.error(
-                "Using plaintext password from config for device '%s'; prefer password_env_key",
+                "Using plaintext password from config for device '%s'; "
+                "prefer password_env_key",
                 device.get("name", "unknown"),
             )
         return fallback

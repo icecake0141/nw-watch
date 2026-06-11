@@ -245,6 +245,8 @@ def export_diff_as_html(diff_html: str, label_a: str, label_b: str) -> str:
     Returns:
         Complete HTML document
     """
+    export_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -296,7 +298,7 @@ def export_diff_as_html(diff_html: str, label_a: str, label_b: str) -> str:
     <div class="header">
         <h1>Network Watch - Diff Export</h1>
         <p><strong>Comparing:</strong> {label_a} vs {label_b}</p>
-        <p><strong>Export Time:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+        <p><strong>Export Time:</strong> {export_time}</p>
     </div>
     {diff_html}
 </body>

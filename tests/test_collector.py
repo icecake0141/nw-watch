@@ -70,7 +70,7 @@ devices:
 
             # Verify cleanup
             assert collector.running is False
-            # Executor should be shutdown (we can't easily verify this without internal state)
+            # Executor shutdown is not easy to verify without internal state.
             # DB should be closed (we can't easily verify this without internal state)
         finally:
             os.chdir(original_cwd)

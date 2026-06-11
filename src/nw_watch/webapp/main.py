@@ -971,7 +971,10 @@ async def export_run(command: str, device: str, format: str = "text"):
 
         if format == "json":
             content = export_run_as_json(run, device, command)
-            filename = f"{sanitize_filename(device)}_{sanitize_filename(command.replace(' ', '_'))}_{run['ts_epoch']}.json"
+            command_name = sanitize_filename(command.replace(" ", "_"))
+            filename = (
+                f"{sanitize_filename(device)}_{command_name}_{run['ts_epoch']}.json"
+            )
             return Response(
                 content=content,
                 media_type="application/json",
@@ -979,7 +982,10 @@ async def export_run(command: str, device: str, format: str = "text"):
             )
         else:  # text format
             content = export_run_as_text(run, device, command)
-            filename = f"{sanitize_filename(device)}_{sanitize_filename(command.replace(' ', '_'))}_{run['ts_epoch']}.txt"
+            command_name = sanitize_filename(command.replace(" ", "_"))
+            filename = (
+                f"{sanitize_filename(device)}_{command_name}_{run['ts_epoch']}.txt"
+            )
             return PlainTextResponse(
                 content=content,
                 headers={"Content-Disposition": f"attachment; filename={filename}"},
@@ -1013,7 +1019,8 @@ async def export_bulk(command: str, format: str = "json"):
             return JSONResponse({"error": "No data available"}, status_code=404)
 
         content = export_bulk_runs_as_json(runs_by_device, command)
-        filename = f"bulk_{sanitize_filename(command.replace(' ', '_'))}_{int(time.time())}.json"
+        command_name = sanitize_filename(command.replace(" ", "_"))
+        filename = f"bulk_{command_name}_{int(time.time())}.json"
 
         return Response(
             content=content,
@@ -1084,7 +1091,8 @@ async def export_diff(  # noqa: C901
                 previous_text, latest_text, label_a=label_a, label_b="Latest"
             )
             label_b = "Latest"
-            filename_prefix = f"history_diff_{sanitize_filename(device)}_{sanitize_filename(command.replace(' ', '_'))}"
+            command_name = sanitize_filename(command.replace(" ", "_"))
+            filename_prefix = f"history_diff_{sanitize_filename(device)}_{command_name}"
 
         elif device_a and device_b:
             # Device diff
