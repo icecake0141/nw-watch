@@ -53,6 +53,8 @@ class NetworkWatch {
         // Structure: { "command:device": { type: 'history'|'device', content: '...', format: 'html'|'text', otherDevice: '...' } }
         this.diffStates = {};
         this.DIFF_PLACEHOLDER_TEXT = 'Click a button above to view diff';
+        this.sideBySideOutputMinHeight = 240;
+        this.sideBySideOutputMaxHeight = 2400;
         this.sideBySideOutputHeight = this.loadSideBySideOutputHeight();
         this.sideBySideScrollStates = {};
         this.latestSideBySideData = {};
@@ -178,13 +180,16 @@ class NetworkWatch {
     loadSideBySideOutputHeight() {
         const savedHeight = Number(localStorage.getItem('sideBySideOutputHeight'));
         if (Number.isFinite(savedHeight)) {
-            return Math.max(240, Math.min(savedHeight, 1200));
+            return Math.max(this.sideBySideOutputMinHeight, Math.min(savedHeight, this.sideBySideOutputMaxHeight));
         }
         return 600;
     }
 
     setSideBySideOutputHeight(height) {
-        this.sideBySideOutputHeight = Math.max(240, Math.min(height, 1200));
+        this.sideBySideOutputHeight = Math.max(
+            this.sideBySideOutputMinHeight,
+            Math.min(height, this.sideBySideOutputMaxHeight)
+        );
         localStorage.setItem('sideBySideOutputHeight', String(this.sideBySideOutputHeight));
 
         document.querySelectorAll('.side-by-side-section .device-panel-output').forEach(output => {
