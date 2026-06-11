@@ -323,6 +323,18 @@ async def get_commands():
 @app.get("/api/devices")
 async def get_devices():
     """Get list of all devices."""
+    try:
+        config = load_config()
+        config_devices = [
+            device.get("name")
+            for device in config.get_devices()
+            if isinstance(device.get("name"), str) and device.get("name")
+        ]
+        if config_devices:
+            return JSONResponse({"devices": config_devices})
+    except (FileNotFoundError, PermissionError, YAMLError) as exc:
+        logger.warning("Config fallback for /api/devices: %s", exc)
+
     db = get_db(resolve_history_size())
     if not db:
         return JSONResponse({"devices": []})
