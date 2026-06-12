@@ -1907,21 +1907,6 @@ class NetworkWatch {
         summary.appendChild(expandButton);
         tile.appendChild(summary);
 
-        const details = document.createElement('div');
-        details.className = 'ping-details';
-
-        const stats = document.createElement('div');
-        stats.className = 'stats';
-        stats.innerHTML = `
-            <div><strong>Status:</strong> ${this.escapeHtml(statusText)}</div>
-            <div><strong>Success Rate:</strong> ${successRate}</div>
-            <div><strong>Samples:</strong> ${status.successful_samples}/${status.total_samples}</div>
-            ${status.avg_rtt_ms !== null && status.avg_rtt_ms !== undefined ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
-            ${status.last_check_ts ? `<div><strong>Last Check:</strong> ${this.formatTimestampJST(status.last_check_ts)}</div>` : ''}
-            ${status.last_error_message ? `<div><strong>Last Error:</strong> ${this.escapeHtml(status.last_error_message)}</div>` : ''}
-        `;
-        details.appendChild(stats);
-
         // Timeline tiles (oldest -> newest)
         const timelineWrapper = document.createElement('div');
         timelineWrapper.className = 'ping-timeline';
@@ -1939,7 +1924,22 @@ class NetworkWatch {
             timelineWrapper.appendChild(cell);
         });
 
-        details.appendChild(timelineWrapper);
+        tile.appendChild(timelineWrapper);
+
+        const details = document.createElement('div');
+        details.className = 'ping-details';
+
+        const stats = document.createElement('div');
+        stats.className = 'stats';
+        stats.innerHTML = `
+            <div><strong>Status:</strong> ${this.escapeHtml(statusText)}</div>
+            <div><strong>Success Rate:</strong> ${successRate}</div>
+            <div><strong>Samples:</strong> ${status.successful_samples}/${status.total_samples}</div>
+            ${status.avg_rtt_ms !== null && status.avg_rtt_ms !== undefined ? `<div><strong>Avg RTT:</strong> ${status.avg_rtt_ms.toFixed(2)}ms</div>` : ''}
+            ${status.last_check_ts ? `<div><strong>Last Check:</strong> ${this.formatTimestampJST(status.last_check_ts)}</div>` : ''}
+            ${status.last_error_message ? `<div><strong>Last Error:</strong> ${this.escapeHtml(status.last_error_message)}</div>` : ''}
+        `;
+        details.appendChild(stats);
 
         // Add ping export buttons
         const pingExportControls = document.createElement('div');

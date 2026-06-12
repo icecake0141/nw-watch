@@ -119,6 +119,24 @@ def test_debug_page_loads(client):
     assert "sshDevicePanels" in response.text
 
 
+def test_health_check(client):
+    """Test health check endpoint."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert isinstance(data["timestamp"], int)
+
+
+def test_readiness_check_ready(client):
+    """Test readiness endpoint with an available database."""
+    response = client.get("/ready")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+    assert isinstance(data["timestamp"], int)
+
+
 def test_debug_config_masks_sensitive_values(client, tmp_path, monkeypatch):
     """Test debug configuration masks secrets."""
     config_path = tmp_path / "config.yaml"

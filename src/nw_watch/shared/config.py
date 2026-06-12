@@ -125,6 +125,22 @@ class Config:
         )
 
     # ------------------------------------------------------------------ #
+    # Logging settings
+    # ------------------------------------------------------------------ #
+    def get_logging_config(self) -> Dict[str, Any]:
+        """Return normalized logging configuration."""
+        logging_config = self.data.get("logging") or {}
+        return {
+            "level": str(logging_config.get("level", "INFO")).upper(),
+            "format": logging_config.get("format", "text"),
+            "console": bool(logging_config.get("console", True)),
+            "file": bool(logging_config.get("file", True)),
+            "file_path": logging_config.get("file_path"),
+            "max_bytes": int(logging_config.get("max_bytes", 10485760)),
+            "backup_count": int(logging_config.get("backup_count", 5)),
+        }
+
+    # ------------------------------------------------------------------ #
     # WebSocket settings
     # ------------------------------------------------------------------ #
     def get_websocket_enabled(self) -> bool:

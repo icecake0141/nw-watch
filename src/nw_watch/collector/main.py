@@ -38,13 +38,9 @@ from nw_watch.shared.control_state import (
     update_control_state,
 )
 from nw_watch.shared.db import Database
-from nw_watch.shared.debug import log_ssh_session, setup_debug_file_logging
+from nw_watch.shared.debug import configure_logging_from_config_path, log_ssh_session
 from nw_watch.shared.filters import process_output
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-setup_debug_file_logging()
 logger = logging.getLogger(__name__)
 PING_HOST_PATTERN = re.compile(r"^[a-zA-Z0-9._:-]+$")
 InitialCommand = Dict[str, Optional[str]]
@@ -894,6 +890,10 @@ def main():
         help="Directory for SQLite data files (default: NW_WATCH_DATA_DIR or data)",
     )
     args = parser.parse_args()
+    if args.data_dir:
+        os.environ["NW_WATCH_DATA_DIR"] = args.data_dir
+        os.environ.setdefault("NW_WATCH_LOG_DIR", str(Path(args.data_dir) / "logs"))
+    configure_logging_from_config_path(args.config)
 
     try:
         asyncio.run(async_main(args.config, data_dir=args.data_dir))

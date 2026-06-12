@@ -48,6 +48,13 @@ English: [specification.md](specification.md)
 - `ping_targets[].host`
 - `websocket.enabled`
 - `websocket.ping_interval`
+- `logging.level`
+- `logging.format`
+- `logging.console`
+- `logging.file`
+- `logging.file_path`
+- `logging.max_bytes`
+- `logging.backup_count`
 - `ssh.persistent_connections`
 - `ssh.connection_timeout`
 - `ssh.max_reconnect_attempts`
@@ -75,6 +82,8 @@ English: [specification.md](specification.md)
 - `GET /api/diff/devices`
 - `GET /api/ping`
 - `GET /api/config`
+- `GET /health`
+- `GET /ready`
 - `GET /api/collector/status`
 - `POST /api/collector/pause`
 - `POST /api/collector/resume`

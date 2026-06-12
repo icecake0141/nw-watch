@@ -18,6 +18,16 @@ ping_window_seconds: 60          # Window (seconds) for ping tiles
 history_size: 10                 # Max runs per device/command to keep
 max_output_lines: 500            # Truncate outputs after filtering
 
+# Logging settings (optional)
+logging:
+  level: "INFO"                  # DEBUG, INFO, WARNING, or ERROR
+  format: "text"                 # text or json
+  console: true                  # Write logs to stderr
+  file: true                     # Write rotating app logs
+  # file_path: "data/logs/app.log" # Optional explicit app log path
+  max_bytes: 10485760            # Rotate app log after this many bytes
+  backup_count: 5                # Number of rotated log files to keep
+
 # Standalone ping targets independent of SSH command devices (optional, max: 3)
 ping_targets:
   - name: "GatewayVIP"

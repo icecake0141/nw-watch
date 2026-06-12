@@ -46,10 +46,10 @@ from nw_watch.shared.control_state import (
 )
 from nw_watch.shared.db import Database
 from nw_watch.shared.debug import (
+    configure_logging_from_config_path,
     get_app_log_path,
     get_ssh_log_path,
     mask_sensitive_config,
-    setup_debug_file_logging,
 )
 from nw_watch.shared.diff import generate_side_by_side_diff, generate_inline_char_diff
 from nw_watch.shared.export import (
@@ -64,7 +64,7 @@ from nw_watch.shared.export import (
 from nw_watch.webapp.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
-setup_debug_file_logging()
+configure_logging_from_config_path(os.environ.get("NW_WATCH_CONFIG", "config.yaml"))
 
 # Background task state
 _background_task = None
@@ -206,6 +206,36 @@ def get_db(history_size: int) -> Optional[Database]:
     if not DATABASE_PATH.exists():
         return None
     return Database(str(DATABASE_PATH), history_size=history_size)
+
+
+@app.get("/health")
+async def health_check():
+    """Return process liveness for monitoring systems."""
+    return JSONResponse({"status": "healthy", "timestamp": int(time.time())})
+
+
+@app.get("/ready")
+async def readiness_check():
+    """Return readiness based on database availability."""
+    db = get_db(resolve_history_size())
+    if db is None:
+        return JSONResponse(
+            {"status": "not ready", "reason": "database unavailable"},
+            status_code=503,
+        )
+
+    try:
+        db.conn.execute("SELECT 1").fetchone()
+    except Exception as exc:
+        logger.warning("Readiness check failed: %s", exc)
+        return JSONResponse(
+            {"status": "not ready", "reason": "database unavailable"},
+            status_code=503,
+        )
+    finally:
+        db.close()
+
+    return JSONResponse({"status": "ready", "timestamp": int(time.time())})
 
 
 def get_command_device_names(db: Database) -> list[str]:

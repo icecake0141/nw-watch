@@ -3,24 +3,24 @@
 This document contains improvement suggestions identified during the comprehensive repository review on 2024-01-09.
 
 **Last Review**: 2026-01-10  
-**Implementation Summary**: 12 of 20 items fully implemented, 2 partially implemented, 6 remaining
+**Implementation Summary**: 15 of 20 items fully implemented, 1 partially implemented, 5 remaining
 
 ## High Priority Improvements
 
-### 1. ⚠️ Add Logging Configuration - PARTIALLY IMPLEMENTED
+### 1. ✅ Add Logging Configuration - IMPLEMENTED
 
 **Category**: Observability  
 **Priority**: High  
 **Effort**: Low  
-**Status**: ⚠️ **PARTIALLY IMPLEMENTED**
+**Status**: ✅ **IMPLEMENTED**
 
 **Description**:
-While the application uses logging, there's no centralized logging configuration. Log levels, formats, and outputs should be configurable.
+The application now has centralized logging configuration for log levels, formats, outputs, and rotation.
 
 **Suggested Implementation**:
 - Add logging configuration section to `config.yaml`
 - Support log levels: DEBUG, INFO, WARNING, ERROR
-- Support multiple log outputs: file, console, syslog
+- Support multiple log outputs: file and console
 - Add log rotation configuration
 - Include structured logging (JSON format option)
 
@@ -31,22 +31,22 @@ While the application uses logging, there's no centralized logging configuration
 - Professional production deployment
 
 **Implementation Notes**:
-- ⚠️ Basic logging is configured in collector and webapp using `logging.basicConfig()`
-- ❌ No logging configuration section in `config.yaml`
-- ❌ Log levels, output formats, and rotation not configurable
-- **TODO**: Add logging configuration to `config.yaml` for full control
+- ✅ `config.yaml` supports a `logging` section
+- ✅ Log level, text/JSON format, console output, file output, and rotation are configurable
+- ✅ Collector, runtime wrapper, and webapp use the shared logging configuration helper
+- ℹ️ Syslog output remains out of scope for the current implementation
 
 ---
 
-### 2. ❌ Implement Health Check Endpoints - NOT IMPLEMENTED
+### 2. ✅ Implement Health Check Endpoints - IMPLEMENTED
 
 **Category**: Monitoring  
 **Priority**: High  
 **Effort**: Low  
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: ✅ **IMPLEMENTED**
 
 **Description**:
-The web application lacks health check and readiness endpoints for monitoring and orchestration platforms.
+The web application now includes health check and readiness endpoints for monitoring and orchestration platforms.
 
 **Suggested Implementation**:
 ```python
@@ -75,9 +75,9 @@ async def readiness_check():
 - Better operational visibility
 
 **Implementation Notes**:
-- ❌ No `/health` endpoint in `webapp/main.py`
-- ❌ No `/ready` endpoint in `webapp/main.py`
-- **TODO**: Add health and readiness check endpoints to webapp
+- ✅ `/health` endpoint returns process liveness and a timestamp
+- ✅ `/ready` endpoint verifies SQLite database availability and returns 503 when unavailable
+- ✅ Webapp tests cover both healthy and ready responses
 
 ---
 
@@ -171,15 +171,15 @@ Interactive API documentation is available at:
 
 ## Testing Improvements
 
-### 6. ❌ Add Integration Tests - NOT IMPLEMENTED
+### 6. ✅ Add Integration Tests - IMPLEMENTED
 
 **Category**: Testing  
 **Priority**: Medium  
 **Effort**: High  
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: ✅ **IMPLEMENTED**
 
 **Description**:
-Current tests are mostly unit tests. Integration tests would verify end-to-end functionality.
+The test suite now includes integration tests for end-to-end behavior in addition to unit coverage.
 
 **Suggested Implementation**:
 - Test collector → database → webapp flow
@@ -188,9 +188,8 @@ Current tests are mostly unit tests. Integration tests would verify end-to-end f
 - Test concurrent access scenarios
 
 **Implementation Notes**:
-- ❌ No integration tests in `tests/` directory
-- ✅ Unit tests exist for diff, filters, truncate, db, and webapp
-- **TODO**: Add integration tests for end-to-end flows
+- ✅ `tests/test_integration.py` covers collector/database flow, config-to-database-to-webapp behavior, filtering integration, concurrent reads, database consistency, and export integrity
+- ✅ `tests/test_collector_control_integration.py` covers collector control API integration
 
 ---
 
@@ -254,20 +253,20 @@ Add documentation for deploying with HTTPS using reverse proxy (nginx, Caddy).
 ## Summary
 
 **Total Suggestions**: 20
-- ✅ **Fully Implemented**: 12 items removed from this list
-- ⚠️ **Partially Implemented**: 2 items (Logging Configuration, API Documentation)
-- ❌ **Not Implemented**: 6 items remaining
+- ✅ **Fully Implemented**: 15 items
+- ⚠️ **Partially Implemented**: 1 item (API Documentation)
+- ❌ **Not Implemented**: 5 items remaining
 
 **Remaining Items by Priority**:
-- **High Priority**: 2 items (Logging Configuration, Health Check Endpoints)
-- **Medium Priority**: 5 items (Rate Limiting, Metrics Collection, Integration Tests, CSP, HTTPS Docs)
+- **High Priority**: 0 items
+- **Medium Priority**: 4 items (Rate Limiting, Metrics Collection, CSP, HTTPS Docs)
 - **Low Priority**: 2 items (API Documentation, Performance Tests)
 
 **Remaining Items by Category**:
 - Security: 3 items (Rate Limiting, CSP, HTTPS Documentation)
-- Observability: 2 items (Logging Configuration, Metrics Collection)
-- Testing: 2 items (Integration Tests, Performance Tests)
-- Monitoring: 1 item (Health Check Endpoints)
+- Observability: 1 item (Metrics Collection)
+- Testing: 1 item (Performance Tests)
+- Monitoring: 0 items
 - Documentation: 1 item (API Documentation)
 
 These remaining improvements would further enhance the production-readiness, security, observability, and testing coverage of the nw-watch application.

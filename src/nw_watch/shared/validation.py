@@ -12,7 +12,7 @@
 """Configuration validation using Pydantic models."""
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -308,6 +308,38 @@ class CollectorConfig(BaseModel):
         return v
 
 
+class LoggingConfig(BaseModel):
+    """Application logging configuration."""
+
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    format: Literal["text", "json"] = "text"
+    console: bool = True
+    file: bool = True
+    file_path: Optional[str] = None
+    max_bytes: int = Field(default=10485760, gt=0)
+    backup_count: int = Field(default=5, ge=0)
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def normalize_level(cls, v: str) -> str:
+        """Normalize configured log level."""
+        return str(v).upper()
+
+    @field_validator("format", mode="before")
+    @classmethod
+    def normalize_format(cls, v: str) -> str:
+        """Normalize configured log format."""
+        return str(v).lower()
+
+    @field_validator("file_path")
+    @classmethod
+    def validate_file_path(cls, v: Optional[str]) -> Optional[str]:
+        """Validate log file path is not empty when provided."""
+        if v is not None and not v.strip():
+            raise ValueError("logging.file_path must not be empty")
+        return v
+
+
 class ConfigSchema(BaseModel):
     """Root configuration schema."""
 
@@ -323,6 +355,7 @@ class ConfigSchema(BaseModel):
     websocket: Optional[WebSocketConfig] = Field(default_factory=WebSocketConfig)
     ssh: Optional[SSHConfig] = Field(default_factory=SSHConfig)
     collector: Optional[CollectorConfig] = Field(default_factory=CollectorConfig)
+    logging: Optional[LoggingConfig] = Field(default_factory=LoggingConfig)
 
     commands: List[CommandConfig] = Field(default_factory=list)
     devices: List[DeviceConfig] = Field(default_factory=list)
