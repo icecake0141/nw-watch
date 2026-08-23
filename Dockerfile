@@ -10,7 +10,7 @@
 # This file was created or modified with the assistance of an AI (Large Language Model).
 # Review required for correctness, security, and licensing.
 # Dockerfile for nw-watch
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Set working directory
 WORKDIR /app

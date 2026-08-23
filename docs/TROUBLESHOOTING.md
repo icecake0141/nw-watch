@@ -583,7 +583,7 @@ This guide provides solutions to common issues you may encounter when using nw-w
    docker-compose build --no-cache
    ```
 
-The Docker image uses Python 3.12 and the runtime wrapper starts collector and Uvicorn together. If either child process exits unexpectedly, the wrapper logs which process ended and stops the other one.
+The Docker image uses Python 3.14 and the runtime wrapper starts collector and Uvicorn together. If either child process exits unexpectedly, the wrapper logs which process ended and stops the other one.
 
 ## Web Interface Issues
 
