@@ -65,4 +65,4 @@ pytest -v --tb=short --cov=nw_watch --cov-report=xml --cov-report=term
 
 CI 設定ファイル: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 
-PR では Python 3.12、`main` / `develop` への push では Python 3.11/3.12 で lint とテストが実行されます。
+PR では Python 3.14、`main` / `develop` への push では Python 3.11/3.14 で lint とテストが実行されます。

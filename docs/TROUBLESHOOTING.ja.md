@@ -77,7 +77,7 @@ Docker 利用時はホスト側 `data/` の所有者も確認してください�
 - `docker-compose logs nw-watch` で `runtime_startup_failed`、`Config file not found`、`Configuration validation failed` を確認
 - `config.yaml` がファイルとして存在するか確認（存在しない場合は `cp config.example.yaml config.yaml`）
 - `.env` の `DEVICE*_PASSWORD` が空ではないか確認
-- `docker-compose build --no-cache` で Python 3.12 ベースのイメージを再ビルド
+- `docker-compose build --no-cache` で Python 3.14 ベースのイメージを再ビルド
 - runtime wrapper は collector または Uvicorn のどちらかが終了した場合、残りのプロセスも停止して終了コードをログに出します
 
 ## ログの見方
