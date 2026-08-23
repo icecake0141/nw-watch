@@ -65,4 +65,4 @@ pytest -v --tb=short --cov=nw_watch --cov-report=xml --cov-report=term
 
 CI workflow file: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 
-The pipeline runs lint and tests on Python 3.12 for PRs, and 3.11/3.12 for pushes to `main` and `develop`.
+The pipeline runs lint and tests on Python 3.14 for PRs, and 3.11/3.14 for pushes to `main` and `develop`.
